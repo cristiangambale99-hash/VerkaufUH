@@ -1,0 +1,20 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Upload</title>
+<body style="font:15px sans-serif;padding:24px;max-width:560px"><h3>Dateien hochladen</h3>
+<input id="k" placeholder="Schlüssel" style="width:100%;padding:8px;margin-bottom:10px"><input id="f" type="file" multiple><button id="go" style="margin-left:8px;padding:8px 14px">Hochladen</button><pre id="log"></pre>
+<script>
+const L=t=>document.getElementById('log').textContent+=t+'\n';
+const CT={html:'text/html; charset=utf-8',pdf:'application/pdf',ttf:'font/ttf',png:'image/png'};
+function b64(buf){let s='';const u=new Uint8Array(buf);for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s)}
+document.getElementById('go').onclick=async()=>{
+ const key=document.getElementById('k').value.trim();
+ for(const f of document.getElementById('f').files){
+  const buf=new Uint8Array(await f.arrayBuffer()),CH=600000,tot=Math.ceil(buf.length/CH)||1,ext=f.name.split('.').pop();
+  for(let i=0;i<tot;i++){
+   const r=await fetch('/api/upload',{method:'POST',headers:{'content-type':'application/json','x-upload-key':key},body:JSON.stringify({name:f.name,ctype:CT[ext]||'application/octet-stream',idx:i,total:tot,b64:b64(buf.slice(i*CH,(i+1)*CH))})});
+   if(!r.ok){L('FEHLER '+f.name+' '+i+' '+await r.text());return}
+  }
+  L('ok '+f.name+' ('+buf.length+' Bytes)');
+ }
+ L('FERTIG');
+};
+</script>
