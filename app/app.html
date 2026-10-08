@@ -1842,7 +1842,7 @@ function docPdf(o) {
   const L = UI.pvLang || 'de';
   return `<div class="card pvcard"><div class="pvbar"><div><b>Offerte wie sie der Kunde erhält</b><div class="small muted">Alle Seiten zum Prüfen: Anschreiben, Preisübersicht, Raumbuch, Leistungsverzeichnis, Legende und Grundrissplan.</div></div>
     <span class="langs">${[['de','DE'],['en','EN']].map(([k, l]) => `<button class="chip" data-act="pvLang" data-v="${k}" aria-pressed="${L === k}">${l}</button>`).join('')}</span></div>
-    ${L === 'en' && !(typeof PDF_TPL_EN_B64 === 'string' && PDF_TPL_EN_B64.length > 100) ? `<div class="warnbox" style="margin-bottom:12px">${ico('i-warn')}<div>Die englische Offerte-Vorlage ist noch nicht hinterlegt. Preise, Raumbuch, Leistungsverzeichnis, Legende und Grundrissplan erscheinen auf Englisch. Die festen Seiten (Deckblatt, Firmenpräsentation, Konzept, Qualitätssicherung, AGB) bleiben vorerst Deutsch.</div></div>` : ''}
+
     <div id="pdfPrev" class="pvwrap"><div class="pvmsg">${ico('i-info')}<span>Offerte wird erstellt …</span></div></div></div>`;
 }
 async function loadPdfPreview(o, lang) {
