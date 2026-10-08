@@ -1107,6 +1107,43 @@ async function beSendPlain(btn, o, m, kind) {
   catch (e) { toast('Mail konnte nicht gesendet werden: ' + (e.message || e), 'error'); return false; }
   finally { BE_BUSY--; if (btn) btn.disabled = false; }
 }
+/* Objektordner und QR-Code: entsteht automatisch bei «Gewonnen» (Leistungsverzeichnis, feste Unterlagen, Online-Seite, QR-Code in qrfy) */
+const ORD_BUSY = {};
+async function ordUploadLv(o) {
+  const doc = await buildLvPdf(o, 'de'), bytes = await doc.save({ useObjectStreams: true }), CH = 600000, tot = Math.max(1, Math.ceil(bytes.length / CH)); let j = {};
+  for (let i = 0; i < tot; i++) {
+    const r = await beApi('/api/ordner', { method: 'POST', body: JSON.stringify({ nr: o.nr, firma: custOf(o).firma, hilfe: S.settings.ordnerHilfe !== 'nein', idx: i, total: tot, b64: b64OfBytes(bytes.subarray(i * CH, (i + 1) * CH)) }) });
+    j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'Übertragung des Leistungsverzeichnisses fehlgeschlagen');
+  }
+  return j;
+}
+async function startOrdner(o, withQr = true, quiet = false) {
+  if (!BE_ON || !o || !o.nr || !o.rooms || !o.rooms.length || ORD_BUSY[o.id]) return;
+  ORD_BUSY[o.id] = 1; const od = o.ordner = Object.assign(o.ordner || {}, { busy: true, err: '' });
+  if (UI.panel) renderPanel(true);
+  try {
+    const j = await ordUploadLv(o); od.url = j.url; od.lvAt = isoDay(TODAY); od.lvRev = o.lvRev || 0;
+    if (withQr && !(od.qr && od.qr.id != null)) {
+      const r = await beApi('/api/qrfy', { method: 'POST', body: JSON.stringify({ action: 'create', nr: o.nr, firma: custOf(o).firma }) }), q = await r.json().catch(() => ({}));
+      od.qr = q.ok ? { id: q.qrId, name: q.name, image: !!q.image, at: isoDay(TODAY) } : { err: q.error || 'qrfy nicht erreichbar', det: (q.versuche || []).slice(0, 4).map(v => `${v.form} ${v.status}: ${v.antwort}`).join(' | ') };
+    }
+    logO(o, withQr ? `Objektordner erstellt${od.qr && od.qr.id != null ? ', QR-Code in qrfy angelegt (' + od.qr.name + ')' : od.qr && od.qr.err ? ', QR-Code in qrfy fehlgeschlagen: ' + od.qr.err : ''}` : 'Objektordner: Leistungsverzeichnis aktualisiert');
+    if (!quiet) toast(od.qr && od.qr.err ? 'Objektordner erstellt, QR-Code in qrfy fehlgeschlagen' : 'Objektordner und QR-Code sind bereit', od.qr && od.qr.err ? 'warning' : 'sparkle');
+  } catch (e) { od.err = String(e.message || e); if (!quiet) toast('Objektordner konnte nicht erstellt werden: ' + od.err, 'error'); }
+  finally { od.busy = false; delete ORD_BUSY[o.id]; save(); if (UI.panel) renderPanel(true); }
+}
+const ordCard = o => {
+  if (!BE_ON || o.status !== 'gewonnen' || o.inaktiv) return '';
+  const od = o.ordner || {}, has = !!od.url, qrOk = od.qr && od.qr.id != null;
+  const stale = has && (od.lvRev || 0) !== (o.lvRev || 0);
+  const line = (a, b) => `<div class="row"><span class="muted">${a}</span><span>${b}</span></div>`;
+  let inner;
+  if (od.busy) inner = '<p class="small">Wird erstellt. Das dauert einige Sekunden.</p>';
+  else if (!has) inner = `<p class="small" style="margin-top:0">${od.err ? '<b style="color:var(--cs-err,#b42318)">Fehler: ' + esc(od.err) + '</b><br>' : ''}Der Objektordner mit Leistungsverzeichnis, Ansprechpartner, Notrufnummern, 4-Farben-System, Sicherheitsdatenblättern und Gefahrstoffen ist noch nicht erstellt.</p><button class="btn btn-p btn-sm" data-act="ordnerRun" data-id="${o.id}">Objektordner jetzt erstellen</button>`;
+  else inner = `${line('Objektordner', `<a href="${esc(od.url)}" target="_blank" rel="noopener">online öffnen</a>`)}${line('QR-Code in qrfy', qrOk ? `<span class="badge b-ok">angelegt</span> <span class="muted small">${esc(od.qr.name || '')}</span>` : `<span class="badge b-warn">fehlt</span> <span class="muted small">${esc((od.qr && od.qr.err) || 'noch nicht angelegt')}</span>`)}${line('Leistungsverzeichnis im Ordner', stale ? '<span class="badge b-warn">veraltet</span>' : `<span class="badge b-ok">aktuell</span> <span class="muted small">${o.lvRev ? 'Version ' + o.lvRev : 'Original'}</span>`)}${od.qr && od.qr.det ? `<div class="small muted" style="margin-top:6px">${esc(od.qr.det)}</div>` : ''}${od.err ? `<div class="small" style="color:var(--cs-err,#b42318);margin-top:6px">${esc(od.err)}</div>` : ''}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn btn-p btn-sm" data-act="aushangDl" data-id="${o.id}">Aushang (Word) laden</button><a class="btn btn-s btn-sm" href="${esc(od.url)}/komplett" target="_blank" rel="noopener">Alles als ein PDF</a>${stale || od.err ? `<button class="btn btn-s btn-sm" data-act="ordnerRun" data-id="${o.id}">Leistungsverzeichnis aktualisieren</button>` : ''}${qrOk ? '' : `<button class="btn btn-s btn-sm" data-act="qrRun" data-id="${o.id}">QR-Code in qrfy anlegen</button>`}</div>`;
+  return `<div class="adjcard" style="border-color:var(--cs-line);background:#fff"><b>Objektordner und QR-Code</b>${inner}</div>`;
+};
 /* Kalendereinladungen: intern an den Verkäufer (und Zusatzadressen), zusätzlich an die Ansprechperson des Kunden */
 function mailsOf(txt) { return String(txt || '').match(/[^\s;,·<>]+@[^\s;,·<>]+\.[a-z]{2,}/gi) || []; }
 function calRecipients(o) {
@@ -1981,6 +2018,7 @@ function lvPanelHtml(id) {
     ${o.status !== 'gewonnen' ? `<div class="adjcard" style="border-color:var(--cs-line);background:#fff"><b>Auftrag nicht erhalten</b><p>Dieser Kunde ist inaktiv, weil kein Auftrag erteilt wurde. Das Leistungsverzeichnis lässt sich erst nach Auftragserteilung hier anpassen. Bis dahin gilt die Offerte.</p><button class="btn btn-s" data-act="editBes" data-id="${o.id}">Besichtigung öffnen</button> <button class="btn btn-s" data-act="openOff" data-id="${o.id}">Zur Offerte</button></div>` : ''}
     ${o.status === 'gewonnen' && !o.inaktiv ? `<div class="adjcard"><b>${o.lvEditing ? 'Leistungsverzeichnis wird angepasst' : o.revising ? 'Offerte wird angepasst' : 'Anpassen: Was soll sich ändern?'}</b><p>${o.lvEditing ? 'Die Offerte und der Kunde bleiben unberührt.' : o.revising ? 'Die Änderungen sind noch nicht gesendet. Weiter bearbeiten oder zur Kontrolle öffnen und senden.' : '<b>Nur Leistungsverzeichnis:</b> Räume, Leistungen und Häufigkeiten ändern, ohne neue Offerte. Der Kunde erhält nichts.<br><b>Offerte inkl. Leistungsverzeichnis:</b> zusätzlich Preis und Zusätze ändern. Danach geht die angepasste Offerte mit neuem PDF an den Kunden.'}</p><div style="display:flex;gap:8px;flex-wrap:wrap">${o.revising ? `<button class="btn btn-p" data-act="editBes" data-id="${o.id}">Anpassung fortsetzen</button>` : o.lvEditing ? `<button class="btn btn-p" data-act="lvEdit" data-id="${o.id}">Anpassung fortsetzen</button>` : `<button class="btn btn-p" data-act="lvEdit" data-id="${o.id}">Nur Leistungsverzeichnis</button><button class="btn btn-s" data-act="reviseOff" data-id="${o.id}">Offerte inkl. Leistungsverzeichnis</button>`}</div></div>`  : ''}
     ${pr ? `<div class="warnbox">${ico('i-warn')}<div>Mit der letzten Änderung ${last.monthly > last.monthlyBefore ? 'steigt' : 'sinkt'} die Monatspauschale von ${chf(last.monthlyBefore)} auf ${chf(last.monthly)}. Soll der Kunde die neue Pauschale erhalten, die Offerte anpassen und senden. <button class="btn btn-s btn-sm" data-act="reviseOff" data-id="${o.id}" style="margin-top:8px">Offerte ebenfalls anpassen</button></div></div>` : ''}
+    ${ordCard(o)}
     ${o.status === 'gewonnen' ? `<div class="adjcard" style="border-color:var(--cs-line);background:#fff"><b>Kundenstatus: ${o.inaktiv ? 'Inaktiv seit ' + fmtDay(o.inaktivSeit) : 'Aktiv'}</b><p>${o.inaktiv ? 'Der Kunde wird nicht mehr bedient. Das Leistungsverzeichnis bleibt zur Einsicht erhalten.' : 'Wird der Kunde nicht mehr bedient (Kündigung, Pause, Objekt aufgegeben), auf inaktiv setzen.'}</p>${aktivBtn(o, o.inaktiv ? 'btn-p' : 'btn-s')}</div>` : ''}
     <button class="btn btn-s btn-sm" data-act="openKun" data-id="${o.customerId}">Kundendaten, Logo und Objekte</button>
     <dl class="dl"><dt>Objekt</dt><dd>${esc(o.name)}, ${esc(o.adresse)}</dd><dt>Räume</dt><dd>${o.rooms.length} · ${fmtN(c.area, 1)} m²</dd><dt>Stunden/Jahr</dt><dd>${fmtN(c.hours, 1)} h</dd><dt>Monatspauschale</dt><dd>${chf(c.monthly)}</dd></dl>
@@ -2184,6 +2222,7 @@ function renderSet() {
     body = card('Verbindung und Daten', '',
       `<div class="infobox">${ico('i-info')}<div>${DEMO ? 'Demo-Modus: keine gemeinsame Datenbank erreichbar. Änderungen bleiben nur in diesem Browser.' : BE_ON ? 'Verbunden mit dem Server. Alle Daten liegen in der Datenbank (Supabase) und sind auf allen Geräten gleich. Mails laufen über Resend von unterhalt@clean-service.ch.' : 'Lokaler Modus.'}</div></div>
       <div class="row"><span class="muted">Offerten / Objekte</span><b class="num">${n(S.objects)}</b></div><div class="row"><span class="muted">Kunden</span><b class="num">${n(S.customers)}</b></div><div class="row"><span class="muted">Archiv</span><b class="num">${n(S.archive)}</b></div><div class="row"><span class="muted">Referenzkunden</span><b class="num">${n(S.refs)}</b></div>`)
+    + card('QR-Codes (qrfy) und Objektordner', 'Bei «Gewonnen» entsteht automatisch der Objektordner und in qrfy ein QR-Code mit dem Titel «Firma – Offertnummer». Der Schlüssel liegt in Vercel (QRFY_API_KEY).', sel('sOrdH', 'Hilfemassnahmen in den Objektordner aufnehmen', 'ordnerHilfe', [['ja', 'Ja'], ['nein', 'Nein']]) + `<div class="factions" style="margin-top:8px"><button type="button" class="btn btn-s" data-act="qrfyTest">Verbindung zu qrfy testen</button></div><div id="qrfyOut" class="small" style="margin-top:8px"></div>`)
     + card('Datensicherung', 'Lädt alle Offerten, Kunden, das Archiv, die Einstellungen und die Referenzliste als Datei herunter (ohne Fotos). Empfohlen: einmal pro Monat.', `<div class="factions"><button type="button" class="btn btn-s" data-act="backup">${ico('i-down')}Datensicherung herunterladen</button></div>`)
     + card('Zugang', 'Alle Mitarbeitenden melden sich mit demselben Zugangscode an.', `<div class="infobox">${ico('i-info')}<div>Der Zugangscode wird nicht in der App, sondern im Hosting geändert: Vercel → Projekt → Settings → Environment Variables → <b>APP_CODE</b>. Nach der Änderung einmal neu deployen. Ein längerer Code ist sicherer.</div></div>${BE_ON ? '<div class="factions"><button class="btn btn-s" data-act="logout">Abmelden</button></div>' : ''}${DEMO ? '<div class="factions"><button class="btn btn-s" data-act="resetDemo">Demo-Daten zurücksetzen</button></div>' : ''}`)
     + card('Wo ändere ich was?', '', `<div class="small" style="line-height:1.7"><b>Stundensatz, Konditionen:</b> Allgemein · <b>Mail-Texte, Signatur:</b> Mails · <b>Nachfass-Rhythmus und Texte:</b> Nachfassung · <b>Dauer Besichtigung, Kalender, Kopien:</b> Besichtigung · <b>Verkäufer:</b> Team · <b>Referenzen:</b> Referenzen · <b>Leistungswerte, Gruppen, Dispo:</b> die gleichnamigen Reiter.</div>`);
@@ -2270,6 +2309,7 @@ function setStatus(o, v) {
   if (v === 'versendet') { if (!o.nr) o.nr = o.objNr || nextNr(o); o.sent = isoDay(TODAY); }
   const labels = { erfassung: 'Zurück in Erfassung', freigabe: 'Entwurf erstellt', freigegeben: 'Entwurf', versendet: 'Offerte an Kunden gesendet', gewonnen: 'Gewonnen (aktiv), Nachfassung beendet', verloren: 'Abgesagt, Nachfassung beendet' };
   logO(o, labels[v]); save();
+  if (v === 'gewonnen' && prev !== 'gewonnen') setTimeout(() => startOrdner(o), 80);
   const keys = { freigegeben: 'check', versendet: 'sent', gewonnen: 'sparkle', verloren: 'info', erfassung: 'info', freigabe: 'invoice' };
   toast(`${labels[v]}${o.nr ? ' · ' + o.nr : ''}`, keys[v]);
   return prev;
@@ -2513,8 +2553,12 @@ const ACT = {
     const note = (($('#lvNote') || {}).value || '').trim(), mb = snap ? objCalc(snap).monthly : c.monthly;
     o.lvRev = (o.lvRev || 0) + 1; o.lvHist = (o.lvHist || []).concat([{ rev: o.lvRev, date: isoDay(TODAY), note, added, removed, changed, hours: c.hours, monthly: c.monthly, monthlyBefore: mb }]);
     delete o.lvEditing; delete LVSNAP[o.id]; logO(o, `Leistungsverzeichnis Version ${o.lvRev} gespeichert${note ? ': ' + note : ''}`); save();
-    toast(`Leistungsverzeichnis gespeichert · Version ${o.lvRev}`, 'sent'); go('kun'); openPanel({ type: 'lv', id: o.id });
+    toast(`Leistungsverzeichnis gespeichert · Version ${o.lvRev}`, 'sent'); if (o.ordner && o.ordner.url) startOrdner(o, false, true); go('kun'); openPanel({ type: 'lv', id: o.id });
   },
+  ordnerRun: el => { const o = objOf(el.dataset.id); if (o) startOrdner(o, !(o.ordner && o.ordner.qr && o.ordner.qr.id != null)); },
+  qrRun: el => { const o = objOf(el.dataset.id); if (o) { if (o.ordner) delete o.ordner.qr; startOrdner(o, true); } },
+  aushangDl: async el => { const o = objOf(el.dataset.id); if (!o) return; el.disabled = true; try { const r = await beApi('/api/aushang?nr=' + encodeURIComponent(o.nr)); if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || 'HTTP ' + r.status); } const blob = await r.blob(); await saveBlob(blob, 'Aushang_QR-Code_' + safeName(custOf(o).firma) + '_' + safeName(o.nr) + '.docx', o, 'Aushang (Word) heruntergeladen', 'Aushang gespeichert'); } catch (e) { toast('Aushang konnte nicht erstellt werden: ' + (e.message || e), 'error'); } finally { el.disabled = false; } },
+  qrfyTest: async el => { const out = $('#qrfyOut'); if (out) out.textContent = 'Prüfe Verbindung …'; try { const r = await beApi('/api/qrfy', { method: 'POST', body: JSON.stringify({ action: 'test' }) }), j = await r.json(); if (out) out.innerHTML = j.error ? `<span class="badge b-warn">Fehler</span> ${esc(j.error)}` : `<span class="badge ${j.ok ? 'b-ok' : 'b-warn'}">${j.ok ? 'Verbunden' : 'Keine Verbindung'}</span> ` + (j.results || []).map(x => `<div class="small muted">${esc(x.host)}: ${x.status} ${esc(x.antwort)}</div>`).join(''); } catch (e) { if (out) out.textContent = 'Fehler: ' + (e.message || e); } },
   openOff: el => openPanel({ type: 'off', id: el.dataset.id }),
   reviseOff: el => { const o = objOf(el.dataset.id); if (!o || !['versendet', 'gewonnen'].includes(o.status)) return;
     if (!o.revising) { REV[o.id] = JSON.parse(JSON.stringify({ ...o, log: undefined })); o.revising = true; logO(o, `Anpassung gestartet (Revision ${(o.rev || 0) + 1})`); save(); }
@@ -2532,6 +2576,7 @@ const ACT = {
     if (o.status === 'versendet') { o.nf = 0; o.nfDates = []; }
     else if (o.status === 'gewonnen') { o.nf = 0; o.nfDates = []; o.revOpen = true; }
     logO(o, `Angepasste Offerte (Revision ${o.rev}) an ${cu.email} ${BE_ON ? 'gesendet' : 'vorbereitet'}${['versendet', 'gewonnen'].includes(o.status) ? ', Nachfassung startet neu' : ''}`); save(); toast(`Angepasste Offerte gesendet · Rev. ${o.rev}`, 'sent');
+    if (o.status === 'gewonnen' && o.ordner && o.ordner.url) startOrdner(o, false, true);
     if (UI.view === 'doc') renderDoc(); if (UI.panel) renderPanel(true); render();
   },
   confirmSend: async el => {
