@@ -20,22 +20,22 @@ function guard(req, res) { if (okToken(bearer(req))) return true; res.status(401
 async function body(req) { if (req.body && typeof req.body === 'object') return req.body; try { return JSON.parse(req.body || '{}'); } catch (e) { return {}; } }
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 async function settings() { const d = await rpc('api_docs_since', { p_since: '1970-01-01T00:00:00Z' }); const x = d.find(r => r.path === 'config/settings' && !r.deleted); return x ? x.data : {}; }
-function sigHtml(S, iso) {
-  const n = S.mailSigName || 'Diogo Pereira', f = S.mailSigRolle || 'Sachbearbeiter Innendienst', d = S.mailSigDirekt || '052 557 02 12';
-  return `<div style="font-family:Verdana,Arial,sans-serif;font-size:14px;line-height:1.5;color:#555;margin-top:22px"><div style="color:#4fb3a5">${esc(n)}</div>${esc(f)}<br>Direkt ${esc(d)}<br>---------------------------------<br><div style="color:#4fb3a5">Clean Service Scaramuzzo AG</div>Industriestrasse 5<br>8307 Effretikon<br>0844 355 355<div style="margin-top:14px"><img src="${iso}" alt="ISO 9001, 14001, 45001" width="172" height="52" style="display:block;border:0"></div></div>`;
+function sigHtml(S, iso, lang) {
+  const n = S.mailSigName || 'Diogo Pereira', f = lang === 'en' ? (S.mailSigRolleEn || (!S.mailSigRolle || S.mailSigRolle === 'Sachbearbeiter Innendienst' ? 'Office Administration' : S.mailSigRolle)) : (S.mailSigRolle || 'Sachbearbeiter Innendienst'), d = S.mailSigDirekt || '052 557 02 12';
+  return `<div style="font-family:Verdana,Arial,sans-serif;font-size:14px;line-height:1.5;color:#555;margin-top:22px"><div style="color:#4fb3a5">${esc(n)}</div>${esc(f)}<br>${lang === 'en' ? 'Direct' : 'Direkt'} ${esc(d)}<br>---------------------------------<br><div style="color:#4fb3a5">Clean Service Scaramuzzo AG</div>Industriestrasse 5<br>8307 Effretikon<br>0844 355 355<div style="margin-top:14px"><img src="${iso}" alt="ISO 9001, 14001, 45001" width="172" height="52" style="display:block;border:0"></div></div>`;
 }
-function sigText(S) { return `\n\n${S.mailSigName || 'Diogo Pereira'}\n${S.mailSigRolle || 'Sachbearbeiter Innendienst'}\nDirekt ${S.mailSigDirekt || '052 557 02 12'}\n\nClean Service Scaramuzzo AG\nIndustriestrasse 5\n8307 Effretikon\n0844 355 355`; }
-async function sendMail({ to, subject, text, attachments, kind, objectId, S }) {
+function sigText(S, lang) { return `\n\n${S.mailSigName || 'Diogo Pereira'}\n${lang === 'en' ? (S.mailSigRolleEn || (!S.mailSigRolle || S.mailSigRolle === 'Sachbearbeiter Innendienst' ? 'Office Administration' : S.mailSigRolle)) : (S.mailSigRolle || 'Sachbearbeiter Innendienst')}\n${lang === 'en' ? 'Direct' : 'Direkt'} ${S.mailSigDirekt || '052 557 02 12'}\n\nClean Service Scaramuzzo AG\nIndustriestrasse 5\n8307 Effretikon\n0844 355 355`; }
+async function sendMail({ to, subject, text, attachments, kind, objectId, S, lang }) {
   S = S || await settings();
   const base = E.PUBLIC_URL || 'https://offertplattform-uh.vercel.app';
   const MDL = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g;
   const lnk = p => esc(p).replace(MDL, (m, t, u) => `<a href="${u}" style="color:#1f6f8b;text-decoration:underline">${t}</a>`).replace(/\n/g, '<br>');
   let iso = base + '/asset/iso.png', inl = null;
   try { const a = await assetBytes('iso.png'); if (a) { inl = { filename: 'iso.png', content: a.b64, content_type: 'image/png', content_id: 'iso-zertifikate' }; iso = 'cid:iso-zertifikate'; } } catch (e) {}
-  const html = `<div style="font-family:Verdana,Arial,sans-serif;font-size:14px;line-height:1.6;color:#222">${String(text).split(/\n{2,}/).map(p => `<p style="margin:0 0 14px">${lnk(p)}</p>`).join('')}${sigHtml(S, iso)}</div>`;
+  const html = `<div style="font-family:Verdana,Arial,sans-serif;font-size:14px;line-height:1.6;color:#222">${String(text).split(/\n{2,}/).map(p => `<p style="margin:0 0 14px">${lnk(p)}</p>`).join('')}${sigHtml(S, iso, lang)}</div>`;
   const plain = String(text).replace(MDL, '$1: $2');
   const k = String(kind || ''), copy = /^cal/.test(k) ? S.bccBes !== 'nein' : /^(nf\d|re6)/.test(k) ? S.bccNach !== 'nein' : true;
-  const payload = { from: E.MAIL_FROM, to: [to], reply_to: E.MAIL_REPLY_TO, subject, html, text: plain + sigText(S) };
+  const payload = { from: E.MAIL_FROM, to: [to], reply_to: E.MAIL_REPLY_TO, subject, html, text: plain + sigText(S, lang) };
   if (copy) payload.bcc = [E.MAIL_REPLY_TO];
   const att = (attachments && attachments.length ? attachments.slice() : []); if (inl) att.push(inl);
   if (att.length) payload.attachments = att;

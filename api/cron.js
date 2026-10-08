@@ -1,15 +1,17 @@
 const { rpc, sendMail, settings, E } = require('./_lib');
+const { MAIL_NF_EN } = require('./_en');
 const TZ = 'Europe/Zurich';
 const today = () => new Intl.DateTimeFormat('sv-SE', { timeZone: TZ }).format(new Date());
 const addD = (iso, n) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const addM = (iso, n) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCMonth(d.getUTCMonth() + n); return d.toISOString().slice(0, 10); };
 const dmy = iso => iso ? iso.split('-').reverse().join('.') : '–';
 const gaps = S => { const g = String(S.nachStufen || '7T, 14T, 5T').split(/[,;]/).map(x => x.trim()).filter(x => !/M$/i.test(x)).map(x => parseInt(x, 10)).filter(x => x > 0); return [g[0] || 7, g[1] || 14, g[2] || 5]; };
-const salutation = cu => { const n = String(cu.kontakt || '').trim().split(/\s+/).pop() || ''; if (cu.anrede === 'Herr' && n) return `Sehr geehrter Herr ${n}`; if (cu.anrede === 'Frau' && n) return `Sehr geehrte Frau ${n}`; return 'Sehr geehrte Damen und Herren'; };
+const salutation = (cu, lang) => { const n = String(cu.kontakt || '').trim().split(/\s+/).pop() || ''; if (lang === 'en') { if (cu.anrede === 'Herr' && n) return `Dear Mr ${n}`; if (cu.anrede === 'Frau' && n) return `Dear Ms ${n}`; return 'Dear Sir or Madam'; } if (cu.anrede === 'Herr' && n) return `Sehr geehrter Herr ${n}`; if (cu.anrede === 'Frau' && n) return `Sehr geehrte Frau ${n}`; return 'Sehr geehrte Damen und Herren'; };
 function mail(S, o, cu, k, closeDue) {
-  const b = S['mail_' + k + '_b'], t = S['mail_' + k + '_t']; if (!b || !t) return null;
-  const fill = s => s.replace(/\{objekt\}/g, o.name || 'Ihr Objekt').replace(/\{frist\}/g, dmy(closeDue));
-  return { subject: fill(b), text: fill(t).replace(/^Sehr geehrte[^\n]*/, salutation(cu)) };
+  const en = o.lang === 'en', pre = en ? 'mail_en_' : 'mail_';
+  const b = S[pre + k + '_b'] || (en && MAIL_NF_EN[k] && MAIL_NF_EN[k].b), t = S[pre + k + '_t'] || (en && MAIL_NF_EN[k] && MAIL_NF_EN[k].t); if (!b || !t) return null;
+  const fill = s => s.replace(/\{objekt\}/g, o.name || (en ? 'your property' : 'Ihr Objekt')).replace(/\{frist\}/g, dmy(closeDue));
+  return { subject: fill(b), text: fill(t).replace(/^(Sehr geehrte|Dear)[^\n]*/, salutation(cu, en ? 'en' : 'de')) };
 }
 module.exports = async (req, res) => {
   if ((req.headers.authorization || '') !== 'Bearer ' + E.CRON_SECRET) return res.status(401).end();
@@ -26,7 +28,7 @@ module.exports = async (req, res) => {
         const m = mail(S, o, cu, k, closeDue);
         if (!cu.email || !m) { out.push({ nr: o.nr, k, skip: !cu.email ? 'keine E-Mail' : 'Vorlage fehlt' }); return false; }
         if (dry) { out.push({ nr: o.nr, k, dry: true, an: cu.email }); return false; }
-        try { await sendMail({ to: cu.email, subject: m.subject, text: m.text, kind: k, objectId: o.id, S }); out.push({ nr: o.nr, k, gesendet: cu.email }); return true; }
+        try { await sendMail({ to: cu.email, subject: m.subject, text: m.text, kind: k, objectId: o.id, S, lang: o.lang === 'en' ? 'en' : 'de' }); out.push({ nr: o.nr, k, gesendet: cu.email }); return true; }
         catch (e) { out.push({ nr: o.nr, k, fehler: e.message }); return false; }
       };
       if (run) {
