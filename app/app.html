@@ -874,13 +874,25 @@ function seed() {
 let S;
 let DB = null, DEMO = false, READY = false, NOWRITE = false;
 const LSK = 'cs-offertplattform-v2';
-const UI = { view:'bes', cur:null, floor:'Alle', panel:null, objQ:'', objF:'Alle', offQ:'', offF:'Alle', verP:'Jahr', kunQ:'', kunF:'Aktiv', setTab:'grp', setQ:'', docTab:'off', docId:null, showAll:false, confirmDel:false };
+const UI = { view:'bes', cur:null, floor:'Alle', panel:null, objQ:'', objF:'Alle', offQ:'', offF:'Alle', verP:'Jahr', kunQ:'', kunF:'Aktiv', setTab:'allg', setQ:'', docTab:'off', docId:null, showAll:false, confirmDel:false };
 const KONDITIONEN = 'Alle Preise verstehen sich exklusive Mehrwertsteuer (8.1 %). Die Verrechnung erfolgt monatlich im Voraus, zahlbar innert 30 Tagen netto. Die Preise gelten für 12 Monate ab Vertragsbeginn. Der Vertrag ist unbefristet und beidseitig mit einer Frist von 3 Monaten auf Monatsende kündbar. Zusätzliche Arbeiten auf Wunsch werden nach Regiestundensatz verrechnet. Unsere Mitarbeitenden sind über unsere Betriebshaftpflichtversicherung versichert. Diese Offerte ist 60 Tage gültig. Es gelten die Allgemeinen Geschäftsbedingungen der Clean Service Scaramuzzo AG.';
 const MAIL_TEXT = "Sehr geehrte Damen und Herren\n\nHerzlichen Dank für Ihre Anfrage und Ihr Interesse an einer Unterhaltsreinigung. Im Anhang finden Sie unsere individuell erstellte Offerte basierend auf Ihren Angaben.\n\nWenn unser Angebot Ihren Erwartungen entspricht, freuen wir uns über die unterzeichnete Auftragserteilung.\nGerne stehen wir Ihnen auch für eine persönliche Besprechung zur Verfügung, um offene Fragen zu klären oder Details abzustimmen.\n\nZudem möchten wir Sie auf unsere attraktive Verbrauchsmaterialliste hinweisen, die Ihnen hochwertige Produkte zu fairen Preisen bietet. Werfen Sie gerne einen Blick darauf:\n[Verbrauchsmaterialliste ansehen](https://clean-service.ch/wp-content/uploads/Neue-Preisliste-UH-Verbrauch-3.pdf)\n\nWir würden uns freuen, Sie als Kunden begrüssen zu dürfen und Ihnen mit unserem professionellen Service den Alltag zu erleichtern.\n\nFreundliche Grüsse";
 const MAIL_REV_B = "Ihre angepasste Offerte für die Unterhaltsreinigung";
 const MAIL_REV = "Sehr geehrte Damen und Herren\n\nBesten Dank für das Gespräch und Ihre Rückmeldungen. Wie besprochen haben wir unsere Offerte für Ihre Unterhaltsreinigung angepasst und senden Ihnen die aktualisierte Fassung im Anhang. Sie enthält das überarbeitete Raumbuch, das angepasste Leistungsverzeichnis und die entsprechende Preisübersicht.\n\nDie neue Offerte ersetzt die bisherige Version vollständig. Alle übrigen Bestandteile, Konditionen und Konzepte bleiben unverändert.\n\nSind die Anpassungen in Ihrem Sinne, freuen wir uns über die unterzeichnete Auftragserteilung. Für Rückfragen oder weitere Wünsche stehen wir Ihnen jederzeit gerne zur Verfügung, auch für eine persönliche Besprechung vor Ort.\n\nFreundliche Grüsse";
-function mailOffer(o) { const cu = custOf(o), t = (S.settings.mailText || MAIL_TEXT).replace(/^Sehr geehrte[^\n]*/, salutation(cu, 'de')); return { betreff: (S.settings.mailBetreff || 'Ihre Offerte für die Unterhaltsreinigung') + (o.nr ? ' · ' + o.nr : ''), text: t, an: cu.email || '' }; }
-function mailRev(o) { const cu = custOf(o), sal = salutation(cu, 'de'), t = (S.settings.mailTextRev || MAIL_REV).replace(/^Sehr geehrte[^\n]*/, sal); return { betreff: (S.settings.mailBetreffRev || MAIL_REV_B) + (o.nr ? ' · ' + o.nr + (o.rev || o.revising ? ' Rev. ' + ((o.rev || 0) + (o.revising ? 1 : 0)) : '') : ''), text: t, an: cu.email || '' }; }
+/* Englische Mailvorlagen (Sprache der Offerte = Sprache der Mails, gesetzt über DE/EN in der Offerte) */
+const LNK = 'https://clean-service.ch/wp-content/uploads/Neue-Preisliste-UH-Verbrauch-3.pdf';
+const MAIL_EN = { b: 'Your offer for maintenance cleaning', t: "Dear Sir or Madam\n\nThank you very much for your enquiry and your interest in maintenance cleaning. Please find attached our individually prepared offer based on the information you provided.\n\nIf our offer meets your expectations, we would be delighted to receive the signed order confirmation. We are also happy to arrange a personal meeting to clarify any open questions or to agree on details.\n\nWe would also like to draw your attention to our consumables price list, which offers high-quality products at fair prices. Please feel free to take a look:\n[View consumables price list](" + LNK + ")\n\nWe would be delighted to welcome you as a client and to make everyday life easier for you with our professional service.\n\nKind regards" };
+const MAIL_REV_EN = { b: 'Your revised offer for maintenance cleaning', t: "Dear Sir or Madam\n\nThank you for our conversation and your feedback. As discussed, we have revised our offer for your maintenance cleaning and enclose the updated version. It contains the revised room schedule, the adjusted service specification and the corresponding price overview.\n\nThe new offer replaces the previous version in full. All other components, terms and concepts remain unchanged.\n\nIf the adjustments meet your requirements, we would be delighted to receive the signed order confirmation. Should you have any questions or further requests, we are at your disposal at any time, including for a personal meeting on site.\n\nKind regards" };
+const MAIL_NF_EN = {
+  nf1: { b: 'Your offer for maintenance cleaning: happy to answer any questions', t: "Dear Sir or Madam\n\nOne week ago we sent you our offer for the maintenance cleaning of {objekt}. We would like to ask whether you have had the chance to review the documents in peace and whether any questions have come up.\n\nIf you would like individual rooms, services or frequencies adjusted, we will update the service specification and the offer for you without any fuss. We are also happy to discuss the details in a short phone call or directly on site.\n\nWe look forward to hearing from you and to welcoming you as a new client.\n\nKind regards" },
+  nf2: { b: 'Follow-up on our offer for {objekt}', t: "Dear Sir or Madam\n\nThree weeks ago we submitted our offer for the maintenance cleaning of {objekt}. So that we can properly close your enquiry and schedule the cleaning in good time, we kindly ask for a brief reply on whether you are still interested in working with us.\n\nIf your requirements have changed, we will gladly revise the offer and align the services with your current needs. A short call or a reply to this email is all it takes.\n\nIf we have not heard from you by {frist}, we will assume that the topic is not on your agenda at the moment and close the offer for now. You are welcome to contact us at any time, and we will gladly prepare an up-to-date offer for you.\n\nKind regards" },
+  re6: { b: 'Maintenance cleaning for {objekt}: we are still here for you', t: "Dear Sir or Madam\n\nSix months ago we prepared an offer for the maintenance cleaning of {objekt}. As the need for professional cleaning often changes over time, we would like to get in touch briefly.\n\nShould the topic be relevant again for you, we will gladly prepare a revised offer reflecting today's rooms, areas and cleaning rhythms. A non-binding site visit is possible at any time.\n\nWe would be delighted to support you with our reliable service.\n\nKind regards" }
+};
+const SET_DEF = () => { const d = { mailBetreff: 'Ihre Offerte für die Unterhaltsreinigung', mailText: MAIL_TEXT, mailBetreffRev: MAIL_REV_B, mailTextRev: MAIL_REV, mailEnBetreff: MAIL_EN.b, mailEnText: MAIL_EN.t, mailEnBetreffRev: MAIL_REV_EN.b, mailEnTextRev: MAIL_REV_EN.t, konditionen: KONDITIONEN, mailSigName: 'Diogo Pereira', mailSigRolle: 'Sachbearbeiter Innendienst', mailSigDirekt: '052 557 02 12' }; Object.keys(MAIL_NF).forEach(k => { d['mail_' + k + '_b'] = MAIL_NF[k].b; d['mail_' + k + '_t'] = MAIL_NF[k].t; }); Object.keys(MAIL_NF_EN).forEach(k => { d['mail_en_' + k + '_b'] = MAIL_NF_EN[k].b; d['mail_en_' + k + '_t'] = MAIL_NF_EN[k].t; }); return d; };
+const mlang = o => (o && o.lang === 'en') ? 'en' : 'de';
+const GREET = /^(Sehr geehrte|Dear)[^\n]*/;
+function mailOffer(o) { const L = mlang(o), cu = custOf(o), st = S.settings, tx = L === 'en' ? (st.mailEnText || MAIL_EN.t) : (st.mailText || MAIL_TEXT), t = tx.replace(GREET, salutation(cu, L)); return { betreff: (L === 'en' ? (st.mailEnBetreff || MAIL_EN.b) : (st.mailBetreff || 'Ihre Offerte für die Unterhaltsreinigung')) + (o.nr ? ' · ' + o.nr : ''), text: t, an: cu.email || '' }; }
+function mailRev(o) { const L = mlang(o), cu = custOf(o), st = S.settings, sal = salutation(cu, L), t = (L === 'en' ? (st.mailEnTextRev || MAIL_REV_EN.t) : (st.mailTextRev || MAIL_REV)).replace(GREET, sal); return { betreff: (L === 'en' ? (st.mailEnBetreffRev || MAIL_REV_EN.b) : (st.mailBetreffRev || MAIL_REV_B)) + (o.nr ? ' · ' + o.nr + (o.rev || o.revising ? ' Rev. ' + ((o.rev || 0) + (o.revising ? 1 : 0)) : '') : ''), text: t, an: cu.email || '' }; }
 const defaultSettings = () => ({ mailBetreff:'Ihre Offerte für die Unterhaltsreinigung', mailText: MAIL_TEXT, rate:39, nachfassen:5, nachStufen:'7T, 14T, 5T', wf:52/12, team:'Mirco Scaramuzzo; Inhaber; m.scaramuzzo@clean-service.ch\nSergio Da Silva; Objektleiter; s.silva@clean-service.ch\nDiogo Pereira; Sachbearbeiter Administration; d.pereira@clean-service.ch', konditionen: KONDITIONEN, rl:{ ...RL_DEFAULT }, rlTask:{}, groupEdits:{} });
 const blank = () => ({ customers:[], objects:[], archive:[], settings: defaultSettings(), done:{}, seq:{}, media:{} });
 function loadLocal() {
@@ -963,6 +975,7 @@ function docsOf() {
   S.objects.forEach(o => out['objects/' + o.id] = o);
   S.customers.forEach(c => out['customers/' + c.id] = c);
   S.archive.forEach(a => out['archive/' + a.nr] = a);
+  if (S.refsEdited && Array.isArray(S.refs)) out['config/refs'] = { list: S.refs };
   out['config/settings'] = S.settings; out['config/meta'] = { seq: S.seq }; out['config/done'] = { done: S.done };
   Object.entries(S.media).forEach(([k, v]) => out['media/' + k] = { d: v });
   return out;
@@ -1071,7 +1084,7 @@ function makeDb() {
 }
 const b64OfBytes = u8 => { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); };
 async function beStashPdf(o) {
-  const doc = await buildOfferPdf(o, 'de'), bytes = await doc.save({ useObjectStreams: true }), name = 'tmp-' + String(o.id).replace(/[^\w\-]/g, ''), CH = 600000, tot = Math.ceil(bytes.length / CH);
+  const doc = await buildOfferPdf(o, mlang(o)), bytes = await doc.save({ useObjectStreams: true }), name = 'tmp-' + String(o.id).replace(/[^\w\-]/g, ''), CH = 600000, tot = Math.ceil(bytes.length / CH);
   for (let i = 0; i < tot; i++) { const r = await beApi('/api/stash', { method: 'POST', body: JSON.stringify({ name, idx: i, total: tot, b64: b64OfBytes(bytes.subarray(i * CH, (i + 1) * CH)) }) }); if (!r.ok) throw new Error('PDF-Übertragung fehlgeschlagen'); }
   return name;
 }
@@ -1080,8 +1093,8 @@ async function beSendOffer(btn, o, cu, m, kind) {
   try {
     try { if (!window.claude) await Promise.race([ensureLogo(cu), new Promise(r => setTimeout(r, 4000))]); } catch (e) {}
     const stash = await beStashPdf(o);
-    const filename = `Offerte_${safeName(o.nr || 'Entwurf')}${o.rev ? '_Rev' + o.rev : ''}_${safeName(cu.firma)}.pdf`;
-    const r = await beApi('/api/send', { method: 'POST', body: JSON.stringify({ to: cu.email, subject: m.betreff, text: m.text, kind, objectId: o.id, filename, stash }) });
+    const filename = `${mlang(o) === 'en' ? 'Offer' : 'Offerte'}_${safeName(o.nr || 'Entwurf')}${o.rev ? '_Rev' + o.rev : ''}_${safeName(cu.firma)}${mlang(o) === 'en' ? '_EN' : ''}.pdf`;
+    const r = await beApi('/api/send', { method: 'POST', body: JSON.stringify({ to: cu.email, subject: m.betreff, text: m.text, kind, objectId: o.id, filename, stash, lang: mlang(o) }) });
     const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'HTTP ' + r.status);
     toast('Mail ist raus an ' + cu.email, 'sent'); return true;
   } catch (e) { console.error(e); toast('Mail konnte nicht gesendet werden: ' + (e.message || e), 'error'); return false; }
@@ -1090,7 +1103,7 @@ async function beSendOffer(btn, o, cu, m, kind) {
 async function beSendPlain(btn, o, m, kind) {
   if (!m.an) { toast('Beim Kunden fehlt die E-Mail-Adresse.', 'warning'); return false; }
   BE_BUSY++; if (btn) btn.disabled = true;
-  try { const r = await beApi('/api/send', { method: 'POST', body: JSON.stringify({ to: m.an, subject: m.betreff, text: m.text, kind, objectId: o.id || o.nr }) }); const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'HTTP ' + r.status); toast('Mail ist raus an ' + m.an, 'sent'); return true; }
+  try { const r = await beApi('/api/send', { method: 'POST', body: JSON.stringify({ to: m.an, subject: m.betreff, text: m.text, kind, objectId: o.id || o.nr, lang: mlang(o) }) }); const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'HTTP ' + r.status); toast('Mail ist raus an ' + m.an, 'sent'); return true; }
   catch (e) { toast('Mail konnte nicht gesendet werden: ' + (e.message || e), 'error'); return false; }
   finally { BE_BUSY--; if (btn) btn.disabled = false; }
 }
@@ -1112,7 +1125,7 @@ async function beInvite(o, opts = {}) {
     : [cu.kontakt && 'Ansprechperson: ' + cu.kontakt, cu.tel && 'Telefon: ' + cu.tel, cu.email && 'E-Mail: ' + cu.email, o.hinweis && 'Hinweis: ' + o.hinweis, o.objNr && 'Objektnummer: ' + o.objNr, 'Erfassen: https://offertplattform-uh.vercel.app'].filter(Boolean).join('\n');
   const summary = kunde ? 'Besichtigung für Ihre Reinigungsofferte · Clean Service Scaramuzzo AG' : 'Besichtigung UH: ' + (cu.firma || o.name || '') + (cu.kontakt ? ', ' + cu.kontakt : '');
   try {
-    const r = await beApi('/api/invite', { method: 'POST', body: JSON.stringify({ to, uid: 'bes-' + o.id + (kunde ? '-kunde' : '') + '@clean-service.ch', seq, method, start, dur: 60, summary, location: o.adresse || '', description: desc, objectId: o.id, audience: kunde ? 'kunde' : 'intern', greeting: salutation(cu, 'de'), seller: o.verkaeufer || '' }) });
+    const r = await beApi('/api/invite', { method: 'POST', body: JSON.stringify({ to, uid: 'bes-' + o.id + (kunde ? '-kunde' : '') + '@clean-service.ch', seq, method, start, dur: (S.settings.besDauer > 0 ? S.settings.besDauer : 60), summary, location: o.adresse || '', description: desc, objectId: o.id, audience: kunde ? 'kunde' : 'intern', greeting: salutation(cu, 'de'), seller: o.verkaeufer || '' }) });
     const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'HTTP ' + r.status);
     if (!opts.to) {
       if (method === 'CANCEL') { if (kunde) { o.calCTo = []; o.calCKey = ''; } else { o.calTo = []; o.calKey = ''; } }
@@ -1141,6 +1154,7 @@ async function calSync(o) {
 function ensureServerSettings() {
   const st = S.settings; let ch = false;
   Object.keys(MAIL_NF).forEach(k => { if (!st['mail_' + k + '_b']) { st['mail_' + k + '_b'] = MAIL_NF[k].b; ch = true; } if (!st['mail_' + k + '_t']) { st['mail_' + k + '_t'] = MAIL_NF[k].t; ch = true; } });
+  Object.keys(MAIL_NF_EN).forEach(k => { if (!st['mail_en_' + k + '_b']) { st['mail_en_' + k + '_b'] = MAIL_NF_EN[k].b; ch = true; } if (!st['mail_en_' + k + '_t']) { st['mail_en_' + k + '_t'] = MAIL_NF_EN[k].t; ch = true; } });
   [['mailSigName', 'Diogo Pereira'], ['mailSigRolle', 'Sachbearbeiter Innendienst'], ['mailSigDirekt', '052 557 02 12']].forEach(([k, v]) => { if (!st[k]) { st[k] = v; ch = true; } });
   if (ch) save();
 }
@@ -1272,10 +1286,10 @@ const MAIL_NF = {
 };
 const NF_LABEL = { nf1: '1. Nachfassung (7 Tage nach Versand)', nf2: '2. Nachfassung (14 Tage nach der 1. Nachfassung)', re6: 'Erneute Anfrage (6 Monate nach Inaktivsetzung)' };
 function mailNf(o, k) {
-  const cu = custOf(o), S0 = S.settings, d = MAIL_NF[k];
-  const fill = s => s.replace(/\{objekt\}/g, o.name || 'Ihr Objekt').replace(/\{frist\}/g, fmtDay(nfCloseDue(o) || isoDay(addDays(5))));
-  const t = fill(S0['mail_' + k + '_t'] || d.t).replace(/^Sehr geehrte[^\n]*/, salutation(cu, 'de'));
-  return { betreff: fill(S0['mail_' + k + '_b'] || d.b), text: t, an: cu.email || '' };
+  const L = mlang(o), cu = custOf(o), S0 = S.settings, d = (L === 'en' ? MAIL_NF_EN : MAIL_NF)[k], pre = L === 'en' ? 'mail_en_' : 'mail_';
+  const fill = s => s.replace(/\{objekt\}/g, o.name || (L === 'en' ? 'your property' : 'Ihr Objekt')).replace(/\{frist\}/g, fmtDay(nfCloseDue(o) || isoDay(addDays(5))));
+  const t = fill(S0[pre + k + '_t'] || d.t).replace(GREET, salutation(cu, L));
+  return { betreff: fill(S0[pre + k + '_b'] || d.b), text: t, an: cu.email || '' };
 }
 /* Nachfassung: Stufen nach Versand (Standard 7 Tage, 14 Tage, 6 Monate). «Gewonnen (aktiv)» oder «Abgesagt» beendet den Prozess. */
 const nfGaps = () => { const g = String(S.settings.nachStufen || '7T, 14T, 5T').split(/[,;]/).map(x => x.trim()).filter(x => !/M$/i.test(x)).map(x => parseInt(x, 10)).filter(x => x > 0); return [g[0] || 7, g[1] || 14, g[2] || 5]; };
@@ -1839,7 +1853,7 @@ function docOffer(o) {
 const REV = {};   /* Sicherung vor Anpassung (nur in dieser Sitzung) */
 const PV = { tok: 0, key: '', bytes: null };
 function docPdf(o) {
-  const L = UI.pvLang || 'de';
+  const L = mlang(o);
   return `<div class="card pvcard"><div class="pvbar"><div><b>Offerte wie sie der Kunde erhält</b><div class="small muted">Alle Seiten zum Prüfen: Anschreiben, Preisübersicht, Raumbuch, Leistungsverzeichnis, Legende und Grundrissplan.</div></div>
     <span class="langs">${[['de','DE'],['en','EN']].map(([k, l]) => `<button class="chip" data-act="pvLang" data-v="${k}" aria-pressed="${L === k}">${l}</button>`).join('')}</span></div>
 
@@ -1875,9 +1889,9 @@ function renderDoc() {
   const body = { pdf: docPdf, off: docOffer, rb: docRaumbuch, lv: docLV, leg: docLegende }[UI.docTab](o);
   el.innerHTML = phead(`${esc(custOf(o).firma)} · ${esc(o.nr || o.objNr || 'Entwurf')}${o.rev ? ' · Rev. ' + o.rev : ''}`, o.revising ? 'Angepasste Offerte prüfen' : ['freigabe','freigegeben'].includes(o.status) ? 'Offerte prüfen' : 'Offerte', o.revising ? 'Änderungen kontrollieren, dann senden: Der Kunde erhält die angepasste Offerte mit neuem PDF.' : ['freigabe','freigegeben'].includes(o.status) ? 'Alles kontrollieren, dann bestätigen: Die Offerte geht mit dem PDF an den Kunden.' : 'Offertübersicht, Raumbuch und Leistungsverzeichnis.',
     `<span style="display:inline-flex;gap:6px;flex-wrap:wrap">${o.revising ? `<button class="btn btn-p" data-act="sendRev" data-id="${o.id}">${ico('i-send')}Angepasste Offerte senden</button>${REV[o.id] ? `<button class="btn btn-s" data-act="revCancel" data-id="${o.id}">Änderungen verwerfen</button>` : ''}` : ['versendet','gewonnen'].includes(o.status) ? `<button class="btn btn-p" data-act="reviseOff" data-id="${o.id}">${ico('i-doc')}Offerte und LV anpassen</button>` : ''}${['freigabe','freigegeben'].includes(o.status) ? `<button class="btn btn-p" data-act="confirmSend" data-id="${o.id}">${ico('i-send')}Bestätigen und senden</button>` : ''}<button class="btn ${['freigabe','freigegeben'].includes(o.status) ? 'btn-s' : 'btn-p'} pdfbtn" data-act="pdf" data-id="${o.id}"><span class="ld" data-loader></span><span class="lbl2">${ico('i-down')}PDF-Offerte ansehen</span></button><button class="btn btn-s pdfbtn" data-act="pdf" data-id="${o.id}" data-lang="en" title="Offer in English"><span class="ld" data-loader></span><span class="lbl2">EN</span></button></span>`) +
-    `<div class="content">${(() => { const isOff = ['freigabe','freigegeben'].includes(o.status); if (!o.revising && !isOff) return ''; const m = o.revising ? mailRev(o) : mailOffer(o); return `<details class="mailprev" open><summary>${ico('i-send')}Mail an den Kunden ansehen</summary><div class="mp-h"><span class="muted small">Von</span> ${BE_ON ? 'Clean Service Scaramuzzo AG &lt;unterhalt@clean-service.ch&gt;' : 'Absender nach Serveranbindung'}<br><span class="muted small">An</span> ${esc(m.an || 'E-Mail-Adresse fehlt')}<br><span class="muted small">Betreff</span> <b>${esc(m.betreff)}</b></div><div class="mp-b">${esc(m.text)}</div><div class="small muted">Anhang: Offerte als PDF (${esc(o.nr || o.objNr || '')}${o.revising ? ' Rev. ' + ((o.rev || 0) + 1) : ''}). Text und Betreff unter Einstellungen anpassbar.</div></details>`; })()}<div class="tabs" role="tablist">${tabs.map(([k, l]) => `<button class="chip" role="tab" data-act="docTab" data-v="${k}" aria-pressed="${UI.docTab === k}">${l}</button>`).join('')}
+    `<div class="content">${(() => { const isOff = ['freigabe','freigegeben'].includes(o.status); if (!o.revising && !isOff) return ''; const m = o.revising ? mailRev(o) : mailOffer(o); return `<details class="mailprev" open><summary>${ico('i-send')}Mail an den Kunden ansehen</summary><div class="mp-h"><span class="muted small">Von</span> ${BE_ON ? 'Clean Service Scaramuzzo AG &lt;unterhalt@clean-service.ch&gt;' : 'Absender nach Serveranbindung'}<br><span class="muted small">An</span> ${esc(m.an || 'E-Mail-Adresse fehlt')}<br><span class="muted small">Betreff</span> <b>${esc(m.betreff)}</b></div><div class="mp-b">${esc(m.text)}</div><div class="small muted">Anhang: Offerte als PDF (${esc(o.nr || o.objNr || '')}${o.revising ? ' Rev. ' + ((o.rev || 0) + 1) : ''}). Sprache: ${mlang(o) === 'en' ? 'Englisch' : 'Deutsch'} (über DE/EN in der PDF-Vorschau wählbar). Text und Betreff unter Einstellungen anpassbar.</div></details>`; })()}<div class="tabs" role="tablist">${tabs.map(([k, l]) => `<button class="chip" role="tab" data-act="docTab" data-v="${k}" aria-pressed="${UI.docTab === k}">${l}</button>`).join('')}
       <span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-g btn-sm" data-act="editBes" data-id="${o.id}">Besichtigung bearbeiten</button><button class="btn btn-g btn-sm" data-act="go" data-v="off">${ico('i-back')}Zu den Offerten</button></span></div>${body}</div>`;
-  if (UI.docTab === 'pdf') loadPdfPreview(o, UI.pvLang || 'de');
+  if (UI.docTab === 'pdf') loadPdfPreview(o, mlang(o));
 }
 
 /* =========================================================
@@ -2088,7 +2102,7 @@ function kunPanelHtml(c) {
    ========================================================= */
 function renderSet() {
   const el = $('[data-view="set"]');
-  const tabs = [['grp','Reinigungsgruppen'],['rl','Leistungswerte'],['dis','Dispositionspläne'],['satz','Sätze']];
+  const tabs = [['allg','Allgemein'],['mail','Mails'],['nach','Nachfassung'],['kal','Besichtigung'],['team','Team'],['ref','Referenzen'],['grp','Reinigungsgruppen'],['rl','Leistungswerte'],['dis','Dispositionspläne'],['sys','System']];
   let body = '';
   if (UI.setTab === 'grp') {
     const q = UI.setQ.toLowerCase();
@@ -2113,32 +2127,68 @@ function renderSet() {
     body = `<div class="card tablewrap"><table><thead><tr><th>Code</th><th>Bezeichnung</th><th style="text-align:right">Ausführungen / Jahr</th></tr></thead><tbody>${DISPO.map(d => `<tr style="cursor:default"><td class="num"><span class="name">${d.code}</span></td><td>${d.label}</td><td class="num" style="text-align:right">${d.code === 'B' ? 'nach Bedarf' : d.perYear}</td></tr>`).join('')}</tbody></table></div>
     <p class="foot-n">1x, 3x, 5x, M, H und B gemäss Aduna-Legende. 2x, 4x, 6x, 14T, Q und J ergänzt.</p>`;
   }
-  if (UI.setTab === 'satz') {
-    body = `<div class="card fsec form"><h2>Sätze und Fristen</h2><p class="hint">Gelten für neue Besichtigungen.</p>
-      <div class="frow"><div class="field"><label for="sRate">Standard-Stundensatz (CHF/h)</label><input id="sRate" inputmode="decimal" data-sset="rate" value="${S.settings.rate}"></div>
-      <div class="field"><label for="sNach">Nachfass-Rhythmus (Tage: 1. Nachfassung nach Versand, 2. nach der 1., dann bis automatisch inaktiv)</label><input id="sNach" data-sstr="nachStufen" value="${esc(S.settings.nachStufen || '7T, 14T, 5T')}"><span class="small muted">Standard: 7T, 14T, 5T. Danach erfolgt nach 6 Monaten eine erneute Anfrage.</span></div>
-      ${['nf1','nf2','re6'].map(k => `<div class="field"><label for="s_${k}b">${NF_LABEL[k]}: Betreff</label><input id="s_${k}b" data-sstr="mail_${k}_b" value="${esc(S.settings['mail_' + k + '_b'] || MAIL_NF[k].b)}"></div><div class="field"><label for="s_${k}t">${NF_LABEL[k]}: Text</label><textarea id="s_${k}t" data-sstr="mail_${k}_t" style="min-height:230px">${esc(S.settings['mail_' + k + '_t'] || MAIL_NF[k].t)}</textarea><span class="small muted">Platzhalter: {objekt}, {frist}</span></div>`).join('')}</div>
-      <div class="field"><label for="sWf">Wochenfaktor (Wochen pro Monat)</label><input id="sWf" inputmode="decimal" data-sset="wf" value="${fmtN(WF(), 2)}"><span class="small muted">4.33 = 52 Wochen ÷ 12 Monate. So wird jede Reinigungswoche des Jahres verrechnet. Mit 4.3 fehlen rund 0.8 % Umsatz.</span></div>
-      ${DEMO ? '<div class="factions"><button class="btn btn-s" data-act="resetDemo">Demo-Daten zurücksetzen</button></div>' : ''}${BE_ON ? '<div class="factions"><button class="btn btn-s" data-act="logout">Abmelden</button></div>' : ''}</div>
-    <div class="card fsec form"><h2>Team und Offerte</h2><p class="hint">Erscheint im PDF als Ansprechpartner und in der Planung als Verkäufer-Auswahl.</p>
-      <div class="field"><label for="sTeam">Verkäufer (eine Person pro Zeile: Name; Funktion; Telefon · E-Mail)</label><textarea id="sTeam" data-sstr="team" style="min-height:96px">${esc(S.settings.team)}</textarea></div>
-      <div class="field"><label for="sLogoTok">Logo-Dienst (logo.dev Publishable Key, optional)</label><input id="sLogoTok" data-sstr="logoToken" value="${esc(S.settings.logoToken || '')}" placeholder="pk_…" autocomplete="off"><span class="small muted">Mit Key kommen die Firmenlogos in hoher Auflösung von logo.dev; ohne Key wird das Website-Icon (Favicon) über Google geladen.</span></div>
-      <div class="field"><label for="sMailB">Offert-Mail an den Kunden: Betreff</label><input id="sMailB" data-sstr="mailBetreff" value="${esc(S.settings.mailBetreff || '')}"></div>
-      <div class="field"><label for="sMailT">Offert-Mail an den Kunden: Text</label><textarea id="sMailT" data-sstr="mailText" style="min-height:260px">${esc(S.settings.mailText || MAIL_TEXT)}</textarea><span class="small muted">Wird beim Bestätigen zusammen mit dem Offert-PDF an den Kunden gesendet. Nach ${S.settings.nachfassen} Tagen folgt die Nachfassung, bis die Offerte auf «Gewonnen» oder «Verloren» steht.</span></div>
-      <div class="field"><label for="sMailRB">Mail bei angepasster Offerte: Betreff</label><input id="sMailRB" data-sstr="mailBetreffRev" value="${esc(S.settings.mailBetreffRev || MAIL_REV_B)}"></div>
-      <div class="field"><label for="sMailR">Mail bei angepasster Offerte: Text</label><textarea id="sMailR" data-sstr="mailTextRev" style="min-height:200px">${esc(S.settings.mailTextRev || MAIL_REV)}</textarea><span class="small muted">Wird beim Senden einer angepassten Offerte (Revision) mit dem neuen PDF verschickt. Betreff: «Angepasste Offerte» plus Betreff oben.</span></div>
-      <div class="field"><label for="sSigN">Mail-Signatur: Name</label><input id="sSigN" data-sstr="mailSigName" value="${esc(S.settings.mailSigName || 'Diogo Pereira')}"></div>
-      <div class="field"><label for="sSigR">Mail-Signatur: Funktion</label><input id="sSigR" data-sstr="mailSigRolle" value="${esc(S.settings.mailSigRolle || 'Sachbearbeiter Innendienst')}"></div>
-      <div class="field"><label for="sSigD">Mail-Signatur: Direktnummer</label><input id="sSigD" data-sstr="mailSigDirekt" value="${esc(S.settings.mailSigDirekt || '052 557 02 12')}"><span class="small muted">${BE_ON ? 'Alle Mails gehen von unterhalt@clean-service.ch raus, mit Kopie an dieselbe Adresse.' : 'Mailversand ist nur auf dem eigenen Server aktiv.'}</span></div>
-      <div class="field"><label for="sCal">Kalendereinladung: zusätzlich an (E-Mail, mehrere mit Komma)</label><input id="sCal" data-sstr="calExtra" value="${esc(S.settings.calExtra || '')}" placeholder="z. B. m.scaramuzzo@clean-service.ch"><span class="small muted">Bei jeder geplanten Besichtigung geht die Einladung an die E-Mail des Verkäufers (Einstellungen › Verkäufer) und an diese Adressen.</span></div>
-      <div class="field"><label for="sCalK">Kalendereinladung auch an die Ansprechperson des Kunden</label><select id="sCalK" data-sstr="calKunde"><option value="ja"${S.settings.calKunde !== 'nein' ? ' selected' : ''}>Ja, die Firma erhält ebenfalls eine Einladung</option><option value="nein"${S.settings.calKunde === 'nein' ? ' selected' : ''}>Nein, nur intern</option></select></div>
-      <div class="field"><label for="sBccBes">Kopie der Besichtigungstermine an unterhalt@clean-service.ch</label><select id="sBccBes" data-sstr="bccBes"><option value="ja"${S.settings.bccBes !== 'nein' ? ' selected' : ''}>Ja, Kopie der Einladungen und Absagen mitsenden</option><option value="nein"${S.settings.bccBes === 'nein' ? ' selected' : ''}>Nein, keine Kopie</option></select></div>
-      <div class="field"><label for="sBccNach">Kopie der Nachfassungen an unterhalt@clean-service.ch</label><select id="sBccNach" data-sstr="bccNach"><option value="ja"${S.settings.bccNach !== 'nein' ? ' selected' : ''}>Ja, Kopie jeder Nachfassung mitsenden</option><option value="nein"${S.settings.bccNach === 'nein' ? ' selected' : ''}>Nein, keine Kopie</option></select></div>
-      <div class="field"><label for="sKond">Konditionen im PDF</label><textarea id="sKond" data-sstr="konditionen" style="min-height:150px">${esc(S.settings.konditionen)}</textarea><span class="small muted">Bitte mit euren gültigen AGB und Zahlungsbedingungen abgleichen.</span></div>
-    </div>
-      <div class="infobox" style="max-width:680px">${ico('i-info')}<div>${DEMO ? 'Demo-Modus: keine gemeinsame Datenbank erreichbar. Änderungen bleiben nur in diesem Browser.' : BE_ON ? 'Alle Daten liegen in der Datenbank (Supabase) und sind auf allen Geräten gleich. Mails gehen über Resend von unterhalt@clean-service.ch raus, die Nachfassung läuft täglich automatisch um 07:00 Uhr.' : 'Alle Daten liegen in der gemeinsamen Datenbank und sind auf allen Geräten live gleich.'}</div></div>`;
+  const SET = S.settings, SD = k => (SET_DEF()[k]), sv = k => (SET[k] != null && SET[k] !== '' ? SET[k] : (SD(k) ?? ''));
+  const fld = (id, label, key, o = {}) => `<div class="field"><label for="${id}">${label}</label>${o.rows ? `<textarea id="${id}" data-sstr="${key}" style="min-height:${o.rows}px">${esc(sv(key))}</textarea>` : `<input id="${id}" data-sstr="${key}" value="${esc(sv(key))}"${o.ph ? ` placeholder="${esc(o.ph)}"` : ''} autocomplete="off">`}${o.help ? `<span class="small muted">${o.help}</span>` : ''}${SD(key) !== undefined && o.reset !== false ? `<div style="margin-top:6px"><button type="button" class="btn btn-g btn-sm" data-act="setReset" data-k="${key}">Standard wiederherstellen</button></div>` : ''}</div>`;
+  const sel = (id, label, key, opts, help) => `<div class="field"><label for="${id}">${label}</label><select id="${id}" data-sstr="${key}">${opts.map(([v, l]) => `<option value="${v}"${(SET[key] || opts[0][0]) === v ? ' selected' : ''}>${l}</option>`).join('')}</select>${help ? `<span class="small muted">${help}</span>` : ''}</div>`;
+  const card = (t, h, inner) => `<div class="card fsec form"><h2>${t}</h2>${h ? `<p class="hint">${h}</p>` : ''}${inner}</div>`;
+  if (UI.setTab === 'allg') {
+    const ex = 2.5 * (SET.rate || 39) * WF();
+    body = card('Preise und Berechnung', 'Diese Werte gelten für alle neuen Besichtigungen. Bereits erfasste Offerten behalten ihren Stundensatz.',
+      `<div class="frow"><div class="field"><label for="sRate">Standard-Stundensatz (CHF/h, exkl. MwSt.)</label><input id="sRate" inputmode="decimal" data-sset="rate" value="${SET.rate}"><span class="small muted">Wird bei jeder neuen Besichtigung vorgeschlagen und kann pro Offerte angepasst werden.</span></div>
+      <div class="field"><label for="sWf">Wochenfaktor (Wochen pro Monat)</label><input id="sWf" inputmode="decimal" data-sset="wf" value="${fmtN(WF(), 2)}"><span class="small muted">4.33 = 52 Wochen ÷ 12 Monate. Nicht ändern, ausser die Berechnungsformel wird bewusst angepasst.</span></div></div>
+      <div class="infobox">${ico('i-info')}<div>Formel: Stunden pro Woche × Wochenfaktor × Stundensatz = Monatspauschale. Beispiel: 2.5 h × ${fmtN(WF(), 2)} × ${chf(SET.rate || 39)} = <b>${chf(ex)}</b> pro Monat.</div></div>`)
+    + card('Konditionen im PDF', 'Erscheinen auf der Offerte. Bitte mit euren gültigen AGB und Zahlungsbedingungen abgleichen.', fld('sKond', 'Konditionen (Text)', 'konditionen', { rows: 170 }))
+    + card('Logo-Dienst', 'Für die automatische Suche der Kundenlogos auf dem Deckblatt.', fld('sLogoTok', 'logo.dev Publishable Key (optional)', 'logoToken', { ph: 'pk_…', reset: false, help: 'Mit Key kommen die Firmenlogos in hoher Auflösung von logo.dev. Ohne Key wird das Website-Icon über Google geladen.' }));
   }
-  el.innerHTML = phead('Einstellungen', 'Einstellungen', 'Aduna-Katalog, Leistungswerte und Sätze.', '') + `<div class="content"><div class="tabs" role="tablist">${tabs.map(([k, l]) => `<button class="chip" role="tab" data-act="setTab" data-v="${k}" aria-pressed="${UI.setTab === k}">${l}</button>`).join('')}</div>${body}</div>`;
+  if (UI.setTab === 'mail') {
+    const ph = `<div class="infobox">${ico('i-info')}<div>Die Anrede («Sehr geehrte Frau …» / «Dear Ms …») setzt die App automatisch aus den Kundendaten ein. Die erste Zeile des Textes wird dafür ersetzt. Die Mails gehen von <b>unterhalt@clean-service.ch</b> raus. Die Sprache folgt der Einstellung DE/EN in der PDF-Vorschau der Offerte. Die Signatur unten wird automatisch angehängt.</div></div>`;
+    body = card('Offerte an den Kunden (Deutsch)', 'Wird beim Bestätigen zusammen mit dem Offert-PDF versendet.', ph + fld('sMailB', 'Betreff (die Offertnummer wird angehängt)', 'mailBetreff') + fld('sMailT', 'Text', 'mailText', { rows: 280, help: 'Links im Format [Linktext](https://…) werden im Mail anklickbar.' }))
+    + card('Offerte an den Kunden (Englisch)', 'Wird verwendet, wenn die Offerte auf EN gestellt ist. Das PDF ist dann ebenfalls englisch.', fld('sEnB', 'Subject', 'mailEnBetreff') + fld('sEnT', 'Text', 'mailEnText', { rows: 280 }))
+    + card('Angepasste Offerte (Deutsch)', 'Wird beim Senden einer Revision mit dem neuen PDF versendet.', fld('sMailRB', 'Betreff (Offertnummer und «Rev.» werden angehängt)', 'mailBetreffRev') + fld('sMailR', 'Text', 'mailTextRev', { rows: 220 }))
+    + card('Angepasste Offerte (Englisch)', '', fld('sEnRB', 'Subject', 'mailEnBetreffRev') + fld('sEnR', 'Text', 'mailEnTextRev', { rows: 220 }))
+    + card('Signatur unter allen Mails', 'Unter jedem Mail erscheinen diese Angaben mit Firmenadresse und ISO-Zertifikaten.',
+      `<div class="frow">${fld('sSigN', 'Name', 'mailSigName', { reset: false })}${fld('sSigR', 'Funktion (Deutsch)', 'mailSigRolle', { reset: false })}</div><div class="frow">${fld('sSigRE', 'Funktion (Englisch)', 'mailSigRolleEn', { reset: false, ph: 'Office Administration' })}${fld('sSigD', 'Direktnummer', 'mailSigDirekt', { reset: false })}</div>`);
+  }
+  if (UI.setTab === 'nach') {
+    const g = nfGaps();
+    body = card('Rhythmus der Nachfassung', 'Nach dem Versand der Offerte meldet sich die App automatisch beim Kunden, solange die Offerte nicht auf «Gewonnen» oder «Abgesagt» steht. Der Versand läuft täglich um 07:00 Uhr.',
+      `<div class="frow"><div class="field"><label for="sNg0">1. Nachfassung: Tage nach Versand</label><input id="sNg0" inputmode="numeric" data-nach="0" value="${g[0]}"></div><div class="field"><label for="sNg1">2. Nachfassung: Tage nach der 1.</label><input id="sNg1" inputmode="numeric" data-nach="1" value="${g[1]}"></div><div class="field"><label for="sNg2">Danach automatisch inaktiv: Tage nach der 2.</label><input id="sNg2" inputmode="numeric" data-nach="2" value="${g[2]}"></div></div>
+      <div class="infobox">${ico('i-info')}<div>Aktuell: 1. Nachfassung nach ${g[0]} Tagen, 2. Nachfassung ${g[1]} Tage später, danach nach weiteren ${g[2]} Tagen automatisch inaktiv. Sechs Monate nach der Inaktivsetzung erscheint die erneute Anfrage.</div></div>`
+      + sel('sBccNach', 'Kopie jeder Nachfassung an unterhalt@clean-service.ch', 'bccNach', [['ja', 'Ja, Kopie mitsenden'], ['nein', 'Nein, keine Kopie']], 'Praktisch, um mitzulesen, was der Kunde erhält.'))
+    + ['nf1', 'nf2', 're6'].map(k => card(NF_LABEL[k] + ' (Deutsch)', k === 'nf2' ? 'Platzhalter: {objekt} = Objektname, {frist} = Datum, bis zu dem der Kunde sich melden soll.' : 'Platzhalter: {objekt} = Objektname.', fld('s_' + k + 'b', 'Betreff', 'mail_' + k + '_b') + fld('s_' + k + 't', 'Text', 'mail_' + k + '_t', { rows: 200 }))).join('')
+    + ['nf1', 'nf2', 're6'].map(k => card(NF_LABEL[k] + ' (Englisch)', 'Für Offerten, die auf EN gestellt sind.', fld('s_en_' + k + 'b', 'Subject', 'mail_en_' + k + '_b') + fld('s_en_' + k + 't', 'Text', 'mail_en_' + k + '_t', { rows: 200 }))).join('');
+  }
+  if (UI.setTab === 'kal') {
+    body = card('Besichtigungstermine', 'Gilt für Einladungen, die beim Planen oder Ändern einer Besichtigung verschickt werden.',
+      `<div class="field"><label for="sDauer">Dauer einer Besichtigung (Minuten)</label><input id="sDauer" inputmode="numeric" data-sset="besDauer" value="${SET.besDauer > 0 ? SET.besDauer : 60}"><span class="small muted">Bestimmt die Länge des Kalendereintrags beim Verkäufer und beim Kunden.</span></div>`
+      + sel('sCalK', 'Einladung auch an die Ansprechperson des Kunden', 'calKunde', [['ja', 'Ja, der Kunde erhält ebenfalls eine Einladung'], ['nein', 'Nein, nur der Verkäufer']], 'Der Kunde kann den Termin mit einem Klick in seinen Kalender übernehmen.')
+      + fld('sCal', 'Zusätzlich einladen (E-Mail, mehrere mit Komma)', 'calExtra', { reset: false, ph: 'z. B. m.scaramuzzo@clean-service.ch', help: 'Diese Adressen erhalten bei jeder Besichtigung zusätzlich die Einladung.' })
+      + sel('sBccBes', 'Kopie der Besichtigungstermine an unterhalt@clean-service.ch', 'bccBes', [['ja', 'Ja, Kopie von Einladungen und Absagen mitsenden'], ['nein', 'Nein, keine Kopie']]));
+  }
+  if (UI.setTab === 'team') {
+    const tl = teamList();
+    body = card('Verkäufer und Ansprechpartner', 'Diese Personen erscheinen in der Planung als Verkäufer-Auswahl und im PDF als Ansprechpartner. Die E-Mail-Adresse bekommt die Kalendereinladung.',
+      (tl.map((m, i) => `<div class="tmrow" style="border:1px solid var(--cs-line);border-radius:12px;padding:12px;margin-bottom:10px"><div class="frow"><div class="field"><label for="tm${i}a">Name</label><input id="tm${i}a" data-tm="${i}|0" value="${esc(m.name)}"></div><div class="field"><label for="tm${i}b">Funktion</label><input id="tm${i}b" data-tm="${i}|1" value="${esc(m.rolle)}"></div></div><div class="field"><label for="tm${i}c">Telefon · E-Mail</label><input id="tm${i}c" data-tm="${i}|2" value="${esc(m.kontakt)}" placeholder="z. B. 052 557 02 08 · name@clean-service.ch"></div><button type="button" class="btn btn-g btn-sm" data-act="teamDel" data-i="${i}">Person entfernen</button></div>`).join('') || '<p class="muted small">Noch keine Person erfasst.</p>')
+      + `<div class="factions"><button type="button" class="btn btn-s" data-act="teamAdd">${ico('i-plus')}Person hinzufügen</button></div>`);
+  }
+  if (UI.setTab === 'ref') {
+    const q = (UI.setQ || '').toLowerCase(), all = S.refs || [], hit = all.filter(r => !q || (r.k + ' ' + (r.s || '')).toLowerCase().includes(q));
+    body = card('Referenzkunden', `Die Liste stammt aus dem Qualitätsmanagement (${all.length} Kunden). Der Verkäufer wählt pro Offerte 1 bis 2 davon aus. Hier kannst du Kunden ergänzen oder entfernen.`,
+      `<div class="search" style="margin-bottom:12px"><svg><use href="#i-search"/></svg><input id="setQ" type="search" placeholder="Kunde, Strasse oder Ort suchen" value="${esc(UI.setQ)}" data-q="setQ" aria-label="Referenzen suchen"></div>
+      <div class="refmgr">${hit.slice(0, 40).map(r => `<div class="tk"><span class="nm">${esc(r.k)}<div class="small muted">${esc(r.s || '')}</div></span><button type="button" class="btn btn-g btn-sm" data-act="refMgrDel" data-nr="${esc(r.nr)}">Entfernen</button></div>`).join('') || '<p class="muted small">Keine Treffer.</p>'}${hit.length > 40 ? `<p class="small muted">${hit.length - 40} weitere Treffer: Suche eingrenzen.</p>` : ''}</div>`)
+    + card('Kunde hinzufügen', '', `<div class="frow"><div class="field"><label for="rnK">Firma</label><input id="rnK" autocomplete="off"></div><div class="field"><label for="rnS">Strasse, Ort</label><input id="rnS" autocomplete="off"></div></div><div class="factions"><button type="button" class="btn btn-p" data-act="refMgrAdd">Hinzufügen</button></div>`)
+    + card('Mehrere Kunden einfügen', 'Eine Zeile pro Kunde: Firma; Strasse, Ort', `<div class="field"><textarea id="rnList" style="min-height:120px" placeholder="Muster AG; Bahnhofstrasse 1, 8000 Zürich"></textarea></div><div class="factions"><button type="button" class="btn btn-s" data-act="refMgrImport">Liste übernehmen</button></div>`);
+  }
+  if (UI.setTab === 'sys') {
+    const n = (a) => (a || []).length;
+    body = card('Verbindung und Daten', '',
+      `<div class="infobox">${ico('i-info')}<div>${DEMO ? 'Demo-Modus: keine gemeinsame Datenbank erreichbar. Änderungen bleiben nur in diesem Browser.' : BE_ON ? 'Verbunden mit dem Server. Alle Daten liegen in der Datenbank (Supabase) und sind auf allen Geräten gleich. Mails laufen über Resend von unterhalt@clean-service.ch.' : 'Lokaler Modus.'}</div></div>
+      <div class="row"><span class="muted">Offerten / Objekte</span><b class="num">${n(S.objects)}</b></div><div class="row"><span class="muted">Kunden</span><b class="num">${n(S.customers)}</b></div><div class="row"><span class="muted">Archiv</span><b class="num">${n(S.archive)}</b></div><div class="row"><span class="muted">Referenzkunden</span><b class="num">${n(S.refs)}</b></div>`)
+    + card('Datensicherung', 'Lädt alle Offerten, Kunden, das Archiv, die Einstellungen und die Referenzliste als Datei herunter (ohne Fotos). Empfohlen: einmal pro Monat.', `<div class="factions"><button type="button" class="btn btn-s" data-act="backup">${ico('i-down')}Datensicherung herunterladen</button></div>`)
+    + card('Zugang', 'Alle Mitarbeitenden melden sich mit demselben Zugangscode an.', `<div class="infobox">${ico('i-info')}<div>Der Zugangscode wird nicht in der App, sondern im Hosting geändert: Vercel → Projekt → Settings → Environment Variables → <b>APP_CODE</b>. Nach der Änderung einmal neu deployen. Ein längerer Code ist sicherer.</div></div>${BE_ON ? '<div class="factions"><button class="btn btn-s" data-act="logout">Abmelden</button></div>' : ''}${DEMO ? '<div class="factions"><button class="btn btn-s" data-act="resetDemo">Demo-Daten zurücksetzen</button></div>' : ''}`)
+    + card('Wo ändere ich was?', '', `<div class="small" style="line-height:1.7"><b>Stundensatz, Konditionen:</b> Allgemein · <b>Mail-Texte, Signatur:</b> Mails · <b>Nachfass-Rhythmus und Texte:</b> Nachfassung · <b>Dauer Besichtigung, Kalender, Kopien:</b> Besichtigung · <b>Verkäufer:</b> Team · <b>Referenzen:</b> Referenzen · <b>Leistungswerte, Gruppen, Dispo:</b> die gleichnamigen Reiter.</div>`);
+  }
+  el.innerHTML = phead('Einstellungen', 'Einstellungen', 'Preise, Mails, Nachfassung, Team und Referenzen selbst anpassen.', '') + `<div class="content"><div class="tabs" role="tablist">${tabs.map(([k, l]) => `<button class="chip" role="tab" data-act="setTab" data-v="${k}" aria-pressed="${UI.setTab === k}">${l}</button>`).join('')}</div>${body}</div>`;
 }
 function grpPanelHtml(code) {
   const g = GROUP[code], m = groupMap(code);
@@ -2354,7 +2404,7 @@ const ACT = {
   pickLogo: () => { const f = $('#plogoFile'); f && f.click(); },
   plogoClear: () => { if (UI.plan) { UI.plan.logoNew = ''; UI.plan.logoCur = ''; UI.plan.logoRemoved = true; const z = $('#ldrop'); if (z) z.closest('.field').innerHTML = '<label>Firmenlogo für die Offerte</label>' + planLogoHtml(); } },
   logoClear: el => { const cu = S.customers.find(c => c.id === el.dataset.id); if (cu) { cu.logo = null; cu.logoAuto = false; save(); renderPanel(true); } },
-  pdf: el => exportPdf(objOf(el.dataset.id), el, el.dataset.lang || 'de'),
+  pdf: el => exportPdf(objOf(el.dataset.id), el, el.dataset.lang || mlang(objOf(el.dataset.id))),
   lvPdf: el => exportLvPdf(objOf(el.dataset.id), el.dataset.lang || 'de', el),
   pickPlan: () => { const f = $('#planFile'); f && f.click(); },
   grStop: () => { if (grCtl) grCtl.abort(); },
@@ -2399,6 +2449,13 @@ const ACT = {
   applyDispo: () => { const o = curObj(), d = defaultDispo(o); o.rooms.forEach(r => { r.dispo = d; const fam = FAMILIES[r.gruppe]; if (fam && FAMILY_BY[fam][d]) r.gruppe = FAMILY_BY[fam][d]; }); save(); renderBes(); toast(`Dispo ${d} auf ${o.rooms.length} Räume angewendet`); },
   sigClear: () => { const o = curObj(); if (o.signature) delete S.media[o.signature]; o.signature = null; save(); const cv = $('#sig'); cv.getContext('2d').clearRect(0, 0, cv.width, cv.height); },
   saveDraft: () => { save(); toast('Entwurf gespeichert'); },
+  setReset: el => { const k = el.dataset.k, d = SET_DEF()[k]; if (d === undefined) return; S.settings[k] = d; save(); toast('Standard wiederhergestellt'); renderSet(); },
+  teamAdd: () => { S.settings.team = (S.settings.team ? S.settings.team + '\n' : '') + 'Neue Person; Verkäufer; '; save(); renderSet(); },
+  teamDel: el => { const rows = String(S.settings.team || '').split('\n').filter(l => l.split(';')[0].trim()); rows.splice(+el.dataset.i, 1); S.settings.team = rows.join('\n'); save(); renderSet(); },
+  refMgrDel: el => { S.refs = (S.refs || []).filter(r => String(r.nr) !== el.dataset.nr); S.refsEdited = true; save(); toast('Entfernt'); renderSet(); },
+  refMgrAdd: () => { const k = ($('#rnK').value || '').trim(), x = ($('#rnS').value || '').trim(); if (!k) { toast('Bitte eine Firma eingeben.', 'warning'); return; } S.refs = [{ nr: 'x' + uid(), k, s: x }, ...(S.refs || [])]; S.refsEdited = true; save(); toast('Hinzugefügt'); renderSet(); },
+  refMgrImport: () => { const rows = ($('#rnList').value || '').split('\n').map(l => l.split(';').map(x => x.trim())).filter(a => a[0]); if (!rows.length) { toast('Bitte Zeilen einfügen.', 'warning'); return; } const have = new Set((S.refs || []).map(r => (r.k + '|' + (r.s || '')).toLowerCase())); const add = rows.filter(a => !have.has((a[0] + '|' + (a[1] || '')).toLowerCase())).map(a => ({ nr: 'x' + uid(), k: a[0], s: a.slice(1).join(', ') })); S.refs = [...add, ...(S.refs || [])]; S.refsEdited = true; save(); toast(add.length + ' Kunden übernommen'); renderSet(); },
+  backup: async () => { const d = { exportiert: new Date().toISOString(), objekte: S.objects, kunden: S.customers, archiv: S.archive, einstellungen: S.settings, referenzen: S.refs || [], nummern: S.seq }; await saveBlob(new Blob([JSON.stringify(d)], { type: 'application/json' }), 'Offertplattform_Sicherung_' + isoDay(TODAY) + '.json', null, '', 'Datensicherung gespeichert'); },
   refAdd: el => { const o = curObj(); if (!o) return; const x = (S.refs || []).find(r => String(r.nr) === el.dataset.nr); if (!x) return; o.refs = o.refs || []; if (o.refs.some(r => String(r.nr) === String(x.nr))) return;
     if (o.refs.length >= 2) { toast('Maximal 2 Referenzen. Bitte zuerst eine entfernen.', 'warning'); return; }
     o.refs.push({ nr: x.nr, k: x.k, s: x.s }); save(); const q = $('#bRefQ'); if (q) q.value = ''; refRefresh(o); },
@@ -2415,7 +2472,7 @@ const ACT = {
   },
   openDoc: el => { UI.docId = el.dataset.id; UI.docTab = el.dataset.tab || (['freigabe','freigegeben'].includes((objOf(el.dataset.id) || {}).status) ? 'pdf' : 'off'); go('doc'); },
   docTab: el => { UI.docTab = el.dataset.v; renderDoc(); },
-  pvLang: el => { UI.pvLang = el.dataset.v; renderDoc(); },
+  pvLang: el => { const o = objOf(UI.docId) || curObj(); if (o) { o.lang = el.dataset.v === 'en' ? 'en' : 'de'; save(); } UI.pvLang = el.dataset.v; renderDoc(); },
   objF: el => { UI.objF = el.dataset.v; renderObj(); },
   openObj: el => openPanel({ type: 'obj', id: el.dataset.id }),
   offF: el => { UI.offF = el.dataset.v; renderOff(); },
@@ -2539,6 +2596,8 @@ document.addEventListener('input', e => {
   if (t.dataset.rl) { const v = num(t.value); if (v > 0) { S.settings.rl[t.dataset.rl] = v; save(); } return; }
   if (t.dataset.rlt) { const v = num(t.value); if (v > 0) S.settings.rlTask[t.dataset.rlt] = v; else delete S.settings.rlTask[t.dataset.rlt]; save(); return; }
   if (t.dataset.sset) { const v = num(t.value); if (v > 0) { S.settings[t.dataset.sset] = v; save(); } return; }
+  if (t.dataset.nach) { const g = nfGaps(), v = parseInt(t.value, 10); if (v > 0) { g[+t.dataset.nach] = v; S.settings.nachStufen = g.map(x => x + 'T').join(', '); save(); } return; }
+  if (t.dataset.tm) { const [i, f] = t.dataset.tm.split('|').map(Number), rows = String(S.settings.team || '').split('\n').filter(l => l.split(';')[0].trim()).map(l => { const a = l.split(';').map(x => x.trim()); return [a[0] || '', a[1] || '', a.slice(2).join(' ') || '']; }); if (!rows[i]) return; rows[i][f] = t.value.replace(/[;\n]/g, ' '); S.settings.team = rows.map(r => r.join('; ')).join('\n'); save(); return; }
 });
 document.addEventListener('change', e => {
   const t = e.target;
@@ -2570,7 +2629,7 @@ document.addEventListener('change', e => {
     if (val === baseNorm) delete ed[id]; else ed[id] = val;
     if (!Object.keys(ed).length) delete S.settings.groupEdits[code];
     save(); renderPanel(true); renderSet(); markSelected(); return; }
-  if (t.dataset.rl || t.dataset.rlt || t.dataset.sset) { toast('Gespeichert'); }
+  if (t.dataset.rl || t.dataset.rlt || t.dataset.sset || t.dataset.nach || t.dataset.tm) { toast('Gespeichert'); }
 });
 document.addEventListener('change', e => { if (e.target && e.target.id === 'plogoFile') planLogoFile(e.target.files[0]); });
 ['dragenter','dragover'].forEach(ev => document.addEventListener(ev, e => { const z = e.target.closest && e.target.closest('#ldrop'); if (!z) return; e.preventDefault(); z.classList.add('over'); }));
