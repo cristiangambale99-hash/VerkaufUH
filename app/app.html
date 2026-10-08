@@ -1229,9 +1229,12 @@ function objCalc(o) {
   const calcPerClean = wk / nWeek;                   // Ø Std. pro Reinigung aus den Flächen
   /* Modus «Einsatz»: Verkäufer schätzt die Stunden pro Reinigung nach Erfahrung (Flächen oft unbekannt).
      Dann gilt: Std. pro Einsatz × Reinigungen pro Woche × Wochenfaktor × Stundensatz. Periodische Arbeiten sind darin enthalten. */
-  const einsatz = o.stdEinsatz > 0;
-  if (einsatz) { wk = o.stdEinsatz * nWeek; per = 0; }
-  const perClean = einsatz ? o.stdEinsatz : calcPerClean;
+  const tage = o.stdProTag ? (o.days || []).map(d => [d, +((o.stdTage || {})[d]) || 0]) : [];
+  const sumTage = tage.reduce((a, t) => a + t[1], 0);
+  const proTag = !!o.stdProTag && sumTage > 0;
+  const einsatz = proTag || (!o.stdProTag && o.stdEinsatz > 0);
+  if (proTag) { wk = sumTage; per = 0; } else if (einsatz) { wk = o.stdEinsatz * nWeek; per = 0; }
+  const perClean = proTag ? sumTage / nWeek : einsatz ? o.stdEinsatz : calcPerClean;
   const monthHoursWeekly = wk * WF();                // wöchentliche Leistungen pro Monat
   const monthHoursPer = per / 12;                    // periodische Arbeiten pro Monat
   const monthHours = monthHoursWeekly + monthHoursPer;
@@ -1242,7 +1245,7 @@ function objCalc(o) {
   const fenster = o.fenster && o.fensterPreis > 0 ? +o.fensterPreis : 0;  // Fensterreinigung pauschal pro Ausführung (nicht im Monatsbetrag)
   const monthly = base + wash;
   const mode = o.pauschale > 0 ? 'pauschale' : einsatz ? 'einsatz' : 'flaeche';
-  return { hours, area, bad, noArea, rate, wk, per, nWeek, perClean, calcPerClean, einsatz, mode, monthHoursWeekly, monthHoursPer, monthHours, wf: WF(), calcMonthly, base, wash, fenster, monthly, annual: monthly * 12, perWeek: wk };
+  return { proTag, tage, hours, area, bad, noArea, rate, wk, per, nWeek, perClean, calcPerClean, einsatz, mode, monthHoursWeekly, monthHoursPer, monthHours, wf: WF(), calcMonthly, base, wash, fenster, monthly, annual: monthly * 12, perWeek: wk };
 }
 const custOf = o => S.customers.find(c => c.id === o.customerId) || {};
 const objOf = id => S.objects.find(o => o.id === id);
@@ -1559,8 +1562,10 @@ function renderBes() {
         <div id="roomList">${roomListHtml(o, grouped)}</div>
       </div></div>
 
-      <div class="card fsec acc ${secOpen('preis', SM.preis.st) ? 'open' : ''}" id="sec-preis"><button type="button" class="acc-h" data-act="secT" data-k="preis" aria-expanded="${secOpen('preis', SM.preis.st)}"><span><span class="acc-t">Preis</span><span class="acc-s">${SM.preis.status}</span></span>${secIcon(SM.preis.st)}</button><div class="acc-b"><p class="hint">Monatspauschale = Std. pro Einsatz × Reinigungen pro Woche × Wochenfaktor ${fmtN(WF(), 2)} × Stundensatz. Die Stunden pro Einsatz schätzt du nach Erfahrung; sind Flächen erfasst, rechnet die App einen Vorschlag aus den Leistungswerten.</p>
-        <div class="frow">${fieldHtml('bStd','Stunden pro Einsatz (Erfahrungswert)',o.stdEinsatz ?? '',`data-o="stdEinsatz" data-num="1" inputmode="decimal" placeholder="${c.calcPerClean > 0 ? 'Vorschlag ' + fmtN(c.calcPerClean, 2) : 'z. B. 2.5'}" ${dis}`)}${fieldHtml('bRate','Stundensatz (CHF/h)',o.rate,`data-o="rate" data-num="1" inputmode="decimal" ${dis}`,true)}</div>
+      <div class="card fsec acc ${secOpen('preis', SM.preis.st) ? 'open' : ''}" id="sec-preis"><button type="button" class="acc-h" data-act="secT" data-k="preis" aria-expanded="${secOpen('preis', SM.preis.st)}"><span><span class="acc-t">Preis</span><span class="acc-s">${SM.preis.status}</span></span>${secIcon(SM.preis.st)}</button><div class="acc-b"><p class="hint">Monatspauschale = Std. pro Woche (Std. pro Einsatz × Reinigungen, oder pro Tag erfasst) × Wochenfaktor ${fmtN(WF(), 2)} × Stundensatz. Die Stunden pro Einsatz schätzt du nach Erfahrung; sind Flächen erfasst, rechnet die App einen Vorschlag aus den Leistungswerten.</p>
+        <div class="field"><label>Stunden pro Einsatz</label><div class="seg">${[['Gleich an allen Tagen', false], ['Pro Tag unterschiedlich', true]].map(([l, v]) => `<label><input type="radio" name="stdProTag" value="${v}" data-spt="1" ${!!o.stdProTag === v ? 'checked' : ''} ${dis}><span>${l}</span></label>`).join('')}</div></div>
+        ${o.stdProTag ? `<div class="zeiten">${DAYS.filter(d => o.days.includes(d)).map(d => `<div class="field"><label for="st-${d}">${d} (Stunden)</label><input id="st-${d}" data-st="${d}" inputmode="decimal" value="${esc(((o.stdTage || {})[d] ?? '') + '')}" placeholder="z. B. 2.5" ${dis}></div>`).join('') || '<p class="muted small">Zuerst Reinigungstage wählen.</p>'}</div>
+        <div class="frow">${fieldHtml('bRate','Stundensatz (CHF/h)',o.rate,`data-o="rate" data-num="1" inputmode="decimal" ${dis}`,true)}</div>` : `<div class="frow">${fieldHtml('bStd','Stunden pro Einsatz (Erfahrungswert)',o.stdEinsatz ?? '',`data-o="stdEinsatz" data-num="1" inputmode="decimal" placeholder="${c.calcPerClean > 0 ? 'Vorschlag ' + fmtN(c.calcPerClean, 2) : 'z. B. 2.5'}" ${dis}`)}${fieldHtml('bRate','Stundensatz (CHF/h)',o.rate,`data-o="rate" data-num="1" inputmode="decimal" ${dis}`,true)}</div>`}
         <div class="calcline small muted" id="calcLine">${calcLineText(c)}</div>
         <div class="pricebox"><span class="muted">Berechnete Monatspauschale</span><b id="calcMonthly">${chf(c.calcMonthly)}</b></div>
         ${fieldHtml('bPausch','Monatspauschale manuell (CHF, überschreibt die Berechnung)',o.pauschale ?? '',`data-o="pauschale" data-num="1" inputmode="decimal" placeholder="${fmtN(c.calcMonthly, 2)}" ${dis}`)}
@@ -1570,11 +1575,11 @@ function renderBes() {
         <div id="fensterWrap" ${o.fenster ? '' : 'hidden'}>${fieldHtml('bFenster','Fensterreinigung pauschal pro Ausführung (CHF, exkl. MwSt.)',o.fensterPreis ?? '',`data-o="fensterPreis" data-num="1" inputmode="decimal" placeholder="z. B. 490.00" ${dis}`)}</div>
       </div></div>
 
-      <div class="card fsec acc ${secOpen('refs', SM.refs.st) ? 'open' : ''}" id="sec-refs"><button type="button" class="acc-h" data-act="secT" data-k="refs" aria-expanded="${secOpen('refs', SM.refs.st)}"><span><span class="acc-t">Referenzen</span><span class="acc-s">${SM.refs.status}</span></span>${secIcon(SM.refs.st)}</button><div class="acc-b"><p class="hint">1–2 Kunden aus unserer Kundenliste (gleiche Liste wie im Qualitätsmanagement). Sie erscheinen in der Offerte auf der Seite «Referenzen».</p>
+      <div class="card fsec acc ${secOpen('refs', SM.refs.st) ? 'open' : ''}" id="sec-refs"><button type="button" class="acc-h" data-act="secT" data-k="refs" aria-expanded="${secOpen('refs', SM.refs.st)}"><span><span class="acc-t">Referenzen</span><span class="acc-s">${SM.refs.status}</span></span>${secIcon(SM.refs.st)}</button><div class="acc-b">
         <div class="field" id="f-refs"><div id="refSel">${refSelHtml(o, locked)}</div>${(S.refs && S.refs.length) ? `<input id="bRefQ" type="text" autocomplete="off" placeholder="Firma, Strasse oder Ort suchen…" ${dis}><div id="refRes"></div>` : '<p class="small muted">Die Kundenliste ist nicht geladen.</p>'}<span class="msg">Bitte mindestens eine Referenz wählen.</span></div>
       </div></div>
 
-      <div class="card fsec acc ${secOpen('zusatz', SM.zusatz.st) ? 'open' : ''}" id="sec-zusatz"><button type="button" class="acc-h" data-act="secT" data-k="zusatz" aria-expanded="${secOpen('zusatz', SM.zusatz.st)}"><span><span class="acc-t">Fotos und Notizen</span><span class="acc-s">${SM.zusatz.status}</span></span>${secIcon(SM.zusatz.st)}</button><div class="acc-b"><p class="hint">Diese Angaben erscheinen in der Offerte und erzeugen bei Bedarf Folgeaufgaben.</p>
+      <div class="card fsec acc ${secOpen('zusatz', SM.zusatz.st) ? 'open' : ''}" id="sec-zusatz"><button type="button" class="acc-h" data-act="secT" data-k="zusatz" aria-expanded="${secOpen('zusatz', SM.zusatz.st)}"><span><span class="acc-t">Fotos und Notizen</span><span class="acc-s">${SM.zusatz.status}</span></span>${secIcon(SM.zusatz.st)}</button><div class="acc-b"><p class="hint">Interne Angaben für Innendienst und Einsatzplanung. Sie erscheinen nicht in der Offerte.</p>
         <div class="field"><label for="bDiv">Diverses</label><textarea id="bDiv" data-o="diverses" placeholder="Zutritt, Schlüssel, Besonderheiten" ${dis}>${esc(o.diverses)}</textarea></div>
         <div class="field"><label>Bilderdokumentation</label><label class="btn btn-s upl" style="justify-self:start">${ico('i-cam')}Fotos hinzufügen<input type="file" accept="image/*" multiple data-file="photos" ${dis}></label>${o.photos.length ? `<div class="thumbs">${o.photos.map(p => `<img src="${med(p)}" alt="Objektfoto">`).join('')}</div>` : ''}</div>
         <div class="field"><label>Skizze / Grundriss</label><label class="btn btn-s upl" style="justify-self:start">${ico('i-up')}Datei hochladen<input type="file" accept="image/*,application/pdf" data-file="skizze" ${dis}></label>${o.skizze.length ? `<div class="thumbs">${o.skizze.map(p => med(p).startsWith('data:image') ? `<img src="${med(p)}" alt="Skizze">` : `<span class="badge b-info">PDF</span>`).join('')}</div>` : ''}</div>
@@ -1608,7 +1613,7 @@ function secMeta(o, c, cu) {
     kunde: { status: [cu.kontakt, cu.tel].filter(Boolean).join(' · ') || 'Kontakt erfassen', st: { ok: !!(cu.firma && cu.kontakt && o.adresse), admin: !!o.verkaeufer } },
     rhythmus: { status: o.zeitProTag ? (zeitText(o, ' · ') || 'Reinigungstage wählen') : (o.days.length ? o.days.join(' · ') : 'Reinigungstage wählen') + (o.zeit ? ' · ' + esc(o.zeit) : ''), st: { ok: o.days.length > 0 } },
     raumbuch: { status: o.rooms.length ? `${o.rooms.length} ${o.rooms.length === 1 ? 'Raum' : 'Räume'}${c.noArea ? ' · ' + c.noArea + ' ohne Fläche' : ''}${c.bad ? ' · ' + c.bad + ' unvollständig' : ''}` : 'Noch keine Räume', st: { ok: o.rooms.length > 0 && !c.bad, open: true } },
-    preis: { status: c.monthly > 0 ? `${chf(c.monthly)}${c.wash ? ' inkl. Waschservice' : ''}${c.fenster ? ' · Fenster ' + chf(c.fenster, 0) : ''} · ${c.mode === 'pauschale' ? 'manuell' : c.mode === 'einsatz' ? fmtN(c.perClean, 2) + ' h pro Einsatz' : 'aus Flächen'}` : 'Std. pro Einsatz fehlt', st: { ok: c.monthly > 0, warn: !(c.monthly > 0), closed: true } },
+    preis: { status: c.monthly > 0 ? `${chf(c.monthly)}${c.wash ? ' inkl. Waschservice' : ''}${c.fenster ? ' · Fenster ' + chf(c.fenster, 0) : ''} · ${c.mode === 'pauschale' ? 'manuell' : c.mode === 'einsatz' ? (c.proTag ? 'Ø ' : '') + fmtN(c.perClean, 2) + ' h pro Einsatz' : 'aus Flächen'}` : 'Std. pro Einsatz fehlt', st: { ok: c.monthly > 0, warn: !(c.monthly > 0), closed: true } },
     refs: { status: (o.refs || []).length ? (o.refs || []).map(r => esc(r.k)).join(' · ') : 'Noch keine gewählt', st: { ok: (o.refs || []).length > 0, warn: !!(S.refs && S.refs.length) && !(o.refs || []).length } },
     zusatz: { status: `${o.photos.length} Fotos${o.skizze.length ? ' · Grundriss' : ''}`, st: { ok: o.photos.length > 0, closed: true } },
   };
@@ -1618,7 +1623,8 @@ function secOpen(key, st) { const u = UI.sec || (UI.sec = {}); if (key in u) ret
 function secIcon(st) { return st.warn ? '<span class="acc-i warn">!</span>' : st.ok ? `<span class="acc-i ok">${st.admin ? 'vom Admin ✓' : '✓'}</span>` : '<span class="acc-i">+</span>'; }
 function calcLineText(c) {
   if (!(c.perClean > 0)) return 'Noch keine Stunden pro Einsatz: Erfahrungswert eintragen oder Flächen erfassen.';
-  return `${fmtN(c.perClean, 2)} h × ${c.nWeek} ${c.nWeek === 1 ? 'Einsatz' : 'Einsätze'}/Woche × ${fmtN(c.wf, 2)}${c.monthHoursPer > 0 ? ' + ' + fmtN(c.monthHoursPer, 2) + ' h periodisch' : ''} = ${fmtN(c.monthHours, 2)} h/Monat × ${chf(c.rate)} = ${chf(c.calcMonthly)}${c.einsatz ? ' · Erfahrungswert' : ' · aus Flächen'}`;
+  const wkTxt = c.proTag ? `${c.tage.filter(t => t[1] > 0).map(t => t[0] + ' ' + fmtN(t[1], 2) + ' h').join(' + ')} = ${fmtN(c.wk, 2)} h/Woche` : `${fmtN(c.perClean, 2)} h × ${c.nWeek} ${c.nWeek === 1 ? 'Einsatz' : 'Einsätze'}/Woche`;
+  return `${wkTxt} × ${fmtN(c.wf, 2)}${c.monthHoursPer > 0 ? ' + ' + fmtN(c.monthHoursPer, 2) + ' h periodisch' : ''} = ${fmtN(c.monthHours, 2)} h/Monat × ${chf(c.rate)} = ${chf(c.calcMonthly)}${c.einsatz ? ' · Erfahrungswert' : ' · aus Flächen'}`;
 }
 function summaryHtml(o) {
   const c = objCalc(o), cu = custOf(o);
@@ -1628,7 +1634,7 @@ function summaryHtml(o) {
       <div class="row"><span class="muted">Räume</span><b class="num">${o.rooms.length}</b></div>
       <div class="row"><span class="muted">Reinigungsfläche</span><b class="num">${c.area > 0 ? fmtN(c.area, 1) + ' m²' : '–'}${c.noArea && c.area > 0 ? ` <span class="muted small">(${c.noArea} ohne Fläche)</span>` : ''}</b></div>
       <div class="sec-t" style="margin:14px 0 4px">Berechnung</div>
-      <div class="row"><span class="muted">Std. pro Einsatz${c.einsatz ? ' (Erfahrung)' : ' (Ø aus Flächen)'}</span><b class="num">${fmtN(c.perClean, 2)} h</b></div>
+      <div class="row"><span class="muted">${c.proTag ? 'Ø Std. pro Einsatz (pro Tag erfasst)' : 'Std. pro Einsatz' + (c.einsatz ? ' (Erfahrung)' : ' (Ø aus Flächen)')}</span><b class="num">${fmtN(c.perClean, 2)} h</b></div>
       <div class="row"><span class="muted">× Reinigungen pro Woche</span><b class="num">${c.nWeek}</b></div>
       <div class="row"><span class="muted">= Std. pro Woche</span><b class="num">${fmtN(c.wk, 2)} h</b></div>
       <div class="row"><span class="muted">× Wochenfaktor</span><b class="num">${fmtN(c.wf, 2)}</b></div>
@@ -1822,7 +1828,7 @@ function docOffer(o) {
     <div class="pricebox"><span>Unterhaltsreinigung pauschal pro Monat, exkl. MwSt.</span><b>${chf(c.base)}</b></div>
     ${c.wash ? `<div class="pricebox"><span>Monatlicher Tücherservice, exkl. MwSt.</span><b>${chf(c.wash)}</b></div><div class="pricebox"><span><b>Total pro Monat, exkl. MwSt.</b></span><b>${chf(c.monthly)}</b></div>` : ''}
     <table><tbody><tr><td>Jahrespreis${c.wash ? ' (inkl. Tücherservice)' : ' Unterhaltsreinigung'}</td><td class="num" style="text-align:right">${chf(c.annual)}</td></tr>
-      <tr><td>Einsatz pro Woche</td><td class="num" style="text-align:right">${fmtN(c.perClean, 2)} h${c.einsatz ? ' (Erfahrungswert)' : ' (Ø aus Flächen)'} × ${c.nWeek} Reinigungen = ${fmtN(c.wk, 2)} h</td></tr>
+      <tr><td>Einsatz pro Woche</td><td class="num" style="text-align:right">${c.proTag ? c.tage.filter(t => t[1] > 0).map(t => t[0] + ' ' + fmtN(t[1], 2) + ' h').join(' + ') : fmtN(c.perClean, 2) + ' h' + (c.einsatz ? ' (Erfahrungswert)' : ' (Ø aus Flächen)') + ' × ' + c.nWeek + ' Reinigungen'} = ${fmtN(c.wk, 2)} h</td></tr>
       <tr><td>Einsatz pro Monat</td><td class="num" style="text-align:right">${fmtN(c.wk, 2)} h × ${fmtN(c.wf, 2)} + ${fmtN(c.monthHoursPer, 2)} h periodisch = ${fmtN(c.monthHours, 2)} h</td></tr>
       <tr><td>Berechnungsgrundlage</td><td class="num" style="text-align:right">${fmtN(c.monthHours, 2)} h × ${chf(c.rate)}${o.pauschale > 0 ? ' (Pauschale gerundet)' : ''}</td></tr>
       ${c.fenster ? `<tr><td>Fensterreinigung 2-seitig</td><td class="num" style="text-align:right">Pauschal ${chf(c.fenster)} pro Ausführung</td></tr>` : ''}
@@ -2522,6 +2528,7 @@ document.addEventListener('input', e => {
     if (t.dataset.pl === 'verkaeufer') { const a = $('#pVerkAnd'), am = $('#pVerkMail'); if (am) am.hidden = t.value !== '__andere'; if (a) { a.hidden = t.value !== '__andere'; if (!a.hidden) a.focus(); } } t.closest('.field')?.classList.remove('err'); return; }
   if (t.dataset.grv && UI.gr && t.tagName === 'INPUT') { const [pi, ri, k] = t.dataset.grv.split(':'); const r = UI.gr.pages[+pi].result[+ri]; if (k === 'flaeche') { r.flaeche = num(t.value); if (r.flaeche > 0 && r.quelle === 'fehlt') r.quelle = 'geschätzt'; } else r[k] = t.value; return; }
   if (t.dataset.lb) { const L = num($('#rL').value), B = num($('#rB').value); if (L > 0 && B > 0) { const x = curRoom(); if (x) { x[1].flaeche = Math.round(L * B * 10) / 10; $('#rM2').value = x[1].flaeche; save(); refreshRoomCalc(); refreshBesLive(); } } return; }
+  if (t.dataset.st) { const o = curObj(); if (!o) return; o.stdTage = o.stdTage || {}; o.stdTage[t.dataset.st] = num(t.value); save(); refreshBesLive(); return; }
   if (t.dataset.zt) { const o = curObj(); if (!o) return; o.zeiten = o.zeiten || {}; o.zeiten[t.dataset.zt] = t.value; save(); refreshBesLive(); return; }
   if (t.dataset.kc) { const cu = S.customers.find(c => c.id === t.dataset.cid); if (cu) { cu[t.dataset.kc] = t.value; save(); } return; }
   if (t.dataset.sstr) { S.settings[t.dataset.sstr] = t.value; save(); return; }
@@ -2536,6 +2543,7 @@ document.addEventListener('input', e => {
 });
 document.addEventListener('change', e => {
   const t = e.target;
+  if (t.dataset.spt) { const o = curObj(); if (!o) return; o.stdProTag = t.value === 'true'; if (o.stdProTag && o.stdEinsatz > 0) { o.stdTage = o.stdTage || {}; (o.days || []).forEach(d => { if (!(o.stdTage[d] > 0)) o.stdTage[d] = o.stdEinsatz; }); } save(); renderBes(); return; }
   if (t.dataset.zpt) { const o = curObj(); if (!o) return; o.zeitProTag = t.value === 'true'; if (o.zeitProTag && o.zeit) { o.zeiten = o.zeiten || {}; o.days.forEach(d => { if (!o.zeiten[d]) o.zeiten[d] = o.zeit; }); } save(); renderBes(); return; }
   if (t.dataset.file) return handleFile(t);
   if (t.id === 'planFile') { const f = [...t.files]; t.value = ''; if (f.length) grStart(f); return; }
