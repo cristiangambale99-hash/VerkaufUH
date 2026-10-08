@@ -7,6 +7,14 @@
     {
       "source": "/asset/:n",
       "destination": "/api/asset?n=:n"
+    },
+    {
+      "source": "/o/:id/:f",
+      "destination": "/api/ordner?id=:id&f=:f"
+    },
+    {
+      "source": "/o/:id",
+      "destination": "/api/ordner?id=:id"
     }
   ],
   "crons": [
@@ -19,6 +27,14 @@
     "api/page.js": {
       "maxDuration": 30,
       "includeFiles": "app/**"
+    },
+    "api/ordner.js": {
+      "maxDuration": 30,
+      "includeFiles": "public/ordner/**"
+    },
+    "api/aushang.js": {
+      "maxDuration": 30,
+      "includeFiles": "api/_tpl/**"
     },
     "api/*.js": {
       "maxDuration": 30

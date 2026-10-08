@@ -1,0 +1,10 @@
+{
+  "name": "offertplattform-uh",
+  "private": true,
+  "version": "1.0.0",
+  "dependencies": {
+    "jszip": "3.10.1",
+    "pdf-lib": "1.17.1",
+    "qrcode": "1.5.4"
+  }
+}
