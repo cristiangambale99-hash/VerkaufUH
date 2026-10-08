@@ -16,12 +16,12 @@
     }
   ],
   "functions": {
-    "api/*.js": {
-      "maxDuration": 30
-    },
     "api/page.js": {
       "maxDuration": 30,
       "includeFiles": "app/**"
+    },
+    "api/*.js": {
+      "maxDuration": 30
     }
   }
 }
