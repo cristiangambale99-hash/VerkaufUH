@@ -1132,6 +1132,40 @@ async function startOrdner(o, withQr = true, quiet = false) {
   } catch (e) { od.err = String(e.message || e); if (!quiet) toast('Objektordner konnte nicht erstellt werden: ' + od.err, 'error'); }
   finally { od.busy = false; delete ORD_BUSY[o.id]; save(); if (UI.panel) renderPanel(true); }
 }
+/* Beekeeper: bei «Gewonnen (aktiv)» Gruppenchat eröffnen, Mitarbeiter einfügen, Leistungsverzeichnisse in allen Sprachen senden */
+const BK_BUSY = {}, BK_LANGS = ['de', 'en', 'it', 'es', 'pt'];
+async function bkCall(body) {
+  const r = await beApi('/api/ordner', { method: 'POST', body: JSON.stringify(Object.assign({ bk: 1 }, body)) }), j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || 'HTTP ' + r.status);
+  return j;
+}
+async function startBeekeeper(o, quiet = false) {
+  if (!BE_ON || !o || !o.nr || !o.rooms || !o.rooms.length || BK_BUSY[o.id]) return;
+  const bk = o.bk = o.bk || {}; if (bk.chatId) return;
+  BK_BUSY[o.id] = 1; bk.busy = true; bk.err = ''; if (UI.panel) renderPanel(true);
+  try {
+    for (const lang of BK_LANGS) {
+      const doc = await buildLvPdf(o, lang), bytes = await doc.save({ useObjectStreams: true }), CH = 600000, tot = Math.max(1, Math.ceil(bytes.length / CH));
+      for (let i = 0; i < tot; i++) await bkCall({ action: 'upload', nr: o.nr, lang, idx: i, total: tot, b64: b64OfBytes(bytes.subarray(i * CH, (i + 1) * CH)) });
+    }
+    const cu = custOf(o), obj = [o.name, o.adresse].filter(Boolean).join(', ');
+    const j = await bkCall({ action: 'chat', nr: o.nr, firma: cu.firma, objekt: obj, text: `Neuer Kunde: ${cu.firma}${obj ? ', Objekt ' + obj : ''}. Offertnummer ${o.nr}. Hier die Leistungsverzeichnisse für das Reinigungsteam in allen Sprachen.` });
+    if (!j.ok) throw new Error(j.error || 'Chat konnte nicht erstellt werden');
+    Object.assign(bk, { chatId: j.chatId, title: j.title, sent: j.sent || [], errors: j.errors || [], at: isoDay(TODAY) });
+    logO(o, `Beekeeper-Gruppenchat «${j.title}» erstellt, ${(j.sent || []).length} von ${BK_LANGS.length} Leistungsverzeichnissen gesendet` + (j.errors && j.errors.length ? ' (Fehler: ' + j.errors.join(' | ') + ')' : ''));
+    if (!quiet) toast(j.errors && j.errors.length ? 'Beekeeper-Chat erstellt, nicht alle Dokumente kamen an' : 'Beekeeper-Chat ist eröffnet, Leistungsverzeichnisse sind drin', j.errors && j.errors.length ? 'warning' : 'sparkle');
+  } catch (e) { bk.err = String(e.message || e); logO(o, 'Beekeeper-Chat fehlgeschlagen: ' + bk.err); if (!quiet) toast('Beekeeper-Chat fehlgeschlagen: ' + bk.err, 'error'); }
+  finally { bk.busy = false; delete BK_BUSY[o.id]; save(); if (UI.panel) renderPanel(true); }
+}
+const bkRow = o => {
+  if (!BE_ON || o.status !== 'gewonnen' || o.inaktiv) return '';
+  const bk = o.bk || {};
+  let inner;
+  if (bk.busy) inner = '<p class="small">Chat wird erstellt, Leistungsverzeichnisse werden gesendet. Das dauert etwa eine Minute.</p>';
+  else if (bk.chatId) inner = `<div class="row"><span class="muted">Gruppenchat</span><span><span class="badge b-ok">erstellt</span> <span class="muted small">${esc(bk.title || '')}</span></span></div><div class="row"><span class="muted">Leistungsverzeichnisse</span><span>${(bk.sent || []).map(l => l.toUpperCase()).join(', ') || 'keine'}</span></div>${bk.errors && bk.errors.length ? `<div class="small muted" style="margin-top:6px">${esc(bk.errors.join(' | '))}</div>` : ''}`;
+  else inner = `<p class="small" style="margin-top:0">${bk.err ? '<b style="color:var(--cs-err,#b42318)">Fehler: ' + esc(bk.err) + '</b><br>' : ''}Eröffnet den Gruppenchat in Beekeeper, fügt die Mitarbeiter ein und sendet die Leistungsverzeichnisse in allen Sprachen.</p><button class="btn btn-p btn-sm" data-act="bkRun" data-id="${o.id}">Beekeeper-Chat jetzt erstellen</button>`;
+  return `<div class="adjcard" style="border-color:var(--cs-line);background:#fff"><b>Beekeeper-Chat</b>${inner}</div>`;
+};
 const ordCard = o => {
   if (!BE_ON || o.status !== 'gewonnen' || o.inaktiv) return '';
   const od = o.ordner || {}, has = !!od.url, qrOk = od.qr && od.qr.id != null;
@@ -1142,7 +1176,7 @@ const ordCard = o => {
   else if (!has) inner = `<p class="small" style="margin-top:0">${od.err ? '<b style="color:var(--cs-err,#b42318)">Fehler: ' + esc(od.err) + '</b><br>' : ''}Der Objektordner mit Leistungsverzeichnis, Ansprechpartner, Notrufnummern, 4-Farben-System, Sicherheitsdatenblättern und Gefahrstoffen ist noch nicht erstellt.</p><button class="btn btn-p btn-sm" data-act="ordnerRun" data-id="${o.id}">Objektordner jetzt erstellen</button>`;
   else inner = `${line('Objektordner', `<a href="${esc(od.url)}" target="_blank" rel="noopener">online öffnen</a>`)}${line('QR-Code in qrfy', qrOk ? `<span class="badge b-ok">angelegt</span> <span class="muted small">${esc(od.qr.name || '')}</span>` : `<span class="badge b-warn">fehlt</span> <span class="muted small">${esc((od.qr && od.qr.err) || 'noch nicht angelegt')}</span>`)}${line('Leistungsverzeichnis im Ordner', stale ? '<span class="badge b-warn">veraltet</span>' : `<span class="badge b-ok">aktuell</span> <span class="muted small">${o.lvRev ? 'Version ' + o.lvRev : 'Original'}</span>`)}${od.qr && od.qr.det ? `<div class="small muted" style="margin-top:6px">${esc(od.qr.det)}</div>` : ''}${od.err ? `<div class="small" style="color:var(--cs-err,#b42318);margin-top:6px">${esc(od.err)}</div>` : ''}
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn btn-p btn-sm" data-act="aushangDl" data-id="${o.id}">Aushang (Word) laden</button><a class="btn btn-s btn-sm" href="${esc(od.url)}/komplett" target="_blank" rel="noopener">Alles als ein PDF</a>${stale || od.err ? `<button class="btn btn-s btn-sm" data-act="ordnerRun" data-id="${o.id}">Leistungsverzeichnis aktualisieren</button>` : ''}${qrOk ? '' : `<button class="btn btn-s btn-sm" data-act="qrRun" data-id="${o.id}">QR-Code in qrfy anlegen</button>`}</div>`;
-  return `<div class="adjcard" style="border-color:var(--cs-line);background:#fff"><b>Objektordner und QR-Code</b>${inner}</div>`;
+  return `<div class="adjcard" style="border-color:var(--cs-line);background:#fff"><b>Objektordner und QR-Code</b>${inner}</div>` + bkRow(o);
 };
 /* Kalendereinladungen: intern an den Verkäufer (und Zusatzadressen), zusätzlich an die Ansprechperson des Kunden */
 function mailsOf(txt) { return String(txt || '').match(/[^\s;,·<>]+@[^\s;,·<>]+\.[a-z]{2,}/gi) || []; }
@@ -2224,6 +2258,7 @@ function renderSet() {
       `<div class="infobox">${ico('i-info')}<div>${DEMO ? 'Demo-Modus: keine gemeinsame Datenbank erreichbar. Änderungen bleiben nur in diesem Browser.' : BE_ON ? 'Verbunden mit dem Server. Alle Daten liegen in der Datenbank (Supabase) und sind auf allen Geräten gleich. Mails laufen über Resend von unterhalt@clean-service.ch.' : 'Lokaler Modus.'}</div></div>
       <div class="row"><span class="muted">Offerten / Objekte</span><b class="num">${n(S.objects)}</b></div><div class="row"><span class="muted">Kunden</span><b class="num">${n(S.customers)}</b></div><div class="row"><span class="muted">Archiv</span><b class="num">${n(S.archive)}</b></div><div class="row"><span class="muted">Referenzkunden</span><b class="num">${n(S.refs)}</b></div>`)
     + card('QR-Codes (qrfy) und Objektordner', 'Bei «Gewonnen» entsteht automatisch der Objektordner und in qrfy ein QR-Code mit dem Titel «Firma – Offertnummer». Der Schlüssel liegt in Vercel (QRFY_API_KEY).', sel('sOrdH', 'Hilfemassnahmen in den Objektordner aufnehmen', 'ordnerHilfe', [['ja', 'Ja'], ['nein', 'Nein']]) + `<div class="factions" style="margin-top:8px"><button type="button" class="btn btn-s" data-act="qrfyTest">Verbindung zu qrfy testen</button></div><div id="qrfyOut" class="small" style="margin-top:8px"></div>`)
+    + card('Beekeeper-Chat', 'Bei «Gewonnen (aktiv)» eröffnet das Tool einen Gruppenchat «Firma – Offertnummer», fügt die Mitarbeiter als Admin ein und sendet die Leistungsverzeichnisse in allen Sprachen. Token, Adresse und Mitglieder liegen in Vercel (BEEKEEPER_TOKEN, BEEKEEPER_URL, BEEKEEPER_MEMBERS).', sel('sBkA', 'Chat bei «Gewonnen» automatisch erstellen', 'bkAuto', [['ja', 'Ja'], ['nein', 'Nein']]) + `<div class="factions" style="margin-top:8px"><button type="button" class="btn btn-s" data-act="bkTest">Verbindung zu Beekeeper testen</button></div><div id="bkOut" class="small" style="margin-top:8px"></div><div class="field" style="margin-top:10px"><label for="bkQ">Benutzer-ID finden (Name eingeben)</label><div style="display:flex;gap:8px"><input id="bkQ" type="text" placeholder="z. B. Gambale"><button type="button" class="btn btn-s" data-act="bkUsers">Suchen</button></div></div><div id="bkUsers" class="small" style="margin-top:8px"></div>`)
     + card('Datensicherung', 'Lädt alle Offerten, Kunden, das Archiv, die Einstellungen und die Referenzliste als Datei herunter (ohne Fotos). Empfohlen: einmal pro Monat.', `<div class="factions"><button type="button" class="btn btn-s" data-act="backup">${ico('i-down')}Datensicherung herunterladen</button></div>`)
     + card('Zugang', 'Alle Mitarbeitenden melden sich mit demselben Zugangscode an.', `<div class="infobox">${ico('i-info')}<div>Der Zugangscode wird nicht in der App, sondern im Hosting geändert: Vercel → Projekt → Settings → Environment Variables → <b>APP_CODE</b>. Nach der Änderung einmal neu deployen. Ein längerer Code ist sicherer.</div></div>${BE_ON ? '<div class="factions"><button class="btn btn-s" data-act="logout">Abmelden</button></div>' : ''}${DEMO ? '<div class="factions"><button class="btn btn-s" data-act="resetDemo">Demo-Daten zurücksetzen</button></div>' : ''}`)
     + card('Wo ändere ich was?', '', `<div class="small" style="line-height:1.7"><b>Stundensatz, Konditionen:</b> Allgemein · <b>Mail-Texte, Signatur:</b> Mails · <b>Nachfass-Rhythmus und Texte:</b> Nachfassung · <b>Dauer Besichtigung, Kalender, Kopien:</b> Besichtigung · <b>Verkäufer:</b> Team · <b>Referenzen:</b> Referenzen · <b>Leistungswerte, Gruppen, Dispo:</b> die gleichnamigen Reiter.</div>`);
@@ -2310,7 +2345,7 @@ function setStatus(o, v) {
   if (v === 'versendet') { if (!o.nr) o.nr = o.objNr || nextNr(o); o.sent = isoDay(TODAY); }
   const labels = { erfassung: 'Zurück in Erfassung', freigabe: 'Entwurf erstellt', freigegeben: 'Entwurf', versendet: 'Offerte an Kunden gesendet', gewonnen: 'Gewonnen (aktiv), Nachfassung beendet', verloren: 'Abgesagt, Nachfassung beendet' };
   logO(o, labels[v]); save();
-  if (v === 'gewonnen' && prev !== 'gewonnen') setTimeout(() => startOrdner(o), 80);
+  if (v === 'gewonnen' && prev !== 'gewonnen') setTimeout(async () => { await startOrdner(o); if (S.settings.bkAuto !== 'nein') await startBeekeeper(o); }, 80);
   const keys = { freigegeben: 'check', versendet: 'sent', gewonnen: 'sparkle', verloren: 'info', erfassung: 'info', freigabe: 'invoice' };
   toast(`${labels[v]}${o.nr ? ' · ' + o.nr : ''}`, keys[v]);
   return prev;
@@ -2556,6 +2591,9 @@ const ACT = {
     delete o.lvEditing; delete LVSNAP[o.id]; logO(o, `Leistungsverzeichnis Version ${o.lvRev} gespeichert${note ? ': ' + note : ''}`); save();
     toast(`Leistungsverzeichnis gespeichert · Version ${o.lvRev}`, 'sent'); if (o.ordner && o.ordner.url) startOrdner(o, false, true); go('kun'); openPanel({ type: 'lv', id: o.id });
   },
+  bkRun: el => { const o = objOf(el.dataset.id); if (o) { o.bk = {}; startBeekeeper(o); } },
+  bkTest: async el => { const out = $('#bkOut'); if (out) out.textContent = 'Prüfe Verbindung …'; try { const j = await bkCall({ action: 'test' }); if (out) out.innerHTML = j.error ? `<span class="badge b-warn">Fehler</span> ${esc(j.error)}${j.antwort ? '<div class="small muted">' + esc(j.antwort) + '</div>' : ''}` : `<span class="badge b-ok">Verbunden</span> <span class="muted">${j.members} Chat-Mitglieder in Vercel hinterlegt</span>`; } catch (e) { if (out) out.innerHTML = `<span class="badge b-warn">Fehler</span> ${esc(e.message || e)}`; } },
+  bkUsers: async el => { const out = $('#bkUsers'), q = ($('#bkQ') || {}).value || ''; if (out) out.textContent = 'Suche …'; try { const j = await bkCall({ action: 'users', q }); if (out) out.innerHTML = (j.users || []).length ? j.users.map(u => `<div class="row"><span>${esc(u.name || u.username)} <span class="muted">${esc(u.username)}</span></span><code>${esc(u.id)}</code></div>`).join('') : 'Niemand gefunden.'; } catch (e) { if (out) out.innerHTML = `<span class="badge b-warn">Fehler</span> ${esc(e.message || e)}`; } },
   ordnerRun: el => { const o = objOf(el.dataset.id); if (o) startOrdner(o, !(o.ordner && o.ordner.qr && o.ordner.qr.id != null)); },
   qrRun: el => { const o = objOf(el.dataset.id); if (o) { if (o.ordner) delete o.ordner.qr; startOrdner(o, true); } },
   aushangDl: async el => { const o = objOf(el.dataset.id); if (!o) return; el.disabled = true; try { const r = await beApi('/api/aushang?nr=' + encodeURIComponent(o.nr)); if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || 'HTTP ' + r.status); } const blob = await r.blob(); await saveBlob(blob, 'Aushang_QR-Code_' + safeName(custOf(o).firma) + '_' + safeName(o.nr) + '.docx', o, 'Aushang (Word) heruntergeladen', 'Aushang gespeichert'); } catch (e) { toast('Aushang konnte nicht erstellt werden: ' + (e.message || e), 'error'); } finally { el.disabled = false; } },
