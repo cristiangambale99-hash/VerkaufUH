@@ -61,8 +61,15 @@ module.exports = async (b, res) => {
       const title = (firma + ' – ' + nr).slice(0, 100);
       const desc = String(b.objekt || '').slice(0, 300);
       const c = await call('POST', '/api/2/chats/groups', { json: { title, description: desc || undefined, members: mem.map(id => ({ user_id: id, role: 'ADMIN' })) } });
-      const chatId = c.json && (c.json.id || c.json.chat_id);
-      if (!c.ok || !chatId) return fail(res, 'Gruppenchat konnte nicht erstellt werden (Status ' + c.status + ')', { antwort: short(c) });
+      // Antwortform von Beekeeper ist nicht fest: Chat-ID in gängigen Feldern und verschachtelt suchen
+      const findId = (j, d = 0) => {
+        if (!j || typeof j !== 'object' || d > 3) return null;
+        for (const k of ['id', 'chat_id', 'chatId', 'conversation_id', 'group_id', 'groupId']) if (j[k] != null && j[k] !== '' && typeof j[k] !== 'object') return j[k];
+        for (const k of ['chat', 'group', 'conversation', 'data', 'result', 'item']) { const r = findId(j[k], d + 1); if (r != null) return r; }
+        return null;
+      };
+      const chatId = findId(c.json);
+      if (!c.ok || !chatId) return fail(res, 'Gruppenchat konnte nicht erstellt werden (Status ' + c.status + '): ' + short(c), { antwort: short(c) });
       const sent = [], errors = [];
       const intro = String(b.text || '').slice(0, 2000);
       if (intro) { const m = await call('POST', '/api/2/chats/groups/' + encodeURIComponent(chatId) + '/messages', { json: { body: intro } }); if (!m.ok) errors.push('Begrüssung: ' + m.status + ' ' + short(m)); }
