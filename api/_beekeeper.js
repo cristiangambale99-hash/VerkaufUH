@@ -8,7 +8,7 @@ const LANGS = ['de', 'en', 'it', 'es', 'pt'];
 const LANGNAME = { de: 'Deutsch', en: 'English', it: 'Italiano', es: 'Español', pt: 'Português' };
 
 async function call(method, path, opt = {}) {
-  const headers = { Authorization: 'Token ' + TOKEN(), Accept: 'application/json' };
+  const headers = { Authorization: 'Token ' + TOKEN(), Accept: /^\/api\/2\/chats/.test(path) ? 'application/json, application/vnd.io.beekeeper.chats+json;version=1' : 'application/json' };
   let body;
   if (opt.json) { headers['Content-Type'] = 'application/json'; body = JSON.stringify(opt.json); }
   if (opt.form) body = opt.form;
@@ -34,6 +34,8 @@ module.exports = async (b, res) => {
 
     if (act === 'test') {
       const r = await call('GET', '/api/2/users?limit=1');
+      const isJson = r.json !== null;
+      if (r.ok && !isJson) return res.status(200).json({ ok: false, members: MEMBERS().length, error: 'BEEKEEPER_URL ist falsch: die Adresse liefert eine Webseite statt der API. Richtig ist https://clean-service.ch.beekeeper.io', status: r.status, antwort: short(r) });
       return res.status(200).json({ ok: r.ok, members: MEMBERS().length, error: r.ok ? undefined : (r.status === 401 || r.status === 403 ? 'Beekeeper lehnt den Token ab' : 'Beekeeper antwortet mit Status ' + r.status), status: r.status, antwort: short(r) });
     }
 
@@ -69,6 +71,7 @@ module.exports = async (b, res) => {
         return null;
       };
       const chatId = findId(c.json);
+      if (c.ok && c.json === null) return fail(res, 'BEEKEEPER_URL ist falsch: Beekeeper liefert eine Webseite statt der API. Richtig ist https://clean-service.ch.beekeeper.io');
       if (!c.ok || !chatId) return fail(res, 'Gruppenchat konnte nicht erstellt werden (Status ' + c.status + '): ' + short(c), { antwort: short(c) });
       const sent = [], errors = [];
       const intro = String(b.text || '').slice(0, 2000);
