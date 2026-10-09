@@ -1571,7 +1571,7 @@ function renderBes() {
   }
   if (UI.secFor !== o.id) { UI.sec = {}; UI.secFor = o.id; }
   const cu = custOf(o), c = objCalc(o), locked = o.status !== 'erfassung' && !o.revising && !o.lvEditing, SM = secMeta(o, c, cu);
-  const floors = [...new Set([...o.rooms.map(r => r.floor)])].sort((a, b) => FLOORS.indexOf(a) - FLOORS.indexOf(b));
+  const floors = [...new Set([...o.rooms.map(r => r.floor)])].sort((a, b) => FLOORS.indexOf(b) - FLOORS.indexOf(a));
   if (UI.floor !== 'Alle' && !floors.includes(UI.floor) && !FLOORS.includes(UI.floor)) UI.floor = 'Alle';
   const shown = o.rooms.filter(r => UI.floor === 'Alle' || r.floor === UI.floor);
   const grouped = {}; shown.forEach(r => (grouped[r.floor] = grouped[r.floor] || []).push(r));
@@ -1605,7 +1605,7 @@ function renderBes() {
       </div></div>
 
       <div class="card fsec acc ${secOpen('raumbuch', SM.raumbuch.st) ? 'open' : ''}" id="sec-raumbuch"><button type="button" class="acc-h" data-act="secT" data-k="raumbuch" aria-expanded="${secOpen('raumbuch', SM.raumbuch.st)}"><span><span class="acc-t">Raumbuch</span><span class="acc-s">${SM.raumbuch.status}</span></span>${secIcon(SM.raumbuch.st)}</button><div class="acc-b"><p class="hint">Raumtyp antippen legt den Raum sofort an, mehrmals antippen legt mehrere an. Boden und Fläche ergänzt du bei Bedarf in der Zeile.</p>
-        <div class="field" style="margin-bottom:6px"><label>Stockwerk</label><div class="chips">${['Alle', ...FLOORS].map(f => { const n = f === 'Alle' ? o.rooms.length : o.rooms.filter(r => r.floor === f).length; return `<button type="button" class="chip" data-act="floor" data-f="${f}" aria-pressed="${UI.floor === f}">${f}${n ? `<span class="cnt">${n}</span>` : ''}</button>`; }).join('')}</div></div>
+        <div class="field" style="margin-bottom:6px"><label>Stockwerk</label><div class="chips">${['Alle', ...FLOORS.slice().reverse()].map(f => { const n = f === 'Alle' ? o.rooms.length : o.rooms.filter(r => r.floor === f).length; return `<button type="button" class="chip" data-act="floor" data-f="${f}" aria-pressed="${UI.floor === f}">${f}${n ? `<span class="cnt">${n}</span>` : ''}</button>`; }).join('')}</div></div>
         ${grDropHtml(o, locked)}
         ${locked ? '' : `<div class="field" style="margin-bottom:8px"><label>Boden für neue Räume <span class="small muted">(Toiletten und Küchen: Keramik)</span></label><div class="chips">${BODEN_STD.slice(0, 6).map(bd => `<button type="button" class="chip" data-act="bodenStd" data-v="${esc(bd)}" aria-pressed="${(o.bodenStd || 'Vinyl') === bd}">${esc(bd)}</button>`).join('')}</div></div>
         <div class="field" style="margin-bottom:4px"><label>Raum hinzufügen${UI.floor === 'Alle' ? ' (Stockwerk zuerst wählen, sonst EG)' : ' im ' + UI.floor}</label></div>
@@ -1645,7 +1645,7 @@ function renderBes() {
   </div>`;
 }
 function roomListHtml(o, grouped) {
-  const floors = Object.keys(grouped).sort((a, b) => FLOORS.indexOf(a) - FLOORS.indexOf(b));
+  const floors = Object.keys(grouped).sort((a, b) => FLOORS.indexOf(b) - FLOORS.indexOf(a));
   if (!floors.length) return `<div class="rlist">${emptyState(o.rooms.length ? 'Auf diesem Stockwerk ist noch kein Raum erfasst.' : 'Noch keine Räume erfasst. Tippe oben auf einen Raumtyp.')}</div>`;
   return `<div class="rlist">${floors.map(f => `<div class="floor-h">${esc(f)} · ${grouped[f].length} ${grouped[f].length === 1 ? 'Raum' : 'Räume'} · ${(grouped[f].some(r => r.flaeche > 0) ? fmtN(grouped[f].reduce((a, r) => a + (r.flaeche || 0), 0), 1) + ' m²' : 'ohne Flächen')}</div>` +
     grouped[f].map(r => { const iss = roomIssues(r), rc = roomCalc(r); const g = GROUP[r.gruppe];
@@ -1815,7 +1815,7 @@ function objPanelHtml(o) {
     <dl class="dl"><dt>Objekt</dt><dd>${esc(o.name)}</dd><dt>Adresse</dt><dd>${esc(o.adresse)}</dd><dt>Kontakt</dt><dd>${esc(cu.kontakt)}</dd><dt>Besichtigung</dt><dd>${fmtDay(o.besDatum)} · ${esc(o.besZeit)} Uhr</dd>
       <dt>Reinigungstage</dt><dd>${o.zeitProTag ? esc(zeitText(o)) : (o.days.join(', ') || '–') + ' · ' + esc(o.zeit || '')}</dd><dt>Räume</dt><dd>${o.rooms.length} · ${fmtN(c.area, 1)} m²</dd><dt>Stunden/Jahr</dt><dd>${fmtN(c.hours, 1)} h</dd><dt>Monatspauschale</dt><dd>${chf(c.monthly)}</dd></dl>
     <div class="sec-t">Raumbuch nach Stockwerk</div>
-    ${Object.keys(floors).length ? `<table><tbody>${Object.entries(floors).sort((a, b) => FLOORS.indexOf(a[0]) - FLOORS.indexOf(b[0])).map(([f, v]) => `<tr style="cursor:default"><td>${esc(f)}</td><td class="num" style="text-align:right">${v.n} Räume</td><td class="num" style="text-align:right">${fmtN(v.a, 1)} m²</td><td class="num" style="text-align:right">${fmtN(v.h, 1)} h</td></tr>`).join('')}</tbody></table>` : '<p class="muted small">Noch keine Räume.</p>'}
+    ${Object.keys(floors).length ? `<table><tbody>${Object.entries(floors).sort((a, b) => FLOORS.indexOf(b[0]) - FLOORS.indexOf(a[0])).map(([f, v]) => `<tr style="cursor:default"><td>${esc(f)}</td><td class="num" style="text-align:right">${v.n} Räume</td><td class="num" style="text-align:right">${fmtN(v.a, 1)} m²</td><td class="num" style="text-align:right">${fmtN(v.h, 1)} h</td></tr>`).join('')}</tbody></table>` : '<p class="muted small">Noch keine Räume.</p>'}
     ${nfListHtml(o)}
     <div class="sec-t">Verlauf</div><ul class="timeline">${(o.log || []).slice().reverse().map(l => `<li><div><b>${esc(l[1])}</b><div class="small muted">${fmtDay(l[0])}</div></div></li>`).join('')}</ul>
   </div>
@@ -1835,7 +1835,7 @@ function sheetHead(o, title) {
   return `<div class="sh"><div><h2>${title}</h2><div class="meta">${esc(o.nr || o.objNr || 'Entwurf')}, ${esc(cu.firma)},<br>${esc(o.adresse)}</div></div><img src="${LOGO}" alt="Clean Service by Scaramuzzo"></div>`;
 }
 function docRaumbuch(o) {
-  const floors = [...new Set(o.rooms.map(r => r.floor))].sort((a, b) => FLOORS.indexOf(a) - FLOORS.indexOf(b));
+  const floors = [...new Set(o.rooms.map(r => r.floor))].sort((a, b) => FLOORS.indexOf(b) - FLOORS.indexOf(a));
   const c = objCalc(o);
   return `<div class="sheet">${sheetHead(o, 'Raumbuch')}<div class="tablewrap"><table><thead><tr><th>Bezeichnung</th><th>Nr</th><th>Bodenbelag</th><th>Dispo</th><th style="text-align:right">Fläche</th><th>Reinigungsgruppe</th><th style="text-align:right">Std./Jahr</th></tr></thead><tbody>
     <tr class="grp"><td colspan="6">${esc(o.name || 'Objekt')}</td><td class="num" style="text-align:right">${fmtN(c.hours, 2)}</td></tr>
@@ -2091,6 +2091,7 @@ function offPanelHtml(id) {
   <div class="panel-b">
     <div class="stat-steps">${['In Erfassung','Entwurf','Gesendet'].map((l, i) => `<span class="${i < idx || ['gewonnen','verloren'].includes(o.status) ? 'done' : i === idx ? 'on' : ''}">${l}</span>`).join('')}${['gewonnen','verloren'].includes(o.status) ? `<span class="on">${STATUS[o.status].l}</span>` : ''}</div>
     ${canAdj(o) ? `<div class="adjcard"><b>${o.revising ? 'Offerte wird angepasst' : 'Offerte und Leistungsverzeichnis anpassen'}</b><p>${o.revising ? 'Die Änderungen sind noch nicht gesendet. Weiter bearbeiten oder zur Kontrolle öffnen und senden.' : 'Räume, Leistungen, Preis oder Zusätze ändern, auch nach dem Versand oder bei aktiven Kunden. Danach geht die angepasste Offerte mit einem Klick an den Kunden.'}</p><button class="btn btn-p" data-act="${o.revising ? 'editBes' : 'reviseOff'}" data-id="${o.id}">${ico('i-doc', 16)}${o.revising ? 'Anpassung fortsetzen' : 'Jetzt anpassen'}</button>${o.status === 'gewonnen' && !o.revising ? ` <button class="btn btn-s" data-act="lvEdit" data-id="${o.id}">Nur Leistungsverzeichnis</button>` : ''}</div>` : ''}
+    ${ordCard(o)}
     <div class="pricebox"><span class="muted">Monatspauschale</span><b>${chf(c.monthly)}</b></div>
     <dl class="dl"><dt>Objekt</dt><dd>${esc(o.name)}, ${esc(o.adresse)}</dd><dt>Kontakt</dt><dd>${esc(cu.kontakt)} · ${esc(cu.email)}</dd><dt>Räume</dt><dd>${o.rooms.length} · ${fmtN(c.area, 1)} m²</dd><dt>Stunden/Jahr</dt><dd>${fmtN(c.hours, 1)} h</dd><dt>Stundensatz</dt><dd>${chf(c.rate)}</dd>
       <dt>Besichtigung</dt><dd>${fmtDay(o.besDatum)}</dd><dt>Versendet</dt><dd>${o.sent ? fmtDay(o.sent) : '–'}</dd><dt>Zusatz</dt><dd>${[o.wasch && 'Waschservice'].filter(Boolean).join(', ') || '–'}</dd></dl>
@@ -3033,7 +3034,7 @@ async function drawSheets(ctx, which) {
 
   /* Raumbuch */
   if (which.rb) {
-  const floors = [...new Set(o.rooms.map(r => r.floor))].sort((a, b) => (FLOORS.indexOf(a) < 0 ? 99 : FLOORS.indexOf(a)) - (FLOORS.indexOf(b) < 0 ? 99 : FLOORS.indexOf(b)));
+  const floors = [...new Set(o.rooms.map(r => r.floor))].sort((a, b) => FLOORS.indexOf(b) - FLOORS.indexOf(a));
   let p = await newSheet(U('rb')), y = 264; rbHead(p);
   const rbPage = async () => { p = await newSheet(U('rb')); rbHead(p); y = 252; };
   const perRoom = !c.einsatz;   // Stunden pro Raum nur, wenn aus Flächen gerechnet
