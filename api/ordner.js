@@ -36,6 +36,7 @@ module.exports = async (req, res) => {
       if (!guard(req, res)) return;
       const b = await body(req);
       if (b.qrfy) return require('./_qrfy')(b, res);
+      if (b.bk) return require('./_beekeeper')(b, res);
       const nr = O.safeNr(b.nr); if (!nr) return res.status(400).json({ error: 'nr' });
       const idx = +b.idx || 0, total = +b.total || 1;
       if (b.b64) await rpc('api_asset_put', { p_name: 'ordner-lv-' + nr, p_ctype: 'application/pdf', p_idx: idx, p_total: total, p_b64: b.b64 });
