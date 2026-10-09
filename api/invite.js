@@ -9,7 +9,7 @@ function build({ uid, seq, method, start, dur, summary, location, description, t
   const s = localToUtc(start), e = new Date(s.getTime() + (dur || 60) * 6e4), org = E.MAIL_REPLY_TO || 'unterhalt@clean-service.ch';
   const L = ['BEGIN:VCALENDAR', 'PRODID:-//Clean Service Scaramuzzo AG//Offertplattform//DE', 'VERSION:2.0', 'CALSCALE:GREGORIAN', 'METHOD:' + method, 'BEGIN:VEVENT', 'UID:' + uid, 'DTSTAMP:' + fmt(new Date()), 'DTSTART:' + fmt(s), 'DTEND:' + fmt(e), 'SEQUENCE:' + (seq || 0),
     'SUMMARY:' + ics(summary), 'LOCATION:' + ics(location), 'DESCRIPTION:' + ics(description), 'STATUS:' + (method === 'CANCEL' ? 'CANCELLED' : 'CONFIRMED'), 'TRANSP:OPAQUE', 'ORGANIZER;CN=Clean Service Scaramuzzo AG:mailto:' + org, 'ATTENDEE;CN=' + ics(to) + ';ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=FALSE:mailto:' + to];
-  if (method !== 'CANCEL') L.push('BEGIN:VALARM', 'TRIGGER:-PT30M', 'ACTION:DISPLAY', 'DESCRIPTION:Besichtigung', 'END:VALARM');
+  if (method !== 'CANCEL') L.push('BEGIN:VALARM', 'TRIGGER:-PT30M', 'ACTION:DISPLAY', 'DESCRIPTION:Termin', 'END:VALARM');
   L.push('END:VEVENT', 'END:VCALENDAR'); return L.map(fold).join('\r\n') + '\r\n';
 }
 const dmy = iso => iso.split('-').reverse().join('.');
@@ -29,9 +29,12 @@ module.exports = async (req, res) => {
         ? (method === 'CANCEL'
           ? `${b.greeting || 'Sehr geehrte Damen und Herren'}\n\nDer Besichtigungstermin vom ${when}${where} muss leider entfallen. Der Termin wird aus Ihrem Kalender entfernt. Wir melden uns bei Ihnen, um gemeinsam einen neuen Zeitpunkt zu finden, und danken Ihnen für Ihr Verständnis.\n\nFür Rückfragen erreichen Sie uns jederzeit unter 0844 355 355.\n\nFreundliche Grüsse`
           : `${b.greeting || 'Sehr geehrte Damen und Herren'}\n\n${first ? 'Der Besichtigungstermin wurde angepasst. Der neue Zeitpunkt ist' : 'Gerne bestätigen wir Ihnen den Besichtigungstermin am'} ${when}${where}.${b.seller ? ` ${b.seller} wird Sie vor Ort besuchen` : ' Unser Verkäufer wird Sie vor Ort besuchen'} und mit Ihnen den Umfang der Unterhaltsreinigung klären, damit wir Ihnen anschliessend eine massgeschneiderte Offerte erstellen können.\n\nDie Einladung hängt als Kalenderdatei an. Mit einem Klick darauf wird der Termin in Ihren Kalender übernommen. Sollte der Termin nicht passen, erreichen Sie uns unter 0844 355 355.\n\nFreundliche Grüsse`)
+        : b.kind === 'einfuehrung'
+        ? (method === 'CANCEL' ? `Die Einführung am ${when} (${b.summary || ''}) wurde abgesagt. Der Termin wird aus deinem Kalender entfernt.`
+          : `${first ? 'Der Termin wurde angepasst.' : 'Es wurde eine neue Einführung für dich eingetragen.'} ${b.summary || ''} am ${when}${where}.\n\nDie Einladung hängt als Kalenderdatei an. Mit einem Klick darauf wird der Termin in deinen Kalender übernommen.${b.description ? '\n\n' + b.description : ''}`)
         : (method === 'CANCEL' ? `Die Besichtigung am ${when} (${b.summary || ''}) wurde abgesagt. Der Termin wird aus deinem Kalender entfernt.`
           : `${first ? 'Der Termin wurde angepasst.' : 'Es wurde eine neue Besichtigung für dich eingetragen.'} ${b.summary || ''} am ${when}${where}.\n\nDie Einladung hängt als Kalenderdatei an. Mit einem Klick darauf wird der Termin in deinen Kalender übernommen.${b.description ? '\n\n' + b.description : ''}`);
-      ids.push(await sendMail({ to, subject, text, kind: (kunde ? 'cal-kunde-' : 'cal-') + method.toLowerCase(), objectId: b.objectId || b.uid, attachments: [{ filename: 'Besichtigung.ics', content: Buffer.from(cal).toString('base64'), content_type: 'text/calendar; charset=UTF-8; method=' + method }] }));
+      ids.push(await sendMail({ to, subject, text, kind: (kunde ? 'cal-kunde-' : 'cal-') + method.toLowerCase(), objectId: b.objectId || b.uid, attachments: [{ filename: (b.kind === 'einfuehrung' ? 'Einfuehrung' : 'Besichtigung') + '.ics', content: Buffer.from(cal).toString('base64'), content_type: 'text/calendar; charset=UTF-8; method=' + method }] }));
     }
     res.status(200).json({ ok: true, ids });
   } catch (e) { res.status(502).json({ error: String(e.message) }); }
