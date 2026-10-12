@@ -209,6 +209,7 @@ td .name{font-weight:600}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 
 /* ===== App-spezifisch: Offertplattform ===== */
+.vsec{margin:6px 0 14px}.vcard{border:1.5px solid var(--cs-line);border-radius:12px;padding:12px;margin-bottom:10px;background:#fff}.vcard.rec{border-color:var(--cs-brand);box-shadow:0 0 0 2px rgba(27,130,133,.15)}.vcard .vh{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}.vcard .vh b{text-transform:none;letter-spacing:0;font-size:14px;color:var(--cs-fg)}.vcard .vrec{text-transform:none;letter-spacing:0;font-weight:500}.vcard .small.muted{margin-bottom:8px}.vno{width:24px;height:24px;border-radius:50%;background:var(--cs-head);color:var(--cs-brand-text);display:grid;place-items:center;font-weight:700;font-size:12px;flex:none}.vrec{margin-left:auto;font-size:13px;color:var(--cs-fg-2);display:flex;gap:6px;align-items:center;cursor:pointer}.vadd{width:100%;border:1.5px dashed var(--cs-brand);background:var(--cs-head);color:var(--cs-brand-text);border-radius:12px;padding:12px;font:inherit;font-weight:600;cursor:pointer}
 .gdrop{display:flex;align-items:center;gap:14px;border:1.5px dashed var(--cs-brand);background:var(--cs-head);border-radius:12px;padding:16px 18px;margin:6px 0 14px;cursor:pointer;transition:background .15s ease-out,border-color .15s ease-out}
 .gdrop:hover,.gdrop.drag{background:#e2f3f4;border-color:#1b8384}
 .gdrop b{display:block;font-weight:600;color:var(--cs-brand-text)}
@@ -1570,6 +1571,13 @@ function objCalc(o) {
   return { proTag, tage, hours, area, bad, noArea, rate, wk, per, nWeek, perClean, calcPerClean, einsatz, mode, monthHoursWeekly, monthHoursPer, monthHours, wf: WF(), calcMonthly, base, wash, fenster, monthly, annual: monthly * 12, perWeek: wk };
 }
 const custOf = o => S.customers.find(c => c.id === o.customerId) || {};
+/* Preisvarianten: Variante 1 = Hauptpreis des Objekts, weitere Varianten von Hand (z. B. 1x und 2x pro Woche) */
+const varLab = (n, tage) => String(n || '').trim() || (tage && tage.length ? `${tage.length}× pro Woche (${tage.join(', ')})` : 'Variante');
+const varList = o => {
+  if (!o.vars || !o.vars.length) return [];
+  const c = objCalc(o);
+  return [{ n: varLab(o.varMainN, o.days), m: c.monthly, rec: !!o.recMain }].concat(o.vars.map(v => ({ n: varLab(v.n, v.tage), m: Number(v.m) || 0, rec: !!v.rec })));
+};
 const objOf = id => S.objects.find(o => o.id === id);
 const curObj = () => objOf(UI.cur);
 function defaultDispo(o) { const n = (o.days || []).length; return n >= 6 ? '6x' : n === 5 ? '5x' : n === 4 ? '4x' : n === 3 ? '3x' : n === 2 ? '2x' : '1x'; }
@@ -1786,6 +1794,21 @@ function renderDash() {
 /* =========================================================
    BESICHTIGUNG
    ========================================================= */
+function varHtml(o, dis) {
+  const vs = o.vars || [], c = objCalc(o), per = (m, n) => m > 0 && n ? `≈ CHF ${fmtN(m / (n * WF()), 2)} pro Reinigung · ${chf(m * 12)} pro Jahr` : 'Reinigungstage und Preis eingeben';
+  const card = (i, v, main) => {
+    const tage = main ? o.days : v.tage, m = main ? c.monthly : v.m, rec = main ? o.recMain : v.rec;
+    return `<div class="vcard ${rec ? 'rec' : ''}" data-vi="${i}"><div class="vh"><span class="vno">${i + 1}</span><b>Variante ${i + 1}${main ? ' (Hauptpreis oben)' : ''}</b>
+      <label class="vrec"><input type="checkbox" data-vrec="${i}" ${rec ? 'checked' : ''} ${dis}> Empfohlen</label>${main ? '' : `<button type="button" class="btn btn-g btn-sm" data-act="varDel" data-i="${i - 1}" ${dis}>Entfernen</button>`}</div>
+      ${main ? `<div class="small muted">${esc(tage.length ? tage.join(', ') : 'Reinigungstage oben wählen')} · Preis aus Berechnung oder manueller Pauschale: <b>${chf(m)}</b></div>` : `<div class="field" style="margin-bottom:8px"><label>Reinigungstage</label><div class="days">${DAYS.map(d => `<label><input type="checkbox" data-vday="${i - 1}:${d}" ${tage.includes(d) ? 'checked' : ''} ${dis}><span>${d}</span></label>`).join('')}</div></div>`}
+      <div class="frow"><div class="field"><label for="vn${i}">Bezeichnung <span class="small muted">(leer = automatisch)</span></label><input id="vn${i}" data-vn="${i}" value="${esc((main ? o.varMainN : v.n) || '')}" placeholder="${esc(varLab('', tage))}" ${dis}></div>
+      ${main ? '' : `<div class="field"><label for="vm${i}">Monatspauschale (CHF, exkl. MwSt.)</label><input id="vm${i}" data-vm="${i - 1}" inputmode="decimal" value="${v.m ? esc(String(v.m)) : ''}" placeholder="z. B. 1380.00" ${dis}></div>`}</div>
+      ${main ? '' : `<div class="small muted" id="vp${i}">${per(Number(m) || 0, tage.length)}</div>`}</div>`;
+  };
+  return `<div class="vsec"><div class="field" style="margin-bottom:6px"><label>Weitere Preisvarianten <span class="small muted">(optional, z. B. 1× und 2× pro Woche auf derselben Offerte)</span></label></div>
+    ${vs.length ? card(0, null, true) + vs.map((v, k) => card(k + 1, v, false)).join('') : ''}
+    ${dis ? '' : `<button type="button" class="vadd" data-act="varAdd">+ ${vs.length ? 'Weitere Variante hinzufügen' : 'Variante hinzufügen (z. B. andere Anzahl Reinigungen pro Woche)'}</button>`}</div>`;
+}
 function fieldHtml(id, label, val, attrs = '', req = false, type = 'text', extra = '') {
   return `<div class="field" id="f-${id}"><label for="${id}">${label}${req ? ' <span class="req">*</span>' : ''}</label><input id="${id}" type="${type === 'time' ? 'text' : type}"${type === 'time' ? ' inputmode="numeric" maxlength="5" placeholder="HH:MM" autocomplete="off" data-t24="1"' : ''} value="${esc(val ?? '')}" ${attrs}><span class="msg">Bitte ausfüllen.</span>${extra}</div>`;
 }
@@ -1875,9 +1898,10 @@ function renderBes() {
         ${o.zeitProTag ? `<div class="zeiten">${DAYS.filter(d => o.days.includes(d)).map(d => `<div class="field"><label for="zt-${d}">${d}</label><input id="zt-${d}" data-zt="${d}" value="${esc((o.zeiten || {})[d] || '')}" placeholder="z. B. ab 18:00 Uhr" ${dis}></div>`).join('') || '<p class="muted small">Zuerst Reinigungstage wählen.</p>'}</div>` : fieldHtml('bZeitfenster','Zeit',o.zeit,`data-o="zeit" placeholder="z. B. ab 18:00 Uhr" ${dis}`)}
       </div></div>
 
+      ${grDropHtml(o, locked) ? `<div class="card" style="padding:6px 16px 2px">${grDropHtml(o, locked)}</div>` : ''}
+
       <div class="card fsec acc ${secOpen('raumbuch', SM.raumbuch.st) ? 'open' : ''}" id="sec-raumbuch"><button type="button" class="acc-h" data-act="secT" data-k="raumbuch" aria-expanded="${secOpen('raumbuch', SM.raumbuch.st)}"><span><span class="acc-t">Raumbuch</span><span class="acc-s">${SM.raumbuch.status}</span></span>${secIcon(SM.raumbuch.st)}</button><div class="acc-b"><p class="hint">Raumtyp antippen legt den Raum sofort an, mehrmals antippen legt mehrere an. Boden und Fläche ergänzt du bei Bedarf in der Zeile.</p>
         <div class="field" style="margin-bottom:6px"><label>Stockwerk</label><div class="chips">${['Alle', ...FLOORS.slice().reverse()].map(f => { const n = f === 'Alle' ? o.rooms.length : o.rooms.filter(r => r.floor === f).length; return `<button type="button" class="chip" data-act="floor" data-f="${f}" aria-pressed="${UI.floor === f}">${f}${n ? `<span class="cnt">${n}</span>` : ''}</button>`; }).join('')}</div></div>
-        ${grDropHtml(o, locked)}
         ${locked ? '' : `<div class="field" style="margin-bottom:8px"><label>Boden für neue Räume <span class="small muted">(Toiletten und Küchen: Keramik)</span></label><div class="chips">${BODEN_STD.slice(0, 6).map(bd => `<button type="button" class="chip" data-act="bodenStd" data-v="${esc(bd)}" aria-pressed="${(o.bodenStd || 'Vinyl') === bd}">${esc(bd)}</button>`).join('')}</div></div>
         <div class="field" style="margin-bottom:4px"><label>Raum hinzufügen${UI.floor === 'Alle' ? ' (Stockwerk zuerst wählen, sonst EG)' : ' im ' + UI.floor}</label></div>
         <div class="quick">${(UI.moreTypes ? RAUMTYPEN : RAUMTYPEN.slice(0, 9)).map(([n, g]) => `<button type="button" class="qbtn" data-act="addRoom" data-n="${esc(n)}" data-g="${g}">+ ${esc(n)}${(() => { const k = o.rooms.filter(r => r.bez === n && (UI.floor === 'Alle' || r.floor === UI.floor)).length; return k ? ` <span class="cnt">${k}</span>` : ''; })()}</button>`).join('')}${UI.moreTypes ? `<button type="button" class="qbtn" data-act="addRoom" data-n="" data-g="">+ Andere</button><button type="button" class="qbtn" data-act="moreTypes" style="color:var(--cs-fg-2)">weniger</button>` : `<button type="button" class="qbtn" data-act="moreTypes" style="color:var(--cs-fg-2)">mehr …</button>`}</div>`}
@@ -1890,6 +1914,7 @@ function renderBes() {
         <div class="calcline small muted" id="calcLine">${calcLineText(c)}</div>
         <div class="pricebox"><span class="muted">Berechnete Monatspauschale</span><b id="calcMonthly">${chf(c.calcMonthly)}</b></div>
         ${fieldHtml('bPausch','Monatspauschale manuell (CHF, überschreibt die Berechnung)',o.pauschale ?? '',`data-o="pauschale" data-num="1" inputmode="decimal" placeholder="${fmtN(c.calcMonthly, 2)}" ${dis}`)}
+        ${varHtml(o, dis)}
         <div class="field"><label>Waschservice (Tücherservice) offerieren?</label><div class="seg">${['Ja','Nein'].map(v => `<label><input type="radio" name="wasch" value="${v}" data-yn="wasch" ${(o.wasch ? 'Ja' : 'Nein') === v ? 'checked' : ''} ${dis}><span>${v}</span></label>`).join('')}</div></div>
         <div id="waschWrap" ${o.wasch ? '' : 'hidden'}>${fieldHtml('bWasch','Waschservice pro Monat (CHF, exkl. MwSt.)',o.waschPreis ?? '',`data-o="waschPreis" data-num="1" inputmode="decimal" placeholder="z. B. 40.00" ${dis}`)}</div>
         <div class="field"><label>Pauschalpreis Fensterreinigung?</label><div class="seg">${['Ja','Nein'].map(v => `<label><input type="radio" name="fenster" value="${v}" data-yn="fenster" ${(o.fenster ? 'Ja' : 'Nein') === v ? 'checked' : ''} ${dis}><span>${v}</span></label>`).join('')}</div></div>
@@ -2710,6 +2735,8 @@ const ACT = {
   besList: () => { UI.cur = null; renderBes(); window.scrollTo({ top: 0 }); },
   secT: el => { const k = el.dataset.k; const u = UI.sec || (UI.sec = {}); const card = el.closest('.acc'); u[k] = !card.classList.contains('open'); card.classList.toggle('open', u[k]); el.setAttribute('aria-expanded', u[k]); },
   nextRoom: () => { closePanel(); const q = $('#sec-raumbuch'); if (q) { const u = UI.sec || (UI.sec = {}); u.raumbuch = true; q.classList.add('open'); const qa = q.querySelector('.quick'); (qa || q).scrollIntoView({ behavior: 'smooth', block: 'start' }); if (qa) { qa.classList.add('flash'); setTimeout(() => qa.classList.remove('flash'), 1200); } } },
+  varAdd: () => { const o = curObj(); if (!o) return; o.vars = o.vars || []; const n = Math.min(5, ((o.vars.length ? o.vars[o.vars.length - 1].tage : o.days).length || 0) + 1) || 1; o.vars.push({ id: uid(), n: '', tage: DAYS.slice(0, n), m: null, rec: false }); save(); renderBes(); },
+  varDel: el => { const o = curObj(); if (!o) return; o.vars.splice(+el.dataset.i, 1); if (!o.vars.length) o.recMain = false; save(); renderBes(); },
   bodenStd: el => { const o = curObj(); o.bodenStd = el.dataset.v; save(); renderBes(); },
   bodenPick: el => { const x = curRoom(); if (!x) return; x[1].boden = el.dataset.v; save(); renderPanel(true); refreshBesLive(); },
   toggleTasks: () => { UI.showTasks = !UI.showTasks; renderPanel(true); },
@@ -2924,6 +2951,8 @@ document.addEventListener('input', e => {
     if (t.dataset.pl === 'verkaeufer') { const a = $('#pVerkAnd'), am = $('#pVerkMail'); if (am) am.hidden = t.value !== '__andere'; if (a) { a.hidden = t.value !== '__andere'; if (!a.hidden) a.focus(); } } t.closest('.field')?.classList.remove('err'); return; }
   if (t.dataset.grv && UI.gr && t.tagName === 'INPUT') { const [pi, ri, k] = t.dataset.grv.split(':'); const r = UI.gr.pages[+pi].result[+ri]; if (k === 'flaeche') { r.flaeche = num(t.value); if (r.flaeche > 0 && r.quelle === 'fehlt') r.quelle = 'geschätzt'; } else r[k] = t.value; return; }
   if (t.dataset.lb) { const L = num($('#rL').value), B = num($('#rB').value); if (L > 0 && B > 0) { const x = curRoom(); if (x) { x[1].flaeche = Math.round(L * B * 10) / 10; $('#rM2').value = x[1].flaeche; save(); refreshRoomCalc(); refreshBesLive(); } } return; }
+  if (t.dataset.vm != null && t.dataset.vm !== '') { const o = curObj(); if (!o) return; const v = o.vars[+t.dataset.vm]; v.m = num(t.value); const e = document.getElementById('vp' + (+t.dataset.vm + 1)); if (e) e.textContent = v.m > 0 && v.tage.length ? `≈ CHF ${fmtN(v.m / (v.tage.length * WF()), 2)} pro Reinigung · ${chf(v.m * 12)} pro Jahr` : 'Reinigungstage und Preis eingeben'; save(); return; }
+  if (t.dataset.vn != null && t.dataset.vn !== '') { const o = curObj(); if (!o) return; const i = +t.dataset.vn; if (i === 0) o.varMainN = t.value; else o.vars[i - 1].n = t.value; save(); return; }
   if (t.dataset.st) { const o = curObj(); if (!o) return; o.stdTage = o.stdTage || {}; o.stdTage[t.dataset.st] = num(t.value); save(); refreshBesLive(); return; }
   if (t.dataset.zt) { const o = curObj(); if (!o) return; o.zeiten = o.zeiten || {}; o.zeiten[t.dataset.zt] = t.value; save(); refreshBesLive(); return; }
   if (t.dataset.kc) { const cu = S.customers.find(c => c.id === t.dataset.cid); if (cu) { cu[t.dataset.kc] = t.value; save(); } return; }
@@ -2954,6 +2983,8 @@ document.addEventListener('change', e => {
   if (t.dataset.sstr) { toast('Gespeichert'); return; }
   const o = curObj();
   if (t.dataset.day && o) { const d = t.dataset.day; o.days = t.checked ? DAYS.filter(x => o.days.includes(x) || x === d) : o.days.filter(x => x !== d); save(); renderBes(); return; }
+  if (t.dataset.vday && o) { const [i, d] = t.dataset.vday.split(':'), v = o.vars[+i]; v.tage = t.checked ? DAYS.filter(x => v.tage.includes(x) || x === d) : v.tage.filter(x => x !== d); save(); renderBes(); return; }
+  if (t.dataset.vrec != null && t.dataset.vrec !== '' && o) { const i = +t.dataset.vrec; o.recMain = false; o.vars.forEach(v => v.rec = false); if (t.checked) { if (i === 0) o.recMain = true; else o.vars[i - 1].rec = true; } save(); renderBes(); return; }
   if (t.dataset.yn && o) { o[t.dataset.yn] = t.value === 'Ja'; const wr = document.getElementById(t.dataset.yn === 'wasch' ? 'waschWrap' : t.dataset.yn === 'fenster' ? 'fensterWrap' : ''); if (wr) { wr.hidden = t.value !== 'Ja'; if (t.value === 'Ja') { const i = wr.querySelector('input'); i && i.focus(); } } save(); refreshBesLive(); return; }
   if (t.dataset.rs) { const x = curRoom(); if (!x) return; const r = x[1]; r[t.dataset.rs] = t.value;
     if (t.dataset.rs === 'gruppe') { r.custom = null; const fam = FAMILIES[r.gruppe]; if (fam && FAMILY_BY[fam][r.dispo]) r.gruppe = FAMILY_BY[fam][r.dispo]; }
@@ -3180,7 +3211,7 @@ async function buildOfferPdf(o, lang = 'de') {
 
   /* ---------- Preis- und Verrechnungsübersicht ---------- */
   const p11 = await copy(6);
-  const SH = 0;   // Tücherservice steht bereits oben («inkl. Tücherservice»), keine zusätzliche Zeile          // Zeile «Monatlicher Tücherservice» schiebt den Rest der Seite nach unten
+  const VR = R ? [] : varList(o), SH = VR.length ? (VR.length - 1) * 20.4 : 0;   // Tücherservice steht bereits oben («inkl. Tücherservice»), keine zusätzliche Zeile          // Zeile «Monatlicher Tücherservice» schiebt den Rest der Seite nach unten
   const mwst = T_.exkl, incl = c.wash > 0 ? (en ? ' (incl. laundry service)' : ' (inkl. Tücherservice)') : '';
   white(p11, 229, 193.5, 430, 212.3); white(p11, 229, 213.9, 430, 232.7);
   if (R) {
@@ -3204,6 +3235,7 @@ async function buildOfferPdf(o, lang = 'de') {
     const an = p11.node.lookupMaybe(PDFName.of('Annots'), PDFArray);
     if (an) for (let k = 0; k < an.size(); k++) { const d = an.lookup(k, PDFDict), r = d.lookup(PDFName.of('Rect'), PDFArray); if (r) d.set(PDFName.of('Rect'), out.context.obj([0, 1, 2, 3].map(j => r.lookup(j, PDFNumber).asNumber() - (j % 2 ? SH : 0)))); }
     /* neue Zeile in Tabelle 1 (Zeilenhöhe 20.4, wie die Vorlage) */
+    if (!VR.length) {
     const t0 = 254.1, t1 = t0 + SH, line = rgb(0.851, 0.851, 0.851);
     p11.drawRectangle({ x: 65.4, y: H - t1, width: 474.6, height: SH, color: C.white, borderWidth: 0 });
     p11.drawRectangle({ x: 65.4, y: H - t1, width: 160, height: SH, color: rgb(0.949, 0.949, 0.949), borderWidth: 0 });
@@ -3211,6 +3243,27 @@ async function buildOfferPdf(o, lang = 'de') {
     [65.4, 540].forEach(xx => p11.drawLine({ start: { x: xx, y: H - t0 }, end: { x: xx, y: H - t1 }, thickness: 0.6, color: line }));
     txt(p11, en ? 'Monthly laundry service' : 'Monatlicher Tücherservice', 71.7, t0 + 13.4, { bold: true, color: C.navy });
     txt(p11, `${pdfChf(c.wash)} ${mwst}`, 231.7, t0 + 13.4);
+    }
+  }
+  if (VR.length) {
+    white(p11, 64, 191.5, 542, 256);
+    const x0 = 65.4, x1 = 540, xm = 290, xj = 415, ln = rgb(0.851, 0.851, 0.851), rh = 20.4; let ty = 193.0;
+    p11.drawRectangle({ x: x0, y: H - (ty + rh), width: x1 - x0, height: rh, color: C.navy, borderWidth: 0 });
+    txt(p11, en ? 'Option' : 'Variante', 71.7, ty + 13.4, { bold: true, size: 8.5, color: C.white }); txt(p11, en ? 'Monthly (excl. VAT)' : 'Monatlich (exkl. MwSt.)', xm + 6, ty + 13.4, { bold: true, size: 8.5, color: C.white }); txt(p11, en ? 'Yearly (excl. VAT)' : 'Jährlich (exkl. MwSt.)', xj + 6, ty + 13.4, { bold: true, size: 8.5, color: C.white });
+    ty += rh;
+    VR.forEach((v, i) => {
+      p11.drawRectangle({ x: x0, y: H - (ty + rh), width: x1 - x0, height: rh, color: v.rec ? C.ice : (i % 2 ? rgb(0.949, 0.949, 0.949) : C.white), borderWidth: 0 });
+      [ty, ty + rh].forEach(yy => p11.drawLine({ start: { x: x0, y: H - yy }, end: { x: x1, y: H - yy }, thickness: 0.6, color: ln }));
+      [x0, xm, xj, x1].forEach(xx => p11.drawLine({ start: { x: xx, y: H - ty }, end: { x: xx, y: H - (ty + rh) }, thickness: 0.6, color: ln }));
+      const lab = fit(v.n, v.rec ? 190 : 235, fVB, 9); txt(p11, lab, 71.7, ty + 13.6, { bold: true, color: C.navy });
+      if (v.rec) { const w = fVB.widthOfTextAtSize(lab, 9) + 8; txt(p11, en ? 'Recommended' : 'Empfohlen', 71.7 + w, ty + 13.4, { bold: true, size: 7.5, color: rgb(0.118, 0.62, 0.608) }); }
+      txt(p11, pdfChf(v.m), xm + 6, ty + 13.6); txt(p11, pdfChf(v.m * 12), xj + 6, ty + 13.6);
+      ty += rh;
+    });
+    p11.drawRectangle({ x: x0, y: H - (ty + rh), width: 160, height: rh, color: rgb(0.949, 0.949, 0.949), borderWidth: 0 });
+    [ty, ty + rh].forEach(yy => p11.drawLine({ start: { x: x0, y: H - yy }, end: { x: x1, y: H - yy }, thickness: 0.6, color: ln }));
+    [x0, x0 + 160, x1].forEach(xx => p11.drawLine({ start: { x: xx, y: H - ty }, end: { x: xx, y: H - (ty + rh) }, thickness: 0.6, color: ln }));
+    txt(p11, en ? 'Billing cycle' : 'Verrechnungsrhythmus', 71.7, ty + 13.4, { bold: true, color: C.navy }); txt(p11, en ? 'Monthly, at the start of each month' : 'Monatlich, jeweils anfangs Monat', 231.7, ty + 13.4);
   }
   if (c.fenster > 0) {
     /* Abschnitt 2, Zeile 1: Fensterreinigung als Pauschale pro Ausführung */
@@ -3262,10 +3315,28 @@ async function buildOfferPdf(o, lang = 'de') {
   } else {
   white(p21, 64, 179.5, 540, 192);
   txt(p21, `Basierend auf der Offerte Nr. ${nr} vom ${today} erteilen wir Ihnen hiermit den Auftrag zur`, 65, 187.8); }
-  white(p21, 229, 265.5, 430, 284.4); white(p21, 229, 286, 430, 304.8); white(p21, 229, 306.4, 430, 325.2);
-  txt(p21, objAdr, 231.7, 278.6); txt(p21, `${pdfChf(c.monthly)} ${T_.monat} ${T_.exkl}${c.wash > 0 ? (en ? ' (incl. laundry service)' : ' (inkl. Waschservice)') : ''}`, 231.7, 299.0); txt(p21, T_.nachVereinbarung, 231.7, 319.6, { color: C.black });
-  white(p21, 64, 386.5, 300, 400.5); txt(p21, firma, 65.4, 396.1, { bold: true, color: C.navy });
-  white(p21, 312, 447, 440, 461); txt(p21, `Effretikon, ${today}`, 313.6, 456.4);
+  const D = VR.length ? VR.length * 13.5 + 6 - 18.8 : 0;   /* Mehrere Preisvarianten: Zeile «Betrag» wird höher, der Rest der Seite rückt nach unten */
+  white(p21, 229, 265.5, 430, 284.4);
+  txt(p21, objAdr, 231.7, 278.6);
+  if (VR.length) {
+    const [ep21] = await out.embedPages([tpl.getPage(16)], [{ left: 0, bottom: H - 660, right: 546, top: H - 305.6 }]);
+    white(p21, 56, 305.5, 546, 660); p21.drawPage(ep21, { x: 0, y: H - 660 - D });
+    const ice = rgb(0.933, 0.969, 0.973), ln = rgb(0.851, 0.851, 0.851), yb = 304.8 + D;
+    white(p21, 229, 286, 540, 304.8); p21.drawRectangle({ x: 65.4, y: H - yb, width: 163.1, height: yb - 285.8, color: ice, borderWidth: 0 });
+    p21.drawRectangle({ x: 228.5, y: H - yb, width: 311.5, height: yb - 285.8, color: C.white, borderWidth: 0 });
+    [285.8, yb].forEach(yy => p21.drawLine({ start: { x: 65.4, y: H - yy }, end: { x: 540, y: H - yy }, thickness: 0.6, color: ln }));
+    [65.4, 228.5, 540].forEach(xx => p21.drawLine({ start: { x: xx, y: H - 285.8 }, end: { x: xx, y: H - yb }, thickness: 0.6, color: ln }));
+    white(p21, 229, 306.4 + D, 430, 325.2 + D); txt(p21, T_.nachVereinbarung, 231.7, 319.6 + D, { color: C.black });
+    txt(p21, en ? 'Chosen option' : 'Gewählte Variante', 71.7, 297.0, { bold: true, color: C.navy });
+    txt(p21, en ? 'per month, excl. VAT' : 'pro Monat, exkl. MwSt.', 71.7, 309.5, { size: 7.6, color: rgb(0.45, 0.45, 0.45) });
+    VR.forEach((v, i) => { const by = 296.4 + i * 13.5; p21.drawRectangle({ x: 231.7, y: H - by + 0.5, width: 7, height: 7, borderColor: C.navy, borderWidth: 0.9, color: C.white });
+      txt(p21, fit(`${v.n}${v.rec ? (en ? ' (recommended)' : ' (empfohlen)') : ''}: ${pdfChf(v.m)}`, 290, fV, 8.6), 244.5, by, { size: 8.6 }); });
+  } else {
+    white(p21, 229, 286, 430, 304.8); white(p21, 229, 306.4, 430, 325.2);
+    txt(p21, `${pdfChf(c.monthly)} ${T_.monat} ${T_.exkl}${c.wash > 0 ? (en ? ' (incl. laundry service)' : ' (inkl. Waschservice)') : ''}`, 231.7, 299.0); txt(p21, T_.nachVereinbarung, 231.7, 319.6, { color: C.black });
+  }
+  white(p21, 64, 386.5 + D, 300, 400.5 + D); txt(p21, firma, 65.4, 396.1 + D, { bold: true, color: C.navy });
+  white(p21, 312, 447 + D, 440, 461 + D); txt(p21, `Effretikon, ${today}`, 313.6, 456.4 + D);
   out.addPage(p21); }
 
   out.setTitle(`${R ? 'Richtangebot' : en ? 'Offer' : 'Offerte'} ${nr} ${firma}`); out.setAuthor('Clean Service Scaramuzzo AG'); out.setSubject(en ? 'Offer for maintenance cleaning' : 'Offerte Unterhaltsreinigung'); out.setCreator('Offertplattform Unterhaltsreinigung');
@@ -3500,16 +3571,75 @@ async function initSample() {
   if (SAMPLE) { try { SAMPLE_IMG = (await SAMPLE.limits()).images || null; } catch (e) { SAMPLE_IMG = null; } }
   if (READY && UI.view === 'bes' && !editing()) renderBes();
 }
-const grAvailable = () => !!(SAMPLE && SAMPLE_IMG);
+const grAI = () => !!(SAMPLE && SAMPLE_IMG);
+const grAvailable = () => !!(window.pdfjsLib || grAI());
 
 function grDropHtml(o, locked) {
-  const ok = grAvailable();
-  if (locked || !ok) return '';
-  return `<div class="gdrop ${ok ? '' : 'off'}" id="gdrop" ${ok ? 'data-act="pickPlan" tabindex="0" role="button" aria-label="Grundriss hochladen"' : ''}>
-    <svg style="width:26px;height:26px;color:var(--cs-brand-text)"><use href="#i-up"/></svg>
-    <div><b>${ok ? 'Grundriss hierher ziehen oder antippen' : 'Grundriss-Erkennung in dieser Ansicht nicht verfügbar'}</b>
-    <small>${ok ? 'PDF, JPG oder PNG, ein Plan pro Stockwerk. Claude erkennt Räume und Flächen als Vorschlag, du bestätigst.' : 'Im claude.ai-Viewer angemeldet öffnen. Räume lassen sich unten weiterhin von Hand erfassen.'}</small></div>
-    <input type="file" id="planFile" accept="application/pdf,image/png,image/jpeg,image/webp" multiple hidden></div>`;
+  if (locked || !grAvailable()) return '';
+  const ai = grAI();
+  return `<div class="gdrop" id="gdrop" data-act="pickPlan" tabindex="0" role="button" aria-label="Grundriss hochladen">
+    <svg style="width:26px;height:26px;color:var(--cs-brand-text);flex:none"><use href="#i-up"/></svg>
+    <div><b>Plan vorhanden? Grundriss hierher ziehen oder antippen</b>
+    <small>PDF mit Beschriftung, ein Plan pro Stockwerk. Raumnamen, Nummern und Flächen werden direkt aus dem Plan gelesen, du bestätigst.${ai ? ' Scans und Fotos liest Claude.' : ' Scans und Fotos bitte von Hand erfassen.'}</small></div>
+    <input type="file" id="planFile" accept="${ai ? 'application/pdf,image/png,image/jpeg,image/webp' : 'application/pdf'}" multiple hidden></div>`;
+}
+
+/* ---------- Lokale Erkennung: Beschriftung aus dem Text des PDF (ohne KI) ---------- */
+const GR_MAP = [
+  [/schacht|steigzone|steigschacht|installation|kamin|mauer|dach\b/i, 'skip'],
+  [/wc|toilet|lavabo|pissoir|sanit/i, '7.10'], [/garderobe/i, '7.20'], [/dusche/i, '7.30'],
+  [/küche|kueche|kochnische|pantry|kitchen/i, '3.52'], [/cafeteria|kantine/i, '1.21'], [/pause|aufenthalt/i, '1.10'],
+  [/empfang|rezeption/i, '2.05'], [/grossraum|open ?space/i, '2.20'], [/sitzung|besprech|konferenz|meeting/i, '2.30'],
+  [/büro|buero|office|arbeit/i, '2.10'], [/archiv/i, '4.10'], [/labor/i, '4.12'], [/lager|materialraum/i, '4.11'], [/abstell|putzraum|reduit|reinigung/i, '2.70'],
+  [/technik|server|heizung|elektro|lüftung|lueftung/i, '8.20'], [/entsorg|abfall/i, '8.10'],
+  [/treppe/i, '9.22'], [/lift|aufzug/i, '9.21'], [/korridor|flur|gang\b|vorraum|verkehr|erschliessung/i, '9.20'], [/windfang|schleuse/i, '9.10'], [/foyer|halle|eingang/i, '9.11'],
+  [/balkon|terrasse/i, '1.90'], [/behandlung|sprech|untersuch/i, '6.10'], [/schulung|unterricht/i, '5.10'], [/bibliothek/i, '5.31'], [/garage|parkplatz/i, 'A.10']
+];
+const grGroupOf = name => { for (const [re, code] of GR_MAP) if (re.test(name)) return code; return ''; };
+const GR_AREA = /(\d{1,4}(?:[.,]\d{1,2})?)\s*(?:m\s*[²2]|qm)(?!\w)/i, GR_NR = /^(?:[A-Za-z]{0,2}[ .\-]?)?\d{1,3}(?:[.\-\/]\d{1,3})?[a-z]?$/;
+function grFloorOf(text) {
+  const t = String(text);
+  let m = t.match(/\b([1-5])\.?\s*(?:OG|Obergeschoss)\b/i); if (m) return m[1] + '. OG';
+  if (/\b(?:UG|Untergeschoss|Keller)\b/i.test(t)) return 'UG'; if (/\b(?:EG|Erdgeschoss)\b/i.test(t)) return 'EG'; return null;
+}
+function grParseText(items) {
+  const it = items.filter(i => i.str.trim() && Math.abs(i.b) < 0.2).map(i => ({ s: i.str.trim(), x: i.x, y: i.y, w: i.w || i.s * 0.5 * i.str.length, h: Math.max(i.h, 4) }));
+  if (it.length > 6000) return [];
+  const par = it.map((_, i) => i), find = i => { while (par[i] !== i) { par[i] = par[par[i]]; i = par[i]; } return i; }, uni = (a, b) => { a = find(a); b = find(b); if (a !== b) par[a] = b; };
+  for (let i = 0; i < it.length; i++) for (let j = i + 1; j < it.length; j++) {
+    const a = it[i], b = it[j], h = Math.max(a.h, b.h), dy = Math.abs(a.y - b.y);
+    if (Math.max(a.h, b.h) / Math.min(a.h, b.h) > 1.35) continue;
+    if (dy < 0.5 * h) { const gap = Math.max(a.x, b.x) - Math.min(a.x + a.w, b.x + b.w); if (gap < 1.2 * h) uni(i, j); continue; }
+    if (dy <= 2.4 * h) { const cx = Math.abs((a.x + a.w / 2) - (b.x + b.w / 2)), lx = Math.abs(a.x - b.x); if (cx <= 0.35 * Math.max(a.w, b.w) + 0.8 * h || lx <= 1.2 * h) uni(i, j); }
+  }
+  const groups = {}; it.forEach((p, i) => { (groups[find(i)] = groups[find(i)] || []).push(p); });
+  const rooms = [];
+  Object.values(groups).forEach(g => {
+    const lines = []; g.sort((a, b) => b.y - a.y || a.x - b.x).forEach(p => { const L = lines.find(l => Math.abs(l.y - p.y) < 0.5 * p.h); if (L) L.p.push(p); else lines.push({ y: p.y, p: [p] }); });
+    const ls = lines.map(l => l.p.sort((a, b) => a.x - b.x).map(p => p.s).join(' ').replace(/\s+/g, ' ').trim());
+    let area = null, nr = '', name = '';
+    const rest = [];
+    ls.forEach(l => { const m = l.match(GR_AREA); if (m && area == null) { area = parseFloat(m[1].replace(',', '.')); const r = l.replace(GR_AREA, '').replace(/^[A-Za-zäöü]{0,3}[:=]\s*/, '').trim(); if (r) rest.push(r); } else rest.push(l); });
+    rest.forEach(l => { let m = l.match(/^((?:[A-Za-z]{0,2}[ .\-]?)?\d{1,3}(?:[.\-\/]\d{1,3})?[a-z]?)\s+(\D.*)$/); if (m && !nr && /[A-Za-zäöüÄÖÜ]{2}/.test(m[2])) { nr = m[1]; l = m[2]; }
+      if (GR_NR.test(l) && !nr) { nr = l; return; } if (/[A-Za-zäöüÄÖÜ]{2}/.test(l) && !name) name = l; });
+    if (!name) return;
+    const grp = grGroupOf(name); if (grp === 'skip') return;
+    if (!(area > 0) && !grp) return;
+    if (!(area > 0) && !nr) return;
+    if (name.length > 48) return;
+    rooms.push({ x: g[0].x, y: g[0].y, bez: name.replace(/\s+/g, ' '), nr, flaeche: area > 0 ? Math.round(area * 10) / 10 : null, gruppe: grp });
+  });
+  const seen = new Set();
+  return rooms.filter(r => { const k = r.nr + '|' + r.bez + '|' + r.flaeche; if (seen.has(k)) return false; seen.add(k); return true; })
+    .sort((a, b) => String(a.nr).localeCompare(String(b.nr), 'de', { numeric: true }) || b.y - a.y || a.x - b.x);
+}
+async function grLocalPage(page) {
+  try {
+    const tc = await page.getTextContent();
+    const items = tc.items.map(i => ({ str: i.str, x: i.transform[4], y: i.transform[5], b: i.transform[1] / (i.transform[0] || 1), w: i.width, h: i.height || Math.abs(i.transform[3]), s: Math.abs(i.transform[0]) }));
+    const text = items.map(i => i.str).join(' '), rooms = grParseText(items);
+    return { floor: grFloorOf(text), rooms };
+  } catch (e) { return { floor: null, rooms: [] }; }
 }
 
 /* ---------- Bilder vorbereiten ---------- */
@@ -3530,7 +3660,8 @@ async function fileToCanvases(file) {
       const cv = document.createElement('canvas'); cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
       const ctx = cv.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
       await page.render({ canvasContext: ctx, viewport: vp }).promise;
-      out.push({ name: `${file.name} · Seite ${i}`, cv });
+      const local = await grLocalPage(page);
+      out.push({ name: `${file.name} · Seite ${i}`, cv, local });
     }
     return out;
   }
@@ -3584,7 +3715,7 @@ async function grStart(files) {
   try {
     for (const f of files) {
       const cvs = await fileToCanvases(f);
-      for (const p of cvs) UI.gr.pages.push({ name: p.name, cv: p.cv, thumb: scaleCanvas(p.cv, 700).toDataURL('image/jpeg', .72), result: null, err: null });
+      for (const p of cvs) UI.gr.pages.push({ name: p.name, cv: p.cv, local: p.local || null, thumb: scaleCanvas(p.cv, 700).toDataURL('image/jpeg', .72), result: null, err: null });
     }
   } catch (e) {
     UI.gr.status = 'error'; UI.gr.msg = e && e.code === 'pdf_lib' ? 'Das PDF-Modul konnte nicht geladen werden. Bitte Seite neu laden oder den Plan als Bild (JPG/PNG) hochladen.' : 'Die Datei konnte nicht gelesen werden. Bitte ein PDF, JPG oder PNG verwenden.';
@@ -3595,6 +3726,16 @@ async function grStart(files) {
   grCtl = new AbortController();
   for (let i = 0; i < UI.gr.pages.length; i++) {
     const pg = UI.gr.pages[i]; UI.gr.cur = i; renderPanel(true);
+    const loc = pg.local && pg.local.rooms.length >= 2 ? pg.local : null, defFloor = UI.floor !== 'Alle' ? UI.floor : 'EG';
+    if (loc) {
+      pg.floor = FLOORS.includes(loc.floor) ? loc.floor : defFloor;
+      pg.result = loc.rooms.map(r => ({ use: true, bez: r.bez.slice(0, 60), nr: String(r.nr || '').slice(0, 12), flaeche: r.flaeche, quelle: r.flaeche > 0 ? 'plan' : 'fehlt', gruppe: r.gruppe, boden: '',
+        konfidenz: Math.min(0.98, 0.55 + (r.nr ? 0.15 : 0) + (r.flaeche > 0 ? 0.25 : 0) + (r.gruppe ? 0.03 : 0)) }));
+      const miss = pg.result.filter(r => !(r.flaeche > 0)).length, noG = pg.result.filter(r => !r.gruppe).length;
+      pg.hinweis = 'Aus der Beschriftung des PDF gelesen.' + (miss ? ` ${miss} ${miss === 1 ? 'Raum hat' : 'Räume haben'} keine Fläche im Plan.` : '') + (noG ? ` ${noG} ${noG === 1 ? 'Raum braucht' : 'Räume brauchen'} noch eine Reinigungsgruppe.` : '') + (FLOORS.includes(loc.floor) ? '' : ' Stockwerk bitte prüfen.');
+      continue;
+    }
+    if (!grAI()) { pg.floor = defFloor; pg.result = []; pg.err = 'In diesem Plan konnte kein Text gelesen werden (Scan oder Foto). Bitte ein PDF mit Beschriftung verwenden oder die Räume von Hand erfassen.'; continue; }
     try {
       const imgs = await planImages(pg.cv, SAMPLE_IMG.maxCount || 1);
       const res = await SAMPLE.json(grPrompt(imgs.length, pg.name), { images: imgs, signal: grCtl.signal, modelTier: 'default' });
@@ -3652,9 +3793,10 @@ function grApply() {
   const g = UI.gr, o = objOf(g.oid); if (!o) return;
   const d = defaultDispo(o); let n = 0;
   g.pages.forEach(p => (p.result || []).filter(r => r.use).forEach(r => {
+    const bd = r.boden || (/^(7\.|3\.52)/.test(r.gruppe || '') ? 'Keramik' : (o.bodenStd || 'Vinyl'));
     let gr = r.gruppe; if (FAMILIES[gr] && FAMILY_BY[FAMILIES[gr]][d]) gr = FAMILY_BY[FAMILIES[gr]][d];
-    o.rooms.push({ id: uid(), floor: p.floor, bez: r.bez || 'Raum', nr: r.nr || '', gruppe: gr, flaeche: r.flaeche, boden: r.boden || '', dispo: d, custom: null,
-      notiz: r.quelle === 'plan' ? '' : r.quelle === 'fehlt' ? 'Fläche vor Ort messen' : `Fläche ${r.quelle}, vor Ort prüfen`, photos: [], quelle: 'grundriss' });
+    o.rooms.push({ id: uid(), floor: p.floor, bez: r.bez || 'Raum', nr: r.nr || '', gruppe: gr, flaeche: r.flaeche, boden: bd, dispo: d, custom: null,
+      notiz: !r.boden ? 'Boden vor Ort prüfen' + (r.quelle === 'plan' ? '' : '. ') + (r.quelle === 'plan' ? '' : (r.quelle === 'fehlt' ? 'Fläche vor Ort messen' : `Fläche ${r.quelle}, vor Ort prüfen`)) : r.quelle === 'plan' ? '' : r.quelle === 'fehlt' ? 'Fläche vor Ort messen' : `Fläche ${r.quelle}, vor Ort prüfen`, photos: [], quelle: 'grundriss' });
     n++;
   }));
   // Plan als Skizze ablegen
