@@ -379,6 +379,9 @@ body{-webkit-tap-highlight-color:transparent}
 
 .gebbox{border:1.5px solid var(--cs-teal,#1b8285);border-radius:12px;padding:12px;margin:2px 0 12px;background:var(--cs-ice,#eaf5f6)}
 .gebbox .gchip b{margin-right:4px}.gebbox .gebsum{margin:2px 0}
+
+.fnew{display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap}.fnew input{width:12.5em;padding:7px 10px;border:1px solid var(--cs-line,#bcd3d7);border-radius:999px;font:inherit}
+#rFloorNew{margin-top:6px}
 </style>
 
 <!-- Icon-Sprite (eine Linien-Familie, 1.8 px, runde Enden) -->
@@ -784,6 +787,10 @@ const BODEN_STD = ['Vinyl','Parkett','Keramik','Textil','Laminat','Beton','Linol
 const BODEN = [['Parkett','hart'],['Laminat','hart'],['Keramik','hart'],['Textil','textil'],['Beton','hart'],['Linoleum','hart'],['Naturstein (G)','hart'],['PVC','hart'],['Vinyl','hart'],['Andere','hart']];
 const isTextil = b => (BODEN.find(x => x[0] === b) || [])[1] === 'textil';
 const FLOORS = ['UG','EG','1. OG','2. OG','3. OG','4. OG','5. OG'];
+/* Reihenfolge auch für selbst eingetragene Stockwerke (z. B. «6. OG», «Dachgeschoss», «2. UG») */
+function fRank(f) { const i = FLOORS.indexOf(f); if (i >= 0) return i; const m = /^(\d+)\.?\s*(OG|UG)/i.exec(f || ''); if (m) return m[2].toUpperCase() === 'OG' ? +m[1] + 1 : -(+m[1]) + 0.5; if (/dach|attika/i.test(f)) return 50; if (/zwischen|galerie|mezz/i.test(f)) return 1.5; if (/aussen|umgebung|garage|parking|tiefgarage/i.test(f)) return -50; return 40; }
+function floorsOf(o) { return [...new Set([...FLOORS, ...(o.floorsX || []), ...o.rooms.map(r => r.floor).filter(Boolean)])].sort((a, b) => fRank(a) - fRank(b)); }
+function addFloor(o, name) { name = (name || '').trim().replace(/\s+/g, ' '); if (!name) return null; const hit = floorsOf(o).find(f => f.toLowerCase() === name.toLowerCase()); if (hit) return hit; (o.floorsX = o.floorsX || []).push(name); return name; }
 const RAUMTYPEN = [['Empfang','2.05'],['Büro','2.10'],['Grossraumbüro','2.20'],['Sitzungszimmer','2.30'],['Korridor','9.20'],['Verkaufslokal','2.50'],['Toilette Damen','7.10'],['Toilette Herren','7.10'],['Toilette Kunden','7.10'],['Garderobe','7.20'],['Küche','3.52'],['Teeküche','3.52'],['Aufenthaltsraum','1.10'],['Wartezimmer','1.10'],['Behandlungszimmer','6.10'],['Putzraum','2.70'],['Treppen','9.22'],['Lift','9.21']];
 const FAMILIES = { '2.10':'büro','2.11':'büro','2.12':'büro','7.10':'wc','7.11':'wc','7.12':'wc' };
 const FAMILY_BY = { büro:{'1x':'2.10','3x':'2.11','5x':'2.12'}, wc:{'1x':'7.10','3x':'7.11','5x':'7.12'} };
@@ -1868,8 +1875,8 @@ function renderBes() {
   }
   if (UI.secFor !== o.id) { UI.sec = {}; UI.secFor = o.id; }
   const cu = custOf(o), c = objCalc(o), locked = o.status !== 'erfassung' && !o.revising && !o.lvEditing, SM = secMeta(o, c, cu);
-  const floors = [...new Set([...o.rooms.map(r => r.floor)])].sort((a, b) => FLOORS.indexOf(b) - FLOORS.indexOf(a));
-  if (UI.floor !== 'Alle' && !floors.includes(UI.floor) && !FLOORS.includes(UI.floor)) UI.floor = 'Alle';
+  const floors = [...new Set([...o.rooms.map(r => r.floor)])].sort((a, b) => fRank(b) - fRank(a));
+  if (UI.floor !== 'Alle' && !floors.includes(UI.floor) && !floorsOf(o).includes(UI.floor)) UI.floor = 'Alle';
   if (o.multi) gebFix(o);
   const inG = r => !o.multi || r.geb === UI.geb;
   const shown = o.rooms.filter(r => inG(r) && (UI.floor === 'Alle' || r.floor === UI.floor));
@@ -1907,7 +1914,7 @@ function renderBes() {
 
       <div class="card fsec acc ${secOpen('raumbuch', SM.raumbuch.st) ? 'open' : ''}" id="sec-raumbuch"><button type="button" class="acc-h" data-act="secT" data-k="raumbuch" aria-expanded="${secOpen('raumbuch', SM.raumbuch.st)}"><span><span class="acc-t">Raumbuch</span><span class="acc-s">${SM.raumbuch.status}</span></span>${secIcon(SM.raumbuch.st)}</button><div class="acc-b"><p class="hint">Raumtyp antippen legt den Raum sofort an, mehrmals antippen legt mehrere an. Boden und Fläche ergänzt du bei Bedarf in der Zeile.</p>
         ${gebHtml(o, locked)}
-        <div class="field" style="margin-bottom:6px"><label>Stockwerk</label><div class="chips">${['Alle', ...FLOORS.slice().reverse()].map(f => { const n = o.rooms.filter(r => inG(r) && (f === 'Alle' || r.floor === f)).length; return `<button type="button" class="chip" data-act="floor" data-f="${f}" aria-pressed="${UI.floor === f}">${f}${n ? `<span class="cnt">${n}</span>` : ''}</button>`; }).join('')}</div></div>
+        <div class="field" style="margin-bottom:6px"><label>Stockwerk</label><div class="chips">${['Alle', ...floorsOf(o).reverse()].map(f => { const n = o.rooms.filter(r => inG(r) && (f === 'Alle' || r.floor === f)).length; return `<button type="button" class="chip" data-act="floor" data-f="${f}" aria-pressed="${UI.floor === f}">${f}${n ? `<span class="cnt">${n}</span>` : ''}</button>`; }).join('')}${locked ? '' : UI.floorNew ? `<span class="fnew"><input id="fNewIn" placeholder="z. B. 6. OG, Dachgeschoss" maxlength="24" autocomplete="off"><button type="button" class="btn btn-s btn-sm" data-act="floorAdd">Hinzufügen</button></span>` : `<button type="button" class="chip" data-act="floorNew" style="border-style:dashed">+ Anderes</button>`}</div></div>
         ${locked ? '' : `<div class="field" style="margin-bottom:8px"><label>Boden für neue Räume <span class="small muted">(Toiletten und Küchen: Keramik)</span></label><div class="chips">${BODEN_STD.slice(0, 6).map(bd => `<button type="button" class="chip" data-act="bodenStd" data-v="${esc(bd)}" aria-pressed="${(o.bodenStd || 'Vinyl') === bd}">${esc(bd)}</button>`).join('')}</div></div>
         <div class="field" style="margin-bottom:4px"><label>Raum hinzufügen${UI.floor === 'Alle' ? ' (Stockwerk zuerst wählen, sonst EG)' : ' im ' + UI.floor}</label></div>
         <div class="quick">${(UI.moreTypes ? RAUMTYPEN : RAUMTYPEN.slice(0, 9)).map(([n, g]) => `<button type="button" class="qbtn" data-act="addRoom" data-n="${esc(n)}" data-g="${g}">+ ${esc(n)}${(() => { const k = o.rooms.filter(r => inG(r) && r.bez === n && (UI.floor === 'Alle' || r.floor === UI.floor)).length; return k ? ` <span class="cnt">${k}</span>` : ''; })()}</button>`).join('')}${UI.moreTypes ? `<button type="button" class="qbtn" data-act="addRoom" data-n="" data-g="">+ Andere</button><button type="button" class="qbtn" data-act="moreTypes" style="color:var(--cs-fg-2)">weniger</button>` : `<button type="button" class="qbtn" data-act="moreTypes" style="color:var(--cs-fg-2)">mehr …</button>`}</div>`}
@@ -1966,7 +1973,7 @@ function gebHtml(o, locked) {
     ${locked ? '' : `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px"><button type="button" class="btn btn-s btn-sm" data-act="gebNext">${cur < o.geb.length - 1 ? 'Gebäude fertig, weiter zu ' + esc(gebName(o, o.geb[cur + 1], cur + 1)) : 'Gebäude fertig, nächstes Gebäude erfassen'} →</button>${o.geb.length > 1 ? `<button type="button" class="btn btn-sm" data-act="gebDel" style="color:var(--cs-fg-2)">Dieses Gebäude löschen</button>` : ''}</div>`}</div>`;
 }
 function roomListHtml(o, grouped) {
-  const floors = Object.keys(grouped).sort((a, b) => FLOORS.indexOf(b) - FLOORS.indexOf(a));
+  const floors = Object.keys(grouped).sort((a, b) => fRank(b) - fRank(a));
   if (!floors.length) return `<div class="rlist">${emptyState(o.rooms.length ? 'Auf diesem Stockwerk ist noch kein Raum erfasst.' : 'Noch keine Räume erfasst. Tippe oben auf einen Raumtyp.')}</div>`;
   return `<div class="rlist">${floors.map(f => `<div class="floor-h">${esc(f)} · ${grouped[f].length} ${grouped[f].length === 1 ? 'Raum' : 'Räume'} · ${(grouped[f].some(r => r.flaeche > 0) ? fmtN(grouped[f].reduce((a, r) => a + (r.flaeche || 0), 0), 1) + ' m²' : 'ohne Flächen')}</div>` +
     grouped[f].map(r => { const iss = roomIssues(r), rc = roomCalc(r); const g = GROUP[r.gruppe];
@@ -2084,7 +2091,7 @@ function roomPanelHtml(o, r) {
         <span class="small muted">${DISPO_BY[r.dispo]?.label} · ${perYear(r.dispo)} Ausführungen pro Jahr${fam ? ' · Gruppe wechselt automatisch (1x/3x/5x)' : ''}</span></div>
       <div class="field"><label for="rM2">Fläche (m²) <span class="muted small">optional</span></label><div class="frow" style="grid-template-columns:1fr 1fr"><input id="rM2" data-r="flaeche" data-num="1" inputmode="decimal" value="${r.flaeche ?? ''}" placeholder="m²" ${dis}>${dis ? '<span></span>' : `<div class="lb" style="margin:0"><input id="rL" inputmode="decimal" placeholder="L" data-lb="1" aria-label="Länge in Metern"><span>×</span><input id="rB" inputmode="decimal" placeholder="B" data-lb="1" aria-label="Breite in Metern"><span>m</span></div>`}</div>
         ${r.flaeche > 0 ? `<span class="small muted">${fmtN(rc.execMin, 0)} Min. pro Reinigung · ${fmtN(rc.hours / 12, 2)} h pro Monat</span>` : ''}</div>
-      <div class="frow"><div class="field"><label for="rFloor">Stockwerk</label><select id="rFloor" data-rs="floor" ${dis}>${FLOORS.map(f => `<option ${f === r.floor ? 'selected' : ''}>${f}</option>`).join('')}</select></div>
+      <div class="frow"><div class="field"><label for="rFloor">Stockwerk</label><select id="rFloor" data-rs="floor" ${dis}>${floorsOf(o).map(f => `<option ${f === r.floor ? 'selected' : ''}>${esc(f)}</option>`).join('')}<option value="__neu">Anderes Stockwerk …</option></select><input id="rFloorNew" placeholder="z. B. 6. OG, Dachgeschoss" maxlength="24" hidden ${dis}></div>
         <div class="field"><label for="rGrp">Reinigungsgruppe <span class="req">*</span></label><select id="rGrp" data-rs="gruppe" ${dis}><option value="">– wählen –</option>${GROUPS.map(g => `<option value="${g.code}" ${g.code === r.gruppe ? 'selected' : ''}>${g.code} ${esc(g.name)}</option>`).join('')}</select></div></div>
       <div class="chips" style="margin:2px 0 10px">
         <label class="chip upl" style="cursor:pointer">${ico('i-cam', 16)} Foto${r.photos.length ? ' (' + r.photos.length + ')' : ''}<input type="file" accept="image/*" capture="environment" data-file="room" ${dis} style="display:none"></label>
@@ -2137,7 +2144,7 @@ function objPanelHtml(o) {
     <dl class="dl"><dt>Objekt</dt><dd>${esc(o.name)}</dd><dt>Adresse</dt><dd>${esc(o.adresse)}</dd><dt>Kontakt</dt><dd>${esc(cu.kontakt)}</dd><dt>Besichtigung</dt><dd>${fmtDay(o.besDatum)} · ${esc(o.besZeit)} Uhr</dd>
       <dt>Reinigungstage</dt><dd>${o.zeitProTag ? esc(zeitText(o)) : (o.days.join(', ') || '–') + ' · ' + esc(o.zeit || '')}</dd><dt>Räume</dt><dd>${o.rooms.length} · ${fmtN(c.area, 1)} m²</dd><dt>Stunden/Jahr</dt><dd>${fmtN(c.hours, 1)} h</dd><dt>Monatspauschale</dt><dd>${chf(c.monthly)}</dd></dl>
     <div class="sec-t">Raumbuch nach Stockwerk</div>
-    ${Object.keys(floors).length ? `<table><tbody>${Object.entries(floors).sort((a, b) => FLOORS.indexOf(b[0]) - FLOORS.indexOf(a[0])).map(([f, v]) => `<tr style="cursor:default"><td>${esc(f)}</td><td class="num" style="text-align:right">${v.n} Räume</td><td class="num" style="text-align:right">${fmtN(v.a, 1)} m²</td><td class="num" style="text-align:right">${fmtN(v.h, 1)} h</td></tr>`).join('')}</tbody></table>` : '<p class="muted small">Noch keine Räume.</p>'}
+    ${Object.keys(floors).length ? `<table><tbody>${Object.entries(floors).sort((a, b) => fRank(b[0]) - fRank(a[0])).map(([f, v]) => `<tr style="cursor:default"><td>${esc(f)}</td><td class="num" style="text-align:right">${v.n} Räume</td><td class="num" style="text-align:right">${fmtN(v.a, 1)} m²</td><td class="num" style="text-align:right">${fmtN(v.h, 1)} h</td></tr>`).join('')}</tbody></table>` : '<p class="muted small">Noch keine Räume.</p>'}
     ${nfListHtml(o)}
     <div class="sec-t">Verlauf</div><ul class="timeline">${(o.log || []).slice().reverse().map(l => `<li><div><b>${esc(l[1])}</b><div class="small muted">${fmtDay(l[0])}</div></div></li>`).join('')}</ul>
   </div>
@@ -2157,7 +2164,7 @@ function sheetHead(o, title) {
   return `<div class="sh"><div><h2>${title}</h2><div class="meta">${esc(o.nr || o.objNr || 'Entwurf')}, ${esc(cu.firma)},<br>${esc(o.adresse)}</div></div><img src="${LOGO}" alt="Clean Service by Scaramuzzo"></div>`;
 }
 function docRaumbuch(o) {
-  const floors = [...new Set(o.rooms.map(r => r.floor))].sort((a, b) => FLOORS.indexOf(b) - FLOORS.indexOf(a));
+  const floors = [...new Set(o.rooms.map(r => r.floor))].sort((a, b) => fRank(b) - fRank(a));
   const c = objCalc(o);
   return `<div class="sheet">${sheetHead(o, 'Raumbuch')}<div class="tablewrap"><table><thead><tr><th>Bezeichnung</th><th>Nr</th><th>Bodenbelag</th><th>Dispo</th><th style="text-align:right">Fläche</th><th>Reinigungsgruppe</th><th style="text-align:right">Std./Jahr</th></tr></thead><tbody>
     <tr class="grp"><td colspan="6">${esc(o.name || 'Objekt')}</td><td class="num" style="text-align:right">${fmtN(c.hours, 2)}</td></tr>
@@ -2292,7 +2299,7 @@ ${text}`;
 }
 function aiApply(o, ops) {
   const log = [], rn = r => `${r.bez}${r.nr ? ' ' + r.nr : ''} (${r.floor})`;
-  const okDispo = d => d && DISPO_BY[d], okGr = g => g && GROUP[g], okFl = f => FLOORS.includes(f);
+  const okDispo = d => d && DISPO_BY[d], okGr = g => g && GROUP[g], okFl = f => !!f && String(f).length <= 24;
   const famFix = r => { const fam = FAMILIES[r.gruppe]; if (fam && FAMILY_BY[fam][r.dispo]) r.gruppe = FAMILY_BY[fam][r.dispo]; };
   (ops || []).forEach(op => {
     try {
@@ -2790,6 +2797,8 @@ const ACT = {
   editBes: el => { UI.cur = el.dataset.id; go('bes'); },
   reopen: () => { const o = curObj(); setStatus(o, 'erfassung'); renderBes(); },
   floor: el => { UI.floor = el.dataset.f; renderBes(); },
+  floorNew: () => { UI.floorNew = true; renderBes(); const i = $('#fNewIn'); i && i.focus({ preventScroll: true }); },
+  floorAdd: () => { const o = curObj(), i = $('#fNewIn'), f = addFloor(o, i && i.value); UI.floorNew = false; if (f) { UI.floor = f; save(); } renderBes(); },
   gebSel: el => { UI.geb = el.dataset.id; renderBes(); },
   gebAdd: () => { const o = curObj(); gebFix(o); const g = { id: uid(), n: '', a: '' }; o.geb.push(g); UI.geb = g.id; save(); renderBes(); const i = $('#gbN'); i && i.focus({ preventScroll: true }); },
   gebNext: () => { const o = curObj(); gebFix(o); const i = o.geb.findIndex(g => g.id === UI.geb); if (i < o.geb.length - 1) UI.geb = o.geb[i + 1].id; else { const g = { id: uid(), n: '', a: '' }; o.geb.push(g); UI.geb = g.id; } UI.floor = 'Alle'; save(); renderBes(); const q = $('#sec-raumbuch'); q && q.scrollIntoView({ behavior: 'smooth', block: 'start' }); },
@@ -3019,6 +3028,8 @@ document.addEventListener('change', e => {
   if (t.dataset.vrec != null && t.dataset.vrec !== '' && o) { const i = +t.dataset.vrec; o.recMain = false; o.vars.forEach(v => v.rec = false); if (t.checked) { if (i === 0) o.recMain = true; else o.vars[i - 1].rec = true; } save(); renderBes(); return; }
   if (t.dataset.multi && o) { o.multi = t.value === 'Ja'; if (o.multi) { gebFix(o); UI.geb = o.geb[0].id; } save(); renderBes(); return; }
   if (t.dataset.yn && o) { o[t.dataset.yn] = t.value === 'Ja'; const wr = document.getElementById(t.dataset.yn === 'wasch' ? 'waschWrap' : t.dataset.yn === 'fenster' ? 'fensterWrap' : ''); if (wr) { wr.hidden = t.value !== 'Ja'; if (t.value === 'Ja') { const i = wr.querySelector('input'); i && i.focus(); } } save(); refreshBesLive(); return; }
+  if (t.id === 'rFloorNew') { const x = curRoom(); if (!x) return; const f = addFloor(x[0], t.value); if (f) { x[1].floor = f; UI.floor = f; save(); refreshBesLive(); openPanel({ type: 'room', oid: x[0].id, id: x[1].id }); renderBes(); } return; }
+  if (t.dataset.rs === 'floor' && t.value === '__neu') { const n = $('#rFloorNew'); if (n) { n.hidden = false; n.focus(); } return; }
   if (t.dataset.rs) { const x = curRoom(); if (!x) return; const r = x[1]; r[t.dataset.rs] = t.value;
     if (t.dataset.rs === 'gruppe') { r.custom = null; const fam = FAMILIES[r.gruppe]; if (fam && FAMILY_BY[fam][r.dispo]) r.gruppe = FAMILY_BY[fam][r.dispo]; }
     save(); renderPanel(true); refreshBesLive(); return; }
