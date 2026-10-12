@@ -386,6 +386,8 @@ body{-webkit-tap-highlight-color:transparent}
 .slbox{border-top:1px solid var(--cs-line,#d6e6e9);margin-top:10px;padding-top:10px}
 
 .sxrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:10px;align-items:end}@media(max-width:560px){.sxrow{grid-template-columns:minmax(0,1fr)}}
+
+.xform{border:1.5px dashed var(--cs-teal,#1b8285);border-radius:12px;padding:10px;margin:8px 0;display:grid;gap:8px;background:var(--cs-ice,#eaf5f6)}
 </style>
 
 <!-- Icon-Sprite (eine Linien-Familie, 1.8 px, runde Enden) -->
@@ -1519,7 +1521,9 @@ function renderLoading() {
 }
 
 /* ---------- Kalkulation ---------- */
-const rlOf = t => S.settings.rlTask[t.id] || S.settings.rl[t.cat] || 1000;
+/* Eigene Leistungen (vom Verkäufer pro Raum ergänzt): r.xt = [{id, n}], ohne Richtleistung (keine zusätzlichen Stunden) */
+function regX(r) { (r.xt || []).forEach(x => { TASKS[x.id] = { id: x.id, name: x.n, cat: 'Eigene Leistungen', codes: {}, custom: true }; }); }
+const rlOf = t => t.custom ? Infinity : S.settings.rlTask[t.id] || S.settings.rl[t.cat] || 1000;
 function groupMap(code) {
   const out = {};
   TASK_ORDER.forEach(id => { const c = TASKS[id].codes[code]; if (c) out[id] = WEEKLY(c) ? 'R' : c; });
@@ -1529,6 +1533,7 @@ function groupMap(code) {
 }
 function roomMap(r) { return r.custom || (r.gruppe ? groupMap(r.gruppe) : {}); }
 function roomTasks(r) {
+  regX(r);
   const tex = isTextil(r.boden), out = [];
   Object.entries(roomMap(r)).forEach(([id, raw]) => {
     const t = TASKS[id]; if (!t) return;
@@ -1542,7 +1547,7 @@ function roomTasks(r) {
     const h = (wk * WF() + per / 12) * 12;                                              // Std. pro Jahr gesamt
     out.push({ t, raw, code, h, wk, per, perExec });
   });
-  return out.sort((a, b) => ORDER_IDX[a.t.id] - ORDER_IDX[b.t.id]);
+  return out.sort((a, b) => (ORDER_IDX[a.t.id] ?? 9999) - (ORDER_IDX[b.t.id] ?? 9999));
 }
 function roomIssues(r) {
   const e = [];
@@ -2081,12 +2086,13 @@ function roomPanelHtml(o, r) {
   const fam = FAMILIES[r.gruppe];
   const visible = id => { const t = TASKS[id]; if (t.cat === 'Boden - Textil' && !tex) return false; if (t.cat === 'Boden - Hartbeläge' && tex) return false; return true; };
   const gm = r.gruppe ? groupMap(r.gruppe) : {};
-  const ids = UI.showAll ? TASK_ORDER.filter(visible) : TASK_ORDER.filter(id => (id in map || id in gm) && visible(id));
+  regX(r);
+  const ids = [...(UI.showAll ? TASK_ORDER.filter(visible) : TASK_ORDER.filter(id => (id in map || id in gm) && visible(id))), ...(r.xt || []).map(x => x.id)];
   const hById = Object.fromEntries(rc.ts.map(x => [x.t.id, x]));
   let lastCat = '', tasksHtml = '';
   ids.forEach(id => { const t = TASKS[id], on = id in map, x = hById[id];
     if (t.cat !== lastCat) { tasksHtml += `<div class="tcat">${esc(t.cat)}</div>`; lastCat = t.cat; }
-    tasksHtml += `<div class="tk ${on ? '' : 'off'}"><input type="checkbox" data-tk="${id}" ${on ? 'checked' : ''} ${dis} aria-label="${esc(t.name)}"><span class="nm">${esc(t.name)}</span>${on ? `<select data-tkc="${id}" ${dis} aria-label="Code ${esc(t.name)}">${codeOptions(map[id], r.dispo)}</select><span class="hh">${x && x.code !== 'B' ? fmtN(x.h, 1) + ' h' : 'n. B.'}</span>` : ''}</div>`;
+    tasksHtml += `<div class="tk ${on ? '' : 'off'}"><input type="checkbox" data-tk="${id}" ${on ? 'checked' : ''} ${dis} aria-label="${esc(t.name)}"><span class="nm">${esc(t.name)}</span>${on ? `<select data-tkc="${id}" ${dis} aria-label="Code ${esc(t.name)}">${codeOptions(map[id], r.dispo)}</select><span class="hh">${t.custom ? '' : x && x.code !== 'B' ? fmtN(x.h, 1) + ' h' : 'n. B.'}</span>` : ''}${t.custom && !dis ? `<button type="button" class="btn btn-g btn-sm" data-act="xDel" data-id="${id}" aria-label="Eigene Leistung entfernen">×</button>` : ''}</div>`;
   });
   const std = defaultDispo(o);
   const BODEN_TOP = ['Keramik','Parkett','Vinyl','Textil','Laminat','Linoleum','PVC','Naturstein (G)','Beton','Andere'];
@@ -2110,7 +2116,8 @@ function roomPanelHtml(o, r) {
       ${(UI.showNote || r.notiz) ? `<div class="field"><label for="rNotiz">Notiz</label><textarea id="rNotiz" data-r="notiz" placeholder="z. B. Schlüssel beim Empfang, Pflanzen nicht giessen" ${dis}>${esc(r.notiz)}</textarea></div>` : ''}
       ${r.photos.length ? `<div class="thumbs" style="margin-bottom:10px">${r.photos.map(p => `<img src="${med(p)}" alt="Raumfoto">`).join('')}</div>` : ''}
       ${UI.showTasks ? `<div class="sec-t" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span>Leistungen (${rc.ts.length})</span>
-        <span style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn btn-g btn-sm" data-act="toggleAll">${UI.showAll ? 'Nur gewählte' : 'Ganzer Katalog'}</button>${r.custom ? `<button type="button" class="btn btn-g btn-sm" data-act="resetTasks" ${dis}>Auf Gruppe zurücksetzen</button>` : ''}</span></div>
+        <span style="display:flex;gap:6px;flex-wrap:wrap">${locked ? '' : `<button type="button" class="btn btn-s btn-sm" data-act="xAdd">+ Leistung hinzufügen</button>`}<button type="button" class="btn btn-g btn-sm" data-act="toggleAll">${UI.showAll ? 'Nur gewählte' : 'Ganzer Katalog'}</button>${r.custom ? `<button type="button" class="btn btn-g btn-sm" data-act="resetTasks" ${dis}>Auf Gruppe zurücksetzen</button>` : ''}</span></div>
+      ${UI.xAdd && !locked ? `<div class="xform"><div class="field"><label for="xName">Eigene Leistung</label><input id="xName" maxlength="70" placeholder="z. B. Entsorgungsservice, Kaffeemaschine entkalken" autocomplete="off"></div><div class="field"><label for="xCode">Häufigkeit</label><select id="xCode">${codeOptions('R', r.dispo)}</select></div><div style="display:flex;gap:8px"><button type="button" class="btn btn-p btn-sm" data-act="xSave">Hinzufügen</button><button type="button" class="btn btn-g btn-sm" data-act="xAdd">Abbrechen</button></div><p class="small muted" style="margin:6px 0 0">Erscheint im Leistungsverzeichnis. Zusätzliche Stunden werden nicht berechnet, bei Bedarf Pauschalpreis unter «Preis» erfassen.</p></div>` : ''}
       ${r.gruppe ? tasksHtml || '<p class="muted small">Keine Leistungen.</p>' : '<p class="muted small">Zuerst eine Reinigungsgruppe wählen. Die vordefinierten Leistungen werden dann übernommen.</p>'}` : `<p class="small muted" style="margin:0 0 8px">Leistungen gemäss Reinigungsgruppe${r.custom ? ', angepasst' : ''} – Standard der Aduna-Kalkulation.</p>`}
       ${UI.confirmDel ? `<div class="confirm-row">Raum wirklich löschen? <button class="btn btn-d btn-sm" data-act="delRoom">Löschen</button><button class="btn btn-g btn-sm" data-act="cancelDel">Abbrechen</button></div>` : ''}
     </div>
@@ -2833,6 +2840,9 @@ const ACT = {
   dispo: el => { const x = curRoom(); if (!x) return; const [o, r] = x; r.dispo = el.dataset.v;
     const fam = FAMILIES[r.gruppe]; if (fam && FAMILY_BY[fam][r.dispo]) r.gruppe = FAMILY_BY[fam][r.dispo];
     save(); renderPanel(true); refreshBesLive(); },
+  xAdd: () => { UI.xAdd = !UI.xAdd; renderPanel(true); setTimeout(() => { const i = $('#xName'); i && i.focus({ preventScroll: true }); }, 50); },
+  xSave: () => { const x = curRoom(); if (!x) return; const r = x[1], n = ($('#xName').value || '').trim().replace(/\s+/g, ' '); if (!n) { toast('Bitte Bezeichnung der Leistung eingeben.', 'warning'); return; } const id = 'x' + uid(); (r.xt = r.xt || []).push({ id, n }); r.custom = { ...roomMap(r), [id]: $('#xCode').value || 'R' }; UI.xAdd = false; UI.showTasks = true; save(); renderPanel(true); refreshBesLive(); toast('Leistung hinzugefügt', 'check'); },
+  xDel: el => { const x = curRoom(); if (!x) return; const r = x[1]; r.xt = (r.xt || []).filter(y => y.id !== el.dataset.id); const m = { ...roomMap(r) }; delete m[el.dataset.id]; r.custom = m; save(); renderPanel(true); refreshBesLive(); },
   toggleAll: () => { UI.showAll = !UI.showAll; renderPanel(true); },
   resetTasks: () => { const x = curRoom(); if (!x) return; x[1].custom = null; save(); renderPanel(true); refreshBesLive(); toast('Leistungen auf Gruppe zurückgesetzt'); },
   askDel: () => { UI.confirmDel = true; renderPanel(true); const b = $('#panel .panel-b'); b.scrollTop = b.scrollHeight; },
