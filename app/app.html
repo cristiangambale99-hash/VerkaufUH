@@ -376,6 +376,9 @@ body{-webkit-tap-highlight-color:transparent}
   .agr .tx{min-width:0;display:flex;flex-direction:column;gap:2px} .agr .tx b{font-size:15px} .agr .tx small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12.5px}
   .agx{display:flex;align-items:center;gap:10px}
   @media (max-width:640px){.agr{grid-template-columns:62px 1fr;gap:10px}.agt b{font-size:16px}.agt small{font-size:10.5px}.agx{grid-column:2;justify-content:flex-start}}
+
+.gebbox{border:1.5px solid var(--cs-teal,#1b8285);border-radius:12px;padding:12px;margin:2px 0 12px;background:var(--cs-ice,#eaf5f6)}
+.gebbox .gchip b{margin-right:4px}.gebbox .gebsum{margin:2px 0}
 </style>
 
 <!-- Icon-Sprite (eine Linien-Familie, 1.8 px, runde Enden) -->
@@ -1867,7 +1870,9 @@ function renderBes() {
   const cu = custOf(o), c = objCalc(o), locked = o.status !== 'erfassung' && !o.revising && !o.lvEditing, SM = secMeta(o, c, cu);
   const floors = [...new Set([...o.rooms.map(r => r.floor)])].sort((a, b) => FLOORS.indexOf(b) - FLOORS.indexOf(a));
   if (UI.floor !== 'Alle' && !floors.includes(UI.floor) && !FLOORS.includes(UI.floor)) UI.floor = 'Alle';
-  const shown = o.rooms.filter(r => UI.floor === 'Alle' || r.floor === UI.floor);
+  if (o.multi) gebFix(o);
+  const inG = r => !o.multi || r.geb === UI.geb;
+  const shown = o.rooms.filter(r => inG(r) && (UI.floor === 'Alle' || r.floor === UI.floor));
   const grouped = {}; shown.forEach(r => (grouped[r.floor] = grouped[r.floor] || []).push(r));
   const dis = locked ? 'disabled' : '';
   el.innerHTML = phead(`Besichtigung · ${fmtDay(o.besDatum)}${o.besZeit ? ' · ' + o.besZeit + ' Uhr' : ''}${o.verkaeufer ? ' · ' + esc(o.verkaeufer) : ''}`, esc(cu.firma || 'Neue Besichtigung'), esc(o.adresse || 'Adresse erfassen'), planBtn) + `
@@ -1901,10 +1906,11 @@ function renderBes() {
       ${grDropHtml(o, locked) ? `<div class="card" style="padding:6px 16px 2px">${grDropHtml(o, locked)}</div>` : ''}
 
       <div class="card fsec acc ${secOpen('raumbuch', SM.raumbuch.st) ? 'open' : ''}" id="sec-raumbuch"><button type="button" class="acc-h" data-act="secT" data-k="raumbuch" aria-expanded="${secOpen('raumbuch', SM.raumbuch.st)}"><span><span class="acc-t">Raumbuch</span><span class="acc-s">${SM.raumbuch.status}</span></span>${secIcon(SM.raumbuch.st)}</button><div class="acc-b"><p class="hint">Raumtyp antippen legt den Raum sofort an, mehrmals antippen legt mehrere an. Boden und Fläche ergänzt du bei Bedarf in der Zeile.</p>
-        <div class="field" style="margin-bottom:6px"><label>Stockwerk</label><div class="chips">${['Alle', ...FLOORS.slice().reverse()].map(f => { const n = f === 'Alle' ? o.rooms.length : o.rooms.filter(r => r.floor === f).length; return `<button type="button" class="chip" data-act="floor" data-f="${f}" aria-pressed="${UI.floor === f}">${f}${n ? `<span class="cnt">${n}</span>` : ''}</button>`; }).join('')}</div></div>
+        ${gebHtml(o, locked)}
+        <div class="field" style="margin-bottom:6px"><label>Stockwerk</label><div class="chips">${['Alle', ...FLOORS.slice().reverse()].map(f => { const n = o.rooms.filter(r => inG(r) && (f === 'Alle' || r.floor === f)).length; return `<button type="button" class="chip" data-act="floor" data-f="${f}" aria-pressed="${UI.floor === f}">${f}${n ? `<span class="cnt">${n}</span>` : ''}</button>`; }).join('')}</div></div>
         ${locked ? '' : `<div class="field" style="margin-bottom:8px"><label>Boden für neue Räume <span class="small muted">(Toiletten und Küchen: Keramik)</span></label><div class="chips">${BODEN_STD.slice(0, 6).map(bd => `<button type="button" class="chip" data-act="bodenStd" data-v="${esc(bd)}" aria-pressed="${(o.bodenStd || 'Vinyl') === bd}">${esc(bd)}</button>`).join('')}</div></div>
         <div class="field" style="margin-bottom:4px"><label>Raum hinzufügen${UI.floor === 'Alle' ? ' (Stockwerk zuerst wählen, sonst EG)' : ' im ' + UI.floor}</label></div>
-        <div class="quick">${(UI.moreTypes ? RAUMTYPEN : RAUMTYPEN.slice(0, 9)).map(([n, g]) => `<button type="button" class="qbtn" data-act="addRoom" data-n="${esc(n)}" data-g="${g}">+ ${esc(n)}${(() => { const k = o.rooms.filter(r => r.bez === n && (UI.floor === 'Alle' || r.floor === UI.floor)).length; return k ? ` <span class="cnt">${k}</span>` : ''; })()}</button>`).join('')}${UI.moreTypes ? `<button type="button" class="qbtn" data-act="addRoom" data-n="" data-g="">+ Andere</button><button type="button" class="qbtn" data-act="moreTypes" style="color:var(--cs-fg-2)">weniger</button>` : `<button type="button" class="qbtn" data-act="moreTypes" style="color:var(--cs-fg-2)">mehr …</button>`}</div>`}
+        <div class="quick">${(UI.moreTypes ? RAUMTYPEN : RAUMTYPEN.slice(0, 9)).map(([n, g]) => `<button type="button" class="qbtn" data-act="addRoom" data-n="${esc(n)}" data-g="${g}">+ ${esc(n)}${(() => { const k = o.rooms.filter(r => inG(r) && r.bez === n && (UI.floor === 'Alle' || r.floor === UI.floor)).length; return k ? ` <span class="cnt">${k}</span>` : ''; })()}</button>`).join('')}${UI.moreTypes ? `<button type="button" class="qbtn" data-act="addRoom" data-n="" data-g="">+ Andere</button><button type="button" class="qbtn" data-act="moreTypes" style="color:var(--cs-fg-2)">weniger</button>` : `<button type="button" class="qbtn" data-act="moreTypes" style="color:var(--cs-fg-2)">mehr …</button>`}</div>`}
         <div id="roomList">${roomListHtml(o, grouped)}</div>
       </div></div>
 
@@ -1939,6 +1945,25 @@ function renderBes() {
     </div>
     <div class="mbar" id="mbar"><div><div class="small muted">Monatspauschale</div><b id="mbarVal">${chf(c.monthly)}</b></div>${o.lvEditing ? `<button class="btn btn-p" data-act="lvSave">LV speichern</button>` : locked ? `<button class="btn btn-p" data-act="openDoc" data-id="${o.id}" data-tab="off">${o.status === 'freigabe' ? 'Offerte prüfen' : 'Offerte ansehen'}</button>` : `<button class="btn btn-p" data-act="submitBes"><span class="ld" data-loader></span><span class="lbl2">Offerte prüfen</span></button>`}</div>
   </div>`;
+}
+/* Mehrere Gebäude: o.multi, o.geb = [{id, n, a}], Raum r.geb = Gebäude-ID */
+function gebLet(i) { return String.fromCharCode(65 + i); }
+function gebFix(o) {
+  if (!o.geb || !o.geb.length) o.geb = [{ id: uid(), n: '', a: '' }];
+  o.rooms.forEach(r => { if (!o.geb.some(g => g.id === r.geb)) r.geb = o.geb[0].id; });
+  if (!o.geb.some(g => g.id === UI.geb)) UI.geb = o.geb[0].id;
+}
+function gebName(o, g, i) { return (g.n || '').trim() || 'Gebäude ' + gebLet(i); }
+function gebHtml(o, locked) {
+  const dis = locked ? 'disabled' : '';
+  const yn = `<div class="field" style="margin-bottom:8px"><label>Hat das Objekt mehrere Gebäude?</label><div class="seg">${['Nein', 'Ja'].map(v => `<label><input type="radio" name="multi" value="${v}" data-multi="1" ${(o.multi ? 'Ja' : 'Nein') === v ? 'checked' : ''} ${dis}><span>${v}</span></label>`).join('')}</div></div>`;
+  if (!o.multi) return yn;
+  const cur = o.geb.findIndex(g => g.id === UI.geb), g = o.geb[cur];
+  const area = x => o.rooms.filter(r => r.geb === x.id).reduce((a, r) => a + (r.flaeche || 0), 0);
+  return yn + `<div class="gebbox"><div class="chips">${o.geb.map((x, i) => { const n = o.rooms.filter(r => r.geb === x.id).length; return `<button type="button" class="chip gchip" data-act="gebSel" data-id="${x.id}" aria-pressed="${i === cur}"><b>${gebLet(i)}</b> ${esc(gebName(o, x, i))}<span class="cnt">${n}</span></button>`; }).join('')}${locked ? '' : `<button type="button" class="chip" data-act="gebAdd" style="border-style:dashed">+ Gebäude</button>`}</div>
+    <div class="frow"><div class="field"><label for="gbN">Bezeichnung Gebäude ${gebLet(cur)}</label><input id="gbN" data-gn="1" value="${esc(g.n)}" placeholder="z. B. Verwaltung, Produktion, Haus 3" ${dis}></div><div class="field"><label for="gbA">Adresse / Zugang <span class="small muted">(optional)</span></label><input id="gbA" data-ga="1" value="${esc(g.a)}" placeholder="falls abweichend" ${dis}></div></div>
+    <div class="gebsum small muted">Raumbuch ${esc(gebName(o, g, cur))} · ${o.rooms.filter(r => r.geb === g.id).length} Räume · ${fmtN(area(g), 1)} m²</div>
+    ${locked ? '' : `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px"><button type="button" class="btn btn-s btn-sm" data-act="gebNext">${cur < o.geb.length - 1 ? 'Gebäude fertig, weiter zu ' + esc(gebName(o, o.geb[cur + 1], cur + 1)) : 'Gebäude fertig, nächstes Gebäude erfassen'} →</button>${o.geb.length > 1 ? `<button type="button" class="btn btn-sm" data-act="gebDel" style="color:var(--cs-fg-2)">Dieses Gebäude löschen</button>` : ''}</div>`}</div>`;
 }
 function roomListHtml(o, grouped) {
   const floors = Object.keys(grouped).sort((a, b) => FLOORS.indexOf(b) - FLOORS.indexOf(a));
@@ -1977,6 +2002,7 @@ function summaryHtml(o) {
   return `<div class="card-h"><h2>Zusammenfassung</h2>${badge(o.status)}</div><div class="sum-b">
     <div class="small muted">Monatspauschale${c.mode === 'pauschale' ? ' (manuell)' : c.mode === 'einsatz' ? ' (Erfahrungswert)' : ' (aus Flächen)'}</div><div class="big num" id="sumMonthly">${chf(c.monthly)}</div>
     <div style="margin-top:12px">
+      ${o.multi && o.geb ? `<div class="row"><span class="muted">Gebäude</span><b class="num">${o.geb.length}</b></div>` : ''}
       <div class="row"><span class="muted">Räume</span><b class="num">${o.rooms.length}</b></div>
       <div class="row"><span class="muted">Reinigungsfläche</span><b class="num">${c.area > 0 ? fmtN(c.area, 1) + ' m²' : '–'}${c.noArea && c.area > 0 ? ` <span class="muted small">(${c.noArea} ohne Fläche)</span>` : ''}</b></div>
       <div class="sec-t" style="margin:14px 0 4px">Berechnung</div>
@@ -2764,12 +2790,17 @@ const ACT = {
   editBes: el => { UI.cur = el.dataset.id; go('bes'); },
   reopen: () => { const o = curObj(); setStatus(o, 'erfassung'); renderBes(); },
   floor: el => { UI.floor = el.dataset.f; renderBes(); },
+  gebSel: el => { UI.geb = el.dataset.id; renderBes(); },
+  gebAdd: () => { const o = curObj(); gebFix(o); const g = { id: uid(), n: '', a: '' }; o.geb.push(g); UI.geb = g.id; save(); renderBes(); const i = $('#gbN'); i && i.focus({ preventScroll: true }); },
+  gebNext: () => { const o = curObj(); gebFix(o); const i = o.geb.findIndex(g => g.id === UI.geb); if (i < o.geb.length - 1) UI.geb = o.geb[i + 1].id; else { const g = { id: uid(), n: '', a: '' }; o.geb.push(g); UI.geb = g.id; } UI.floor = 'Alle'; save(); renderBes(); const q = $('#sec-raumbuch'); q && q.scrollIntoView({ behavior: 'smooth', block: 'start' }); },
+  gebDel: () => { const o = curObj(); gebFix(o); if (o.geb.length < 2) return; const i = o.geb.findIndex(g => g.id === UI.geb), n = o.rooms.filter(r => r.geb === UI.geb).length; if (n && !confirm(`Gebäude ${gebName(o, o.geb[i], i)} mit ${n} Räumen löschen?`)) return; o.rooms = o.rooms.filter(r => r.geb !== UI.geb); o.geb.splice(i, 1); UI.geb = o.geb[0].id; save(); renderBes(); },
   addRoom: el => {
     const o = curObj(); const floor = UI.floor === 'Alle' ? 'EG' : UI.floor;
     const d = defaultDispo(o); let g = el.dataset.g; if (FAMILIES[g] && FAMILY_BY[FAMILIES[g]][d]) g = FAMILY_BY[FAMILIES[g]][d];
-    const sameName = o.rooms.filter(r => r.bez === el.dataset.n && r.floor === floor).length;
+    const sameName = o.rooms.filter(r => r.bez === el.dataset.n && r.floor === floor && (!o.multi || r.geb === UI.geb)).length;
     const r = { id: uid(), floor, bez: el.dataset.n, nr: sameName ? String(sameName + 1) : '', gruppe: g, flaeche: null, boden: o.bodenStd || 'Vinyl', dispo: d, custom: null, notiz: '', photos: [] };
-    if (sameName === 1) { const first = o.rooms.find(x => x.bez === el.dataset.n && x.floor === floor); if (first && !first.nr) first.nr = '1'; }
+    if (o.multi) { gebFix(o); r.geb = UI.geb; }
+    if (sameName === 1) { const first = o.rooms.find(x => x.bez === el.dataset.n && x.floor === floor && (!o.multi || x.geb === UI.geb)); if (first && !first.nr) first.nr = '1'; }
     if (/Toilette|Küche|Garderobe|Treppen/.test(el.dataset.n)) r.boden = 'Keramik';
     o.rooms.push(r); UI.floor = floor; UI.flashRoom = r.id; save(); refreshBesLive();
     const keep = window.scrollY; renderBes(); window.scrollTo({ top: keep });
@@ -2952,6 +2983,7 @@ document.addEventListener('input', e => {
   if (t.dataset.grv && UI.gr && t.tagName === 'INPUT') { const [pi, ri, k] = t.dataset.grv.split(':'); const r = UI.gr.pages[+pi].result[+ri]; if (k === 'flaeche') { r.flaeche = num(t.value); if (r.flaeche > 0 && r.quelle === 'fehlt') r.quelle = 'geschätzt'; } else r[k] = t.value; return; }
   if (t.dataset.lb) { const L = num($('#rL').value), B = num($('#rB').value); if (L > 0 && B > 0) { const x = curRoom(); if (x) { x[1].flaeche = Math.round(L * B * 10) / 10; $('#rM2').value = x[1].flaeche; save(); refreshRoomCalc(); refreshBesLive(); } } return; }
   if (t.dataset.vm != null && t.dataset.vm !== '') { const o = curObj(); if (!o) return; const v = o.vars[+t.dataset.vm]; v.m = num(t.value); const e = document.getElementById('vp' + (+t.dataset.vm + 1)); if (e) e.textContent = v.m > 0 && v.tage.length ? `≈ CHF ${fmtN(v.m / (v.tage.length * WF()), 2)} pro Reinigung · ${chf(v.m * 12)} pro Jahr` : 'Reinigungstage und Preis eingeben'; save(); return; }
+  if (t.dataset.gn || t.dataset.ga) { const o = curObj(); if (!o || !o.geb) return; const g = o.geb.find(x => x.id === UI.geb); if (!g) return; if (t.dataset.gn) { g.n = t.value; const i = o.geb.indexOf(g), ch = document.querySelector(`.gchip[data-id="${g.id}"]`); if (ch) ch.innerHTML = `<b>${gebLet(i)}</b> ${esc(gebName(o, g, i))}<span class="cnt">${o.rooms.filter(r => r.geb === g.id).length}</span>`; } else g.a = t.value; save(); return; }
   if (t.dataset.vn != null && t.dataset.vn !== '') { const o = curObj(); if (!o) return; const i = +t.dataset.vn; if (i === 0) o.varMainN = t.value; else o.vars[i - 1].n = t.value; save(); return; }
   if (t.dataset.st) { const o = curObj(); if (!o) return; o.stdTage = o.stdTage || {}; o.stdTage[t.dataset.st] = num(t.value); save(); refreshBesLive(); return; }
   if (t.dataset.zt) { const o = curObj(); if (!o) return; o.zeiten = o.zeiten || {}; o.zeiten[t.dataset.zt] = t.value; save(); refreshBesLive(); return; }
@@ -2985,6 +3017,7 @@ document.addEventListener('change', e => {
   if (t.dataset.day && o) { const d = t.dataset.day; o.days = t.checked ? DAYS.filter(x => o.days.includes(x) || x === d) : o.days.filter(x => x !== d); save(); renderBes(); return; }
   if (t.dataset.vday && o) { const [i, d] = t.dataset.vday.split(':'), v = o.vars[+i]; v.tage = t.checked ? DAYS.filter(x => v.tage.includes(x) || x === d) : v.tage.filter(x => x !== d); save(); renderBes(); return; }
   if (t.dataset.vrec != null && t.dataset.vrec !== '' && o) { const i = +t.dataset.vrec; o.recMain = false; o.vars.forEach(v => v.rec = false); if (t.checked) { if (i === 0) o.recMain = true; else o.vars[i - 1].rec = true; } save(); renderBes(); return; }
+  if (t.dataset.multi && o) { o.multi = t.value === 'Ja'; if (o.multi) { gebFix(o); UI.geb = o.geb[0].id; } save(); renderBes(); return; }
   if (t.dataset.yn && o) { o[t.dataset.yn] = t.value === 'Ja'; const wr = document.getElementById(t.dataset.yn === 'wasch' ? 'waschWrap' : t.dataset.yn === 'fenster' ? 'fensterWrap' : ''); if (wr) { wr.hidden = t.value !== 'Ja'; if (t.value === 'Ja') { const i = wr.querySelector('input'); i && i.focus(); } } save(); refreshBesLive(); return; }
   if (t.dataset.rs) { const x = curRoom(); if (!x) return; const r = x[1]; r[t.dataset.rs] = t.value;
     if (t.dataset.rs === 'gruppe') { r.custom = null; const fam = FAMILIES[r.gruppe]; if (fam && FAMILY_BY[fam][r.dispo]) r.gruppe = FAMILY_BY[fam][r.dispo]; }
@@ -3436,8 +3469,18 @@ async function drawSheets(ctx, which) {
   const perRoom = !c.einsatz;   // Stunden pro Raum nur, wenn aus Flächen gerechnet
   t8(p, U('rb'), 32.7, y); t8(p, c.hours.toFixed(2), 500, y, { align: 'right' }); y += 21;
   t8(p, firma || o.name, 32.7, y, { bold: true, size: 12 }); t8(p, c.hours.toFixed(2), 500, y - 2, { align: 'right' }); y += 21;
-  for (const f of floors) {
-    const rs = o.rooms.filter(r => r.floor === f), hf = rs.reduce((a, r) => a + roomCalc(r).hours, 0);
+  const gl = o.multi && o.geb && o.geb.length > 1 ? o.geb.map((g, i) => ({ g, i, rooms: o.rooms.filter(r => r.geb === g.id) })).filter(x => x.rooms.length) : [{ g: null, i: 0, rooms: o.rooms }];
+  for (const gx of gl) {
+  if (gx.g) {
+    const gh = gx.rooms.reduce((a, r) => a + roomCalc(r).hours, 0), ga = gx.rooms.reduce((a, r) => a + (r.flaeche || 0), 0);
+    if (y + 40 > G.foot - 6) await rbPage();
+    y += 4; p.drawRectangle({ x: G.x0 + 0.3, y: H - (y + 7), width: G.x1 - G.x0 - 0.6, height: 17, color: C.bar, borderWidth: 0 });
+    t8(p, fit(`${(lang === 'en' ? 'Building ' : lang === 'it' ? 'Edificio ' : 'Gebäude ') + String.fromCharCode(65 + gx.i)}${gx.g.n ? ' · ' + gx.g.n : ''}${gx.g.a ? ' · ' + gx.g.a : ''}`, 330, fHB, 10), 36, y + 4.5, { bold: true, size: 10 });
+    if (perRoom) t8(p, gh.toFixed(2), 500, y + 4.5, { align: 'right', bold: true }); y += 24;
+  }
+  const floorsG = [...new Set(gx.rooms.map(r => r.floor))].sort((a, b) => FLOORS.indexOf(b) - FLOORS.indexOf(a));
+  for (const f of floorsG) {
+    const rs = gx.rooms.filter(r => r.floor === f), hf = rs.reduce((a, r) => a + roomCalc(r).hours, 0);
     if (y + 12 + G.lh * Math.min(rs.length, 2) > G.foot - 6) await rbPage();
     t8(p, TR.floor(lang, f), 32.7, y, { bold: true, size: 10 }); if (perRoom) t8(p, hf.toFixed(2), 500, y - 1.5, { align: 'right' }); y += 15.5;
     for (const r of rs) {
@@ -3448,6 +3491,7 @@ async function drawSheets(ctx, which) {
       y += G.lh;
     }
     y += 7.5;
+  }
   }
   }
 
