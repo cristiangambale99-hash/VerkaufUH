@@ -382,6 +382,10 @@ body{-webkit-tap-highlight-color:transparent}
 
 .fnew{display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap}.fnew input{width:12.5em;padding:7px 10px;border:1px solid var(--cs-line,#bcd3d7);border-radius:999px;font:inherit}
 #rFloorNew{margin-top:6px}
+
+.slbox{border-top:1px solid var(--cs-line,#d6e6e9);margin-top:10px;padding-top:10px}
+
+.sxrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:10px;align-items:end}@media(max-width:560px){.sxrow{grid-template-columns:minmax(0,1fr)}}
 </style>
 
 <!-- Icon-Sprite (eine Linien-Familie, 1.8 px, runde Enden) -->
@@ -788,6 +792,10 @@ const BODEN = [['Parkett','hart'],['Laminat','hart'],['Keramik','hart'],['Textil
 const isTextil = b => (BODEN.find(x => x[0] === b) || [])[1] === 'textil';
 const FLOORS = ['UG','EG','1. OG','2. OG','3. OG','4. OG','5. OG'];
 /* Reihenfolge auch für selbst eingetragene Stockwerke (z. B. «6. OG», «Dachgeschoss», «2. UG») */
+/* Sonderleistungen mit optionalem Pauschalpreis: [Schlüssel, Text Offerte DE, EN, Frage, Kurzname] */
+const SLX = [['fenster', 'Fensterreinigung 2-seitig', 'Window cleaning, both sides', 'Pauschalpreis Fensterreinigung?', 'Fensterreinigung'], ['glas', 'Glastrennwände 2-seitig', 'Glass partitions, both sides', 'Pauschalpreis Glastrennwände?', 'Glastrennwände'], ['teppich', 'Teppiche sprühextrahieren', 'Carpet spray extraction', 'Pauschalpreis Teppiche sprühextrahieren?', 'Teppiche']];
+function slMissing(o) { for (const x of SLX) if (o[x[0]] && !(o[x[0] + 'Preis'] > 0)) return x[4]; for (const x of (o.sx || [])) if (((x.n || '').trim() ? 1 : 0) !== (x.p > 0 ? 1 : 0)) return (x.n || '').trim() || 'Andere Leistung'; return ''; }
+const SX_MAX = 3;
 function fRank(f) { const i = FLOORS.indexOf(f); if (i >= 0) return i; const m = /^(\d+)\.?\s*(OG|UG)/i.exec(f || ''); if (m) return m[2].toUpperCase() === 'OG' ? +m[1] + 1 : -(+m[1]) + 0.5; if (/dach|attika/i.test(f)) return 50; if (/zwischen|galerie|mezz/i.test(f)) return 1.5; if (/aussen|umgebung|garage|parking|tiefgarage/i.test(f)) return -50; return 40; }
 function floorsOf(o) { return [...new Set([...FLOORS, ...(o.floorsX || []), ...o.rooms.map(r => r.floor).filter(Boolean)])].sort((a, b) => fRank(a) - fRank(b)); }
 function addFloor(o, name) { name = (name || '').trim().replace(/\s+/g, ' '); if (!name) return null; const hit = floorsOf(o).find(f => f.toLowerCase() === name.toLowerCase()); if (hit) return hit; (o.floorsX = o.floorsX || []).push(name); return name; }
@@ -1575,10 +1583,10 @@ function objCalc(o) {
   const calcMonthly = monthHours * rate;
   const base = o.pauschale > 0 ? o.pauschale : calcMonthly;
   const wash = o.wasch && o.waschPreis > 0 ? +o.waschPreis : 0;      // Tücherservice, monatlich
-  const fenster = o.fenster && o.fensterPreis > 0 ? +o.fensterPreis : 0;  // Fensterreinigung pauschal pro Ausführung (nicht im Monatsbetrag)
+  const slv = {}; SLX.forEach(x => { slv[x[0]] = o[x[0]] && o[x[0] + 'Preis'] > 0 ? +o[x[0] + 'Preis'] : 0; }); const { fenster, glas, teppich } = slv; const sx = (o.sx || []).filter(x => (x.n || '').trim() && x.p > 0).slice(0, SX_MAX).map(x => ({ n: x.n.trim(), p: +x.p }));  // Fensterreinigung pauschal pro Ausführung (nicht im Monatsbetrag)
   const monthly = base + wash;
   const mode = o.pauschale > 0 ? 'pauschale' : einsatz ? 'einsatz' : 'flaeche';
-  return { proTag, tage, hours, area, bad, noArea, rate, wk, per, nWeek, perClean, calcPerClean, einsatz, mode, monthHoursWeekly, monthHoursPer, monthHours, wf: WF(), calcMonthly, base, wash, fenster, monthly, annual: monthly * 12, perWeek: wk };
+  return { proTag, tage, hours, area, bad, noArea, rate, wk, per, nWeek, perClean, calcPerClean, einsatz, mode, monthHoursWeekly, monthHoursPer, monthHours, wf: WF(), calcMonthly, base, wash, fenster, glas, teppich, sx, monthly, annual: monthly * 12, perWeek: wk };
 }
 const custOf = o => S.customers.find(c => c.id === o.customerId) || {};
 /* Preisvarianten: Variante 1 = Hauptpreis des Objekts, weitere Varianten von Hand (z. B. 1x und 2x pro Woche) */
@@ -1914,7 +1922,7 @@ function renderBes() {
 
       <div class="card fsec acc ${secOpen('raumbuch', SM.raumbuch.st) ? 'open' : ''}" id="sec-raumbuch"><button type="button" class="acc-h" data-act="secT" data-k="raumbuch" aria-expanded="${secOpen('raumbuch', SM.raumbuch.st)}"><span><span class="acc-t">Raumbuch</span><span class="acc-s">${SM.raumbuch.status}</span></span>${secIcon(SM.raumbuch.st)}</button><div class="acc-b"><p class="hint">Raumtyp antippen legt den Raum sofort an, mehrmals antippen legt mehrere an. Boden und Fläche ergänzt du bei Bedarf in der Zeile.</p>
         ${gebHtml(o, locked)}
-        <div class="field" style="margin-bottom:6px"><label>Stockwerk</label><div class="chips">${['Alle', ...floorsOf(o).reverse()].map(f => { const n = o.rooms.filter(r => inG(r) && (f === 'Alle' || r.floor === f)).length; return `<button type="button" class="chip" data-act="floor" data-f="${f}" aria-pressed="${UI.floor === f}">${f}${n ? `<span class="cnt">${n}</span>` : ''}</button>`; }).join('')}${locked ? '' : UI.floorNew ? `<span class="fnew"><input id="fNewIn" placeholder="z. B. 6. OG, Dachgeschoss" maxlength="24" autocomplete="off"><button type="button" class="btn btn-s btn-sm" data-act="floorAdd">Hinzufügen</button></span>` : `<button type="button" class="chip" data-act="floorNew" style="border-style:dashed">+ Anderes</button>`}</div></div>
+        <div class="field" style="margin-bottom:6px"><label>Stockwerk</label><div class="chips">${['Alle', ...floorsOf(o).reverse()].map(f => { const n = o.rooms.filter(r => inG(r) && (f === 'Alle' || r.floor === f)).length; return `<button type="button" class="chip" data-act="floor" data-f="${f}" aria-pressed="${UI.floor === f}">${f}${n ? `<span class="cnt">${n}</span>` : ''}</button>`; }).join('')}${locked ? '' : UI.floorNew ? `<span class="fnew"><input id="fNewIn" placeholder="z. B. 6. OG, Dachgeschoss" maxlength="24" autocomplete="off"><button type="button" class="btn btn-s btn-sm" data-act="floorAdd">Hinzufügen</button></span>` : `<button type="button" class="chip" data-act="floorNew" style="border-style:dashed">+ Stockwerk eintragen</button>`}</div></div>
         ${locked ? '' : `<div class="field" style="margin-bottom:8px"><label>Boden für neue Räume <span class="small muted">(Toiletten und Küchen: Keramik)</span></label><div class="chips">${BODEN_STD.slice(0, 6).map(bd => `<button type="button" class="chip" data-act="bodenStd" data-v="${esc(bd)}" aria-pressed="${(o.bodenStd || 'Vinyl') === bd}">${esc(bd)}</button>`).join('')}</div></div>
         <div class="field" style="margin-bottom:4px"><label>Raum hinzufügen${UI.floor === 'Alle' ? ' (Stockwerk zuerst wählen, sonst EG)' : ' im ' + UI.floor}</label></div>
         <div class="quick">${(UI.moreTypes ? RAUMTYPEN : RAUMTYPEN.slice(0, 9)).map(([n, g]) => `<button type="button" class="qbtn" data-act="addRoom" data-n="${esc(n)}" data-g="${g}">+ ${esc(n)}${(() => { const k = o.rooms.filter(r => inG(r) && r.bez === n && (UI.floor === 'Alle' || r.floor === UI.floor)).length; return k ? ` <span class="cnt">${k}</span>` : ''; })()}</button>`).join('')}${UI.moreTypes ? `<button type="button" class="qbtn" data-act="addRoom" data-n="" data-g="">+ Andere</button><button type="button" class="qbtn" data-act="moreTypes" style="color:var(--cs-fg-2)">weniger</button>` : `<button type="button" class="qbtn" data-act="moreTypes" style="color:var(--cs-fg-2)">mehr …</button>`}</div>`}
@@ -1930,8 +1938,10 @@ function renderBes() {
         ${varHtml(o, dis)}
         <div class="field"><label>Waschservice (Tücherservice) offerieren?</label><div class="seg">${['Ja','Nein'].map(v => `<label><input type="radio" name="wasch" value="${v}" data-yn="wasch" ${(o.wasch ? 'Ja' : 'Nein') === v ? 'checked' : ''} ${dis}><span>${v}</span></label>`).join('')}</div></div>
         <div id="waschWrap" ${o.wasch ? '' : 'hidden'}>${fieldHtml('bWasch','Waschservice pro Monat (CHF, exkl. MwSt.)',o.waschPreis ?? '',`data-o="waschPreis" data-num="1" inputmode="decimal" placeholder="z. B. 40.00" ${dis}`)}</div>
-        <div class="field"><label>Pauschalpreis Fensterreinigung?</label><div class="seg">${['Ja','Nein'].map(v => `<label><input type="radio" name="fenster" value="${v}" data-yn="fenster" ${(o.fenster ? 'Ja' : 'Nein') === v ? 'checked' : ''} ${dis}><span>${v}</span></label>`).join('')}</div></div>
-        <div id="fensterWrap" ${o.fenster ? '' : 'hidden'}>${fieldHtml('bFenster','Fensterreinigung pauschal pro Ausführung (CHF, exkl. MwSt.)',o.fensterPreis ?? '',`data-o="fensterPreis" data-num="1" inputmode="decimal" placeholder="z. B. 490.00" ${dis}`)}</div>
+        <div class="slbox"><div class="small muted" style="margin-bottom:6px">Grundreinigungen / Sonderleistungen: Bei «Ja» ersetzt der Pauschalpreis die m²-Zeile in der Offerte.</div>${SLX.map(([k, , , q, nm]) => `<div class="field"><label>${q}</label><div class="seg">${['Ja','Nein'].map(v => `<label><input type="radio" name="${k}" value="${v}" data-yn="${k}" ${(o[k] ? 'Ja' : 'Nein') === v ? 'checked' : ''} ${dis}><span>${v}</span></label>`).join('')}</div></div>
+        <div id="${k}Wrap" ${o[k] ? '' : 'hidden'}>${fieldHtml('b' + k, nm + ' pauschal pro Ausführung (CHF, exkl. MwSt.)', o[k + 'Preis'] ?? '', `data-o="${k}Preis" data-num="1" inputmode="decimal" placeholder="z. B. 490.00" ${dis}`)}</div>`).join('')}
+        ${(o.sx || []).map((x, i) => `<div class="sxrow"><div class="field"><label for="sxn${i}">Andere Leistung ${i + 1}</label><input id="sxn${i}" data-sxn="${i}" value="${esc(x.n || '')}" placeholder="z. B. Entsorgungsservice" maxlength="60" ${dis}></div><div class="field"><label for="sxp${i}">Pauschalpreis (CHF, exkl. MwSt.)</label><input id="sxp${i}" data-sxp="${i}" inputmode="decimal" value="${esc(x.p ?? '')}" placeholder="z. B. 120.00" ${dis}></div>${dis ? '' : `<button type="button" class="btn btn-sm" data-act="sxDel" data-i="${i}" aria-label="Entfernen" style="align-self:end;color:var(--cs-fg-2)">Entfernen</button>`}</div>`).join('')}
+        ${dis || (o.sx || []).length >= SX_MAX ? '' : `<button type="button" class="chip" data-act="sxAdd" style="border-style:dashed;margin-top:4px">+ Andere Leistung (z. B. Entsorgungsservice)</button>`}</div>
       </div></div>
 
       <div class="card fsec acc ${secOpen('refs', SM.refs.st) ? 'open' : ''}" id="sec-refs"><button type="button" class="acc-h" data-act="secT" data-k="refs" aria-expanded="${secOpen('refs', SM.refs.st)}"><span><span class="acc-t">Referenzen</span><span class="acc-s">${SM.refs.status}</span></span>${secIcon(SM.refs.st)}</button><div class="acc-b">
@@ -1991,7 +2001,7 @@ function secMeta(o, c, cu) {
     kunde: { status: [cu.kontakt, cu.tel].filter(Boolean).join(' · ') || 'Kontakt erfassen', st: { ok: !!(cu.firma && cu.kontakt && o.adresse), admin: !!o.verkaeufer } },
     rhythmus: { status: o.zeitProTag ? (zeitText(o, ' · ') || 'Reinigungstage wählen') : (o.days.length ? o.days.join(' · ') : 'Reinigungstage wählen') + (o.zeit ? ' · ' + esc(o.zeit) : ''), st: { ok: o.days.length > 0 } },
     raumbuch: { status: o.rooms.length ? `${o.rooms.length} ${o.rooms.length === 1 ? 'Raum' : 'Räume'}${c.noArea ? ' · ' + c.noArea + ' ohne Fläche' : ''}${c.bad ? ' · ' + c.bad + ' unvollständig' : ''}` : 'Noch keine Räume', st: { ok: o.rooms.length > 0 && !c.bad, open: true } },
-    preis: { status: c.monthly > 0 ? `${chf(c.monthly)}${c.wash ? ' inkl. Waschservice' : ''}${c.fenster ? ' · Fenster ' + chf(c.fenster, 0) : ''} · ${c.mode === 'pauschale' ? 'manuell' : c.mode === 'einsatz' ? (c.proTag ? 'Ø ' : '') + fmtN(c.perClean, 2) + ' h pro Einsatz' : 'aus Flächen'}` : 'Std. pro Einsatz fehlt', st: { ok: c.monthly > 0, warn: !(c.monthly > 0), closed: true } },
+    preis: { status: c.monthly > 0 ? `${chf(c.monthly)}${c.wash ? ' inkl. Waschservice' : ''}${SLX.some(x => c[x[0]]) || c.sx.length ? ' · ' + (SLX.filter(x => c[x[0]]).length + c.sx.length) + ' Pauschalen' : ''} · ${c.mode === 'pauschale' ? 'manuell' : c.mode === 'einsatz' ? (c.proTag ? 'Ø ' : '') + fmtN(c.perClean, 2) + ' h pro Einsatz' : 'aus Flächen'}` : 'Std. pro Einsatz fehlt', st: { ok: c.monthly > 0, warn: !(c.monthly > 0), closed: true } },
     refs: { status: (o.refs || []).length ? (o.refs || []).map(r => esc(r.k)).join(' · ') : 'Noch keine gewählt', st: { ok: (o.refs || []).length > 0, warn: !!(S.refs && S.refs.length) && !(o.refs || []).length } },
     zusatz: { status: `${o.photos.length} Fotos${o.skizze.length ? ' · Grundriss' : ''}`, st: { ok: o.photos.length > 0, closed: true } },
   };
@@ -2210,7 +2220,7 @@ function docOffer(o) {
       <tr><td>Einsatz pro Woche</td><td class="num" style="text-align:right">${c.proTag ? c.tage.filter(t => t[1] > 0).map(t => t[0] + ' ' + fmtN(t[1], 2) + ' h').join(' + ') : fmtN(c.perClean, 2) + ' h' + (c.einsatz ? ' (Erfahrungswert)' : ' (Ø aus Flächen)') + ' × ' + c.nWeek + ' Reinigungen'} = ${fmtN(c.wk, 2)} h</td></tr>
       <tr><td>Einsatz pro Monat</td><td class="num" style="text-align:right">${fmtN(c.wk, 2)} h × ${fmtN(c.wf, 2)} + ${fmtN(c.monthHoursPer, 2)} h periodisch = ${fmtN(c.monthHours, 2)} h</td></tr>
       <tr><td>Berechnungsgrundlage</td><td class="num" style="text-align:right">${fmtN(c.monthHours, 2)} h × ${chf(c.rate)}${o.pauschale > 0 ? ' (Pauschale gerundet)' : ''}</td></tr>
-      ${c.fenster ? `<tr><td>Fensterreinigung 2-seitig</td><td class="num" style="text-align:right">Pauschal ${chf(c.fenster)} pro Ausführung</td></tr>` : ''}
+      ${[...SLX.filter(x => c[x[0]]).map(x => [x[1], c[x[0]]]), ...c.sx.map(x => [x.n, x.p])].map(x => `<tr><td>${esc(x[0])}</td><td class="num" style="text-align:right">Pauschal ${chf(x[1])} pro Ausführung</td></tr>`).join('')}
       </tbody></table>
     <p class="foot-n">Raumbuch und Leistungsverzeichnis sind Bestandteil dieser Offerte. Verrechnung monatlich, Zahlungsfrist 30 Tage netto.</p>
   </div>`;
@@ -2799,6 +2809,8 @@ const ACT = {
   floor: el => { UI.floor = el.dataset.f; renderBes(); },
   floorNew: () => { UI.floorNew = true; renderBes(); const i = $('#fNewIn'); i && i.focus({ preventScroll: true }); },
   floorAdd: () => { const o = curObj(), i = $('#fNewIn'), f = addFloor(o, i && i.value); UI.floorNew = false; if (f) { UI.floor = f; save(); } renderBes(); },
+  sxAdd: () => { const o = curObj(); o.sx = o.sx || []; if (o.sx.length >= SX_MAX) return; o.sx.push({ n: '', p: null }); save(); renderBes(); const i = $('#sxn' + (o.sx.length - 1)); i && i.focus({ preventScroll: true }); },
+  sxDel: el => { const o = curObj(); o.sx.splice(+el.dataset.i, 1); save(); renderBes(); refreshBesLive(); },
   gebSel: el => { UI.geb = el.dataset.id; renderBes(); },
   gebAdd: () => { const o = curObj(); gebFix(o); const g = { id: uid(), n: '', a: '' }; o.geb.push(g); UI.geb = g.id; save(); renderBes(); const i = $('#gbN'); i && i.focus({ preventScroll: true }); },
   gebNext: () => { const o = curObj(); gebFix(o); const i = o.geb.findIndex(g => g.id === UI.geb); if (i < o.geb.length - 1) UI.geb = o.geb[i + 1].id; else { const g = { id: uid(), n: '', a: '' }; o.geb.push(g); UI.geb = g.id; } UI.floor = 'Alle'; save(); renderBes(); const q = $('#sec-raumbuch'); q && q.scrollIntoView({ behavior: 'smooth', block: 'start' }); },
@@ -2930,7 +2942,7 @@ const ACT = {
     const o = objOf(el.dataset.id), cu = custOf(o), c = objCalc(o);
     if (!cu.email) { toast('Beim Kunden fehlt die E-Mail-Adresse.', 'warning'); return; }
     if (!(c.monthly > 0) || c.bad || !o.rooms.length) { toast('Offerte ist unvollständig. Bitte zuerst anpassen.', 'warning'); return; }
-    if ((o.wasch && !(o.waschPreis > 0)) || (o.fenster && !(o.fensterPreis > 0))) { toast('Preis für Waschservice bzw. Fensterreinigung fehlt.', 'warning'); return; }
+    if ((o.wasch && !(o.waschPreis > 0)) || slMissing(o)) { toast('Preis für Waschservice bzw. Pauschalen fehlt.', 'warning'); return; }
     const prevRev = o.rev || 0, mr = mailRev(o);
     o.rev = prevRev + 1;
     if (BE_ON) { const ok = await beSendOffer(el, o, cu, mr, 'rev'); if (!ok) { o.rev = prevRev; return; } }
@@ -2945,7 +2957,7 @@ const ACT = {
     const o = objOf(el.dataset.id), cu = custOf(o), c = objCalc(o);
     if (!cu.email) { toast('Beim Kunden fehlt die E-Mail-Adresse.', 'warning'); return; }
     if (!(c.monthly > 0) || c.bad || !o.rooms.length) { toast('Offerte ist unvollständig. Bitte zuerst Besichtigung ergänzen.', 'warning'); return; }
-    if ((o.wasch && !(o.waschPreis > 0)) || (o.fenster && !(o.fensterPreis > 0))) { toast('Preis für Waschservice bzw. Fensterreinigung fehlt.', 'warning'); return; }
+    if ((o.wasch && !(o.waschPreis > 0)) || slMissing(o)) { toast('Preis für Waschservice bzw. Pauschalen fehlt.', 'warning'); return; }
     if (!o.nr) o.nr = o.objNr || nextNr(o);
     if (BE_ON) { const ok = await beSendOffer(el, o, cu, mailOffer(o), 'offer'); if (!ok) return; }
     setStatus(o, 'versendet'); logO(o, `E-Mail mit Offerte an ${cu.email} (Nachfassung nach ${nfGaps().slice(0,2).map(x => x + ' Tage').join(', ')})`); save();
@@ -2992,6 +3004,7 @@ document.addEventListener('input', e => {
   if (t.dataset.grv && UI.gr && t.tagName === 'INPUT') { const [pi, ri, k] = t.dataset.grv.split(':'); const r = UI.gr.pages[+pi].result[+ri]; if (k === 'flaeche') { r.flaeche = num(t.value); if (r.flaeche > 0 && r.quelle === 'fehlt') r.quelle = 'geschätzt'; } else r[k] = t.value; return; }
   if (t.dataset.lb) { const L = num($('#rL').value), B = num($('#rB').value); if (L > 0 && B > 0) { const x = curRoom(); if (x) { x[1].flaeche = Math.round(L * B * 10) / 10; $('#rM2').value = x[1].flaeche; save(); refreshRoomCalc(); refreshBesLive(); } } return; }
   if (t.dataset.vm != null && t.dataset.vm !== '') { const o = curObj(); if (!o) return; const v = o.vars[+t.dataset.vm]; v.m = num(t.value); const e = document.getElementById('vp' + (+t.dataset.vm + 1)); if (e) e.textContent = v.m > 0 && v.tage.length ? `≈ CHF ${fmtN(v.m / (v.tage.length * WF()), 2)} pro Reinigung · ${chf(v.m * 12)} pro Jahr` : 'Reinigungstage und Preis eingeben'; save(); return; }
+  if (t.dataset.sxn != null || t.dataset.sxp != null) { const o = curObj(); if (!o || !o.sx) return; if (t.dataset.sxn != null) o.sx[+t.dataset.sxn].n = t.value; else { const v = parseFloat(String(t.value).replace(/'/g, '').replace(',', '.')); o.sx[+t.dataset.sxp].p = v > 0 ? v : null; } save(); refreshBesLive(); return; }
   if (t.dataset.gn || t.dataset.ga) { const o = curObj(); if (!o || !o.geb) return; const g = o.geb.find(x => x.id === UI.geb); if (!g) return; if (t.dataset.gn) { g.n = t.value; const i = o.geb.indexOf(g), ch = document.querySelector(`.gchip[data-id="${g.id}"]`); if (ch) ch.innerHTML = `<b>${gebLet(i)}</b> ${esc(gebName(o, g, i))}<span class="cnt">${o.rooms.filter(r => r.geb === g.id).length}</span>`; } else g.a = t.value; save(); return; }
   if (t.dataset.vn != null && t.dataset.vn !== '') { const o = curObj(); if (!o) return; const i = +t.dataset.vn; if (i === 0) o.varMainN = t.value; else o.vars[i - 1].n = t.value; save(); return; }
   if (t.dataset.st) { const o = curObj(); if (!o) return; o.stdTage = o.stdTage || {}; o.stdTage[t.dataset.st] = num(t.value); save(); refreshBesLive(); return; }
@@ -3027,7 +3040,7 @@ document.addEventListener('change', e => {
   if (t.dataset.vday && o) { const [i, d] = t.dataset.vday.split(':'), v = o.vars[+i]; v.tage = t.checked ? DAYS.filter(x => v.tage.includes(x) || x === d) : v.tage.filter(x => x !== d); save(); renderBes(); return; }
   if (t.dataset.vrec != null && t.dataset.vrec !== '' && o) { const i = +t.dataset.vrec; o.recMain = false; o.vars.forEach(v => v.rec = false); if (t.checked) { if (i === 0) o.recMain = true; else o.vars[i - 1].rec = true; } save(); renderBes(); return; }
   if (t.dataset.multi && o) { o.multi = t.value === 'Ja'; if (o.multi) { gebFix(o); UI.geb = o.geb[0].id; } save(); renderBes(); return; }
-  if (t.dataset.yn && o) { o[t.dataset.yn] = t.value === 'Ja'; const wr = document.getElementById(t.dataset.yn === 'wasch' ? 'waschWrap' : t.dataset.yn === 'fenster' ? 'fensterWrap' : ''); if (wr) { wr.hidden = t.value !== 'Ja'; if (t.value === 'Ja') { const i = wr.querySelector('input'); i && i.focus(); } } save(); refreshBesLive(); return; }
+  if (t.dataset.yn && o) { o[t.dataset.yn] = t.value === 'Ja'; const wr = document.getElementById(t.dataset.yn + 'Wrap'); if (wr) { wr.hidden = t.value !== 'Ja'; if (t.value === 'Ja') { const i = wr.querySelector('input'); i && i.focus(); } } save(); refreshBesLive(); return; }
   if (t.id === 'rFloorNew') { const x = curRoom(); if (!x) return; const f = addFloor(x[0], t.value); if (f) { x[1].floor = f; UI.floor = f; save(); refreshBesLive(); openPanel({ type: 'room', oid: x[0].id, id: x[1].id }); renderBes(); } return; }
   if (t.dataset.rs === 'floor' && t.value === '__neu') { const n = $('#rFloorNew'); if (n) { n.hidden = false; n.focus(); } return; }
   if (t.dataset.rs) { const x = curRoom(); if (!x) return; const r = x[1]; r[t.dataset.rs] = t.value;
@@ -3271,15 +3284,16 @@ async function buildOfferPdf(o, lang = 'de') {
     wrapV('Dieses Richtangebot gilt 60 Tage. Die Spanne beruht auf Ihren Angaben und unserer Erfahrung mit vergleichbaren Objekten. Den verbindlichen Preis erhalten Sie mit unserer Offerte nach der Besichtigung.', 455, 9).forEach((l, i) => txt(p11, l, 74, 683 + i * 12));
   } else {
   txt(p11, `${pdfChf(c.annual)} ${mwst}${incl}`, 231.7, 206.6); txt(p11, `${pdfChf(c.monthly)} ${mwst}${incl}`, 231.7, 227.1); }
-  if (SH) {
+  const SLn = R ? [] : (c.sx || []), SL = SLn.length * 22.32;   // eigene Pauschalleistungen (z. B. Entsorgungsservice): zusätzliche Tabellenzeilen in Abschnitt 2
+  if (SH || SL) {
     /* Bereich ab Abschnitt 2 als Vorlagen-Ausschnitt um eine Zeile nach unten setzen (Link «Preisliste» wandert mit) */
-    const [ep] = await out.embedPages([tpl.getPage(6)], [{ left: 0, bottom: H - 640, right: 546, top: H - 276 }]);
+    const [epA, epB] = await out.embedPages([tpl.getPage(6), tpl.getPage(6)], [{ left: 0, bottom: H - 398, right: 546, top: H - 276 }, { left: 0, bottom: H - 640, right: 546, top: H - 398 }]);
     white(p11, 56, 276, 546, 640);
-    p11.drawPage(ep, { x: 0, y: H - 640 - SH });
+    p11.drawPage(epA, { x: 0, y: H - 398 - SH }); p11.drawPage(epB, { x: 0, y: H - 640 - SH - SL });
     const an = p11.node.lookupMaybe(PDFName.of('Annots'), PDFArray);
-    if (an) for (let k = 0; k < an.size(); k++) { const d = an.lookup(k, PDFDict), r = d.lookup(PDFName.of('Rect'), PDFArray); if (r) d.set(PDFName.of('Rect'), out.context.obj([0, 1, 2, 3].map(j => r.lookup(j, PDFNumber).asNumber() - (j % 2 ? SH : 0)))); }
+    if (an) for (let k = 0; k < an.size(); k++) { const d = an.lookup(k, PDFDict), r = d.lookup(PDFName.of('Rect'), PDFArray); if (r) { const sh = H - r.lookup(3, PDFNumber).asNumber() > 398 ? SH + SL : SH; d.set(PDFName.of('Rect'), out.context.obj([0, 1, 2, 3].map(j => r.lookup(j, PDFNumber).asNumber() - (j % 2 ? sh : 0)))); } }
     /* neue Zeile in Tabelle 1 (Zeilenhöhe 20.4, wie die Vorlage) */
-    if (!VR.length) {
+    if (!VR.length && SH) {
     const t0 = 254.1, t1 = t0 + SH, line = rgb(0.851, 0.851, 0.851);
     p11.drawRectangle({ x: 65.4, y: H - t1, width: 474.6, height: SH, color: C.white, borderWidth: 0 });
     p11.drawRectangle({ x: 65.4, y: H - t1, width: 160, height: SH, color: rgb(0.949, 0.949, 0.949), borderWidth: 0 });
@@ -3309,13 +3323,21 @@ async function buildOfferPdf(o, lang = 'de') {
     [x0, x0 + 160, x1].forEach(xx => p11.drawLine({ start: { x: xx, y: H - ty }, end: { x: xx, y: H - (ty + rh) }, thickness: 0.6, color: ln }));
     txt(p11, en ? 'Billing cycle' : 'Verrechnungsrhythmus', 71.7, ty + 13.4, { bold: true, color: C.navy }); txt(p11, en ? 'Monthly, at the start of each month' : 'Monatlich, jeweils anfangs Monat', 231.7, ty + 13.4);
   }
-  if (c.fenster > 0) {
-    /* Abschnitt 2, Zeile 1: Fensterreinigung als Pauschale pro Ausführung */
-    const r0 = 330 + SH, r1 = 352 + SH;
-    white(p11, 66, r0 + 0.6, 539.4, r1 - 0.3);
-    const by = r0 + 14.6;
-    txt(p11, en ? 'Window cleaning, both sides' : 'Fensterreinigung 2-seitig', 71.7, by); txt(p11, en ? 'Flat rate' : 'Pauschal', 231.7, by); txt(p11, en ? 'Per service' : 'Pro Ausführung', 336.7, by); txt(p11, `CHF ${pdfNum(c.fenster)}`, 441.7, by);
-  }
+  /* Abschnitt 2 (Grundreinigungen / Sonderleistungen): Zeilen mit Pauschalpreis ersetzen die m²-Zeile */
+  SLX.forEach((x, i) => {
+    if (!(c[x[0]] > 0)) return;
+    const off = 22.32 * i + SH, top = 329.81 + off, bot = 351.65 + off, by = 344.6 + off, ln = rgb(0.851, 0.851, 0.851);
+    p11.drawRectangle({ x: 65.9, y: H - (bot - 0.2), width: 474.1, height: bot - top - 0.4, color: i % 2 ? rgb(0.949, 0.949, 0.949) : C.white, borderWidth: 0 });
+    [225.17, 330.19, 435.22].forEach(xx => p11.drawLine({ start: { x: xx, y: H - top }, end: { x: xx, y: H - bot }, thickness: 0.48, color: ln }));
+    txt(p11, en ? x[2] : x[1], 71.7, by); txt(p11, en ? 'Flat rate' : 'Pauschal', 231.7, by); txt(p11, en ? 'Per service' : 'Pro Ausführung', 336.7, by); txt(p11, `CHF ${pdfNum(c[x[0]])}`, 441.7, by);
+  });
+  SLn.forEach((x, i) => {
+    const k = 3 + i, off = 22.32 * k + SH, top = 329.81 + off, bot = 351.65 + off, by = 344.6 + off, ln = rgb(0.851, 0.851, 0.851);
+    p11.drawRectangle({ x: 65.9, y: H - (bot - 0.2), width: 474.1, height: bot - top - 0.4, color: k % 2 ? rgb(0.949, 0.949, 0.949) : C.white, borderWidth: 0 });
+    p11.drawLine({ start: { x: 65.4, y: H - bot }, end: { x: 540, y: H - bot }, thickness: 0.48, color: ln });
+    [65.17, 225.17, 330.19, 435.22, 540.24].forEach(xx => p11.drawLine({ start: { x: xx, y: H - (top - 0.2) }, end: { x: xx, y: H - bot }, thickness: 0.48, color: ln }));
+    txt(p11, fit(x.n, 148, fH, 9), 71.7, by); txt(p11, en ? 'Flat rate' : 'Pauschal', 231.7, by); txt(p11, en ? 'Per service' : 'Pro Ausführung', 336.7, by); txt(p11, `CHF ${pdfNum(x.p)}`, 441.7, by);
+  });
   out.addPage(p11);
   const refs = (o.refs || []).filter(r => r && r.k).slice(0, 2);
   for (let i = 7; i < 16; i++) {
@@ -3431,7 +3453,7 @@ async function exportPdf(o, btn, lang = 'de') {
   if (!window.PDFLib) { toast('PDF-Modul konnte nicht geladen werden. Bitte Seite neu laden.', 'error'); return; }
   const c = objCalc(o);
   if (!o.rooms.length || c.bad) { toast(c.bad ? `${c.bad} ${c.bad === 1 ? 'Raum ist' : 'Räume sind'} unvollständig. Bitte zuerst ergänzen.` : 'Noch keine Räume erfasst.', 'warning'); return; }
-  if ((o.wasch && !(o.waschPreis > 0)) || (o.fenster && !(o.fensterPreis > 0))) { toast('Bitte Preis für ' + (o.wasch && !(o.waschPreis > 0) ? 'Waschservice' : 'Fensterreinigung') + ' erfassen (oder auf «Nein» stellen).', 'warning'); return; }
+  if ((o.wasch && !(o.waschPreis > 0)) || slMissing(o)) { toast('Bitte Preis für ' + (o.wasch && !(o.waschPreis > 0) ? 'Waschservice' : slMissing(o)) + ' erfassen (oder auf «Nein» stellen).', 'warning'); return; }
   if (!(c.monthly > 0)) { toast('Keine Preisgrundlage: Stunden pro Einsatz (Erfahrungswert) oder Flächen erfassen.', 'warning'); return; }
   if (btn) { btn.classList.add('busy'); btn.disabled = true; playIn(btn.querySelector('[data-loader]'), 'loader'); }
   await new Promise(r => setTimeout(r, 30));
