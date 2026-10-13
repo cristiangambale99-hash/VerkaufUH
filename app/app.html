@@ -395,7 +395,7 @@ body{-webkit-tap-highlight-color:transparent}
 
 .tnb{border:0;background:none;color:var(--cs-teal,#1b8285);cursor:pointer;font-size:14px;padding:0 4px}.tnin{flex:1;min-width:0;padding:6px 8px;border:1px solid var(--cs-teal,#1b8285);border-radius:8px;font:inherit}
 
-.rlbox{border-top:1px solid var(--cs-line,#d6e6e9);margin:10px 0;padding-top:10px}.rlrow{display:grid;grid-template-columns:minmax(0,1fr) auto 90px;gap:8px;align-items:center;margin-bottom:6px}.rlrow label{font-size:13px}.rlrow input{padding:7px 9px;text-align:right}.bodenx{border:1.5px dashed var(--cs-teal,#1b8285);border-radius:12px;padding:10px;margin-top:8px;background:var(--cs-ice,#eaf5f6)}
+.panel-b p.small+.rlrow{margin-top:14px}.rhytabs{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 12px}.rhytab{border:1px solid var(--cs-line-strong,#b9d3d6);background:#fff;border-radius:999px;padding:7px 12px;font-size:14px;cursor:pointer}.rhytab[aria-selected=true]{background:var(--cs-teal,#1b8285);color:#fff;border-color:var(--cs-teal,#1b8285)}.rlgr input.ed{border-color:var(--cs-teal,#1b8285);background:#e8f5f5}.rlrow input.ed{border-color:var(--cs-teal,#1b8285);background:#e8f5f5}.rlbox{border-top:1px solid var(--cs-line,#d6e6e9);margin:10px 0;padding-top:10px}.rlrow{display:grid;grid-template-columns:minmax(0,1fr) auto 90px;gap:8px;align-items:center;margin-bottom:6px}.rlrow label{font-size:13px}.rlrow input{padding:7px 9px;text-align:right}.bodenx{border:1.5px dashed var(--cs-teal,#1b8285);border-radius:12px;padding:10px;margin-top:8px;background:var(--cs-ice,#eaf5f6)}
 </style>
 
 <!-- Icon-Sprite (eine Linien-Familie, 1.8 px, runde Enden) -->
@@ -794,6 +794,7 @@ const ORDER_IDX = Object.fromEntries(TASK_ORDER.map((id, i) => [id, i]));
 const GROUPS = CATALOG.groups;
 const GROUP = Object.fromEntries(GROUPS.map(g => [g.code, g]));
 const DISPO = CATALOG.dispo;
+DISPO.splice(DISPO.findIndex(d => d.code === '5x') + 1, 0, { code: '6x', label: '6× pro Woche', perYear: 312 }, { code: '7x', label: '7× pro Woche', perYear: 364 });
 DISPO.push({ code: 'E', label: 'Eigenreinigung durch den Kunden', perYear: 0 });
 const DISPO_BY = Object.fromEntries(DISPO.map(d => [d.code, d]));
 const WEEKLY = c => /^\dx$/.test(c);
@@ -1549,22 +1550,44 @@ function regX(r) { (r.xt || []).forEach((x, i) => { const cat = x.c && CAT_LAST[
 const RLG = {'1.10':[120,120,120],'1.21':[180,150,150],'1.90':[0,500,500],'2.05':[183.64,133.03,199.32],'2.10':[280,280,280],'2.11':[420,420,420],'2.12':[520,520,520],'2.20':[280,280,280],'2.30':[250,250,250],'2.40':[210,20,190],'2.50':[260,220,220],'2.70':[183.64,133.03,199.32],'3.52':[257.43,100.44,134.12],'4.10':[457.63,216.74,473.09],'4.11':[457.63,216.74,473.09],'4.12':[457.63,216.74,473.09],'5.10':[183.64,133.03,199.32],'5.31':[183.64,133.03,199.32],'6.10':[0,0,0],'6.20':[0,0,0],'6.30':[0,0,0],'7.10':[45,45,45],'7.11':[60,60,60],'7.12':[70,70,70],'7.20':[100,100,100],'7.30':[100,100,100],'7.90':[0,0,0],'8.10':[735.85,362.31,458.05],'8.20':[0,0,0],'9.10':[150,130,130],'9.11':[400,400,400],'9.20':[300,300,300],'9.21':[0,80,80],'9.22':[110,110,110],'A.10':[3000,750,750],'A.30':[3000,750,750]};
 const BART = [['T', 'Textil'], ['G', 'Glatt'], ['S', 'Strukturiert']];
 const bodenArt = r => isTextilR(r) ? 'T' : /beton|naturstein|struktur|epoxid|gitterrost|kork/i.test(r.boden || '') ? 'S' : 'G';
-const rlgStd = (code, a) => { const base = (RLG[code] || [])[BART.findIndex(x => x[0] === a)] || 0; const ed = (S.settings.rlG || {})[code + '|' + a]; return ed === -1 ? 0 : ed > 0 ? ed : base; };
-const rlgOf = r => { if (!r.gruppe) return 0; const a = bodenArt(r), k = r.gruppe + '|' + a; return (RL_CTX && RL_CTX[k] > 0) ? RL_CTX[k] : rlgStd(r.gruppe, a); };
+/* Rhythmen (Reinigungen pro Woche), für die Richtleistungen hinterlegt sind */
+const RHY = [1, 2, 3, 5, 6, 7];
+const rhyOf = r => { const m = /^(\d)x$/.exec(r.dispo || ''); return m ? Math.min(7, Math.max(1, +m[1])) : 1; };
+const rhyKey = n => RHY.includes(n) ? n : n === 4 ? 3 : 1;   // 4x nutzt die Werte von 3x
+/* Familien (Büro, Toiletten) haben je Rhythmus eine eigene Aduna-Gruppe; die übrigen Gruppen gelten für alle Rhythmen */
+const FAM_LABEL = { 'büro': 'Büro (2.10 – 2.12)', 'wc': 'Sanitäre Räume / Toiletten (7.10 – 7.12)' };
+const rlgKey = (code, a, n) => (FAMILIES[code] || code) + '|' + a + '|' + n;
+function rlgBase(code, a, n) {
+  const ai = BART.findIndex(x => x[0] === a), fam = FAMILIES[code];
+  if (!fam) return (RLG[code] || [])[ai] || 0;
+  const v = k => (RLG[FAMILY_BY[fam][k]] || [])[ai] || 0;
+  return n <= 1 ? v('1x') : n === 2 ? (v('1x') + v('3x')) / 2 : n === 3 ? v('3x') : n === 4 ? (v('3x') + v('5x')) / 2 : v('5x');
+}
+const rlgStd = (code, a, n = 1) => { const ed = (S.settings.rlG || {})[rlgKey(code, a, n)]; return ed === -1 ? 0 : ed > 0 ? ed : rlgBase(code, a, n); };
+const rlgOf = r => { if (!r.gruppe) return 0; const a = bodenArt(r), n = rhyOf(r), k = rlgKey(r.gruppe, a, n); return (RL_CTX && RL_CTX[k] > 0) ? RL_CTX[k] : rlgStd(r.gruppe, a, n); };
 /* Leistungszahlen (m²/h): Standard aus den Einstellungen oder pro Offerte angepasst (o.rlMode = 'custom', o.rlOv = {Kategorie: m²/h}) */
 let RL_CTX = null;
 const rlCtx = o => { RL_CTX = o && o.rlMode === 'custom' ? (o.rlOv || {}) : null; };
 function rlCats(o) { rlCtx(o); const set = new Set(); o.rooms.filter(r => !(rlgOf(r) > 0)).forEach(r => roomTasks(r).forEach(x => set.add(x.t.cat))); return CATALOG.cats.map(c => c.name).filter(n => set.has(n)); }
+function rlUsed(o) {
+  rlCtx(o); const seen = new Set(), rows = [];
+  o.rooms.forEach(r => { if (r.gruppe && r.flaeche > 0 && r.dispo !== 'E') { const a = bodenArt(r), n = rhyOf(r), k = rlgKey(r.gruppe, a, n); if (!seen.has(k) && rlgStd(r.gruppe, a, n) > 0) { seen.add(k); const fam = FAMILIES[r.gruppe]; rows.push({ k, a, n, std: rlgStd(r.gruppe, a, n), name: fam ? FAM_LABEL[fam] : r.gruppe + ' ' + ((GROUP[r.gruppe] || {}).name || '') }); } } });
+  return rows.sort((x, y) => x.name.localeCompare(y.name) || x.n - y.n);
+}
 function rlHtml(o, dis) {
-  const custom = o.rlMode === 'custom';
-  let h = `<div class="rlbox"><div class="field"><label>Leistungszahlen für die Berechnung</label><div class="seg">${[['std', 'Standard (hinterlegt)'], ['custom', 'Für diese Offerte anpassen']].map(([v, l]) => `<label><input type="radio" name="rlmode" value="${v}" data-rlm="1" ${(custom ? 'custom' : 'std') === v ? 'checked' : ''} ${dis}><span>${l}</span></label>`).join('')}</div></div>`;
-  if (custom) {
-    const cats = rlCats(o), ov = o.rlOv || {}, gk = [];
-    o.rooms.forEach(r => { if (r.gruppe && r.flaeche > 0) { const k = r.gruppe + '|' + bodenArt(r); if (!gk.includes(k) && rlgStd(r.gruppe, bodenArt(r)) > 0) gk.push(k); } });
-    gk.sort();
-    h += `<p class="small muted" style="margin:0 0 6px">Richtleistung in m² pro Stunde je Reinigungsgruppe und Bodenart (Aduna-Standard). Gilt nur für diese Offerte, die hinterlegten Standardwerte bleiben unverändert.</p>` + gk.map((k, i) => { const [c, a] = k.split('|'), st = rlgStd(c, a); return `<div class="rlrow"><label for="rlg${i}">${esc(c)} ${esc((GROUP[c] || {}).name || '')} · ${BART.find(x => x[0] === a)[1]}</label><span class="small muted">Standard ${fmtN(st, 2)}</span><input id="rlg${i}" data-rlo="${esc(k)}" inputmode="decimal" value="${ov[k] ?? st}" ${dis}></div>`; }).join('') + (cats.length ? `<p class="small muted" style="margin:10px 0 6px">Räume ohne Richtleistung rechnen nach Leistungskategorie:</p>` + cats.map((c, i) => `<div class="rlrow"><label for="rlo${i}">${esc(c)}</label><span class="small muted">Standard ${fmtN(S.settings.rl[c], 0)}</span><input id="rlo${i}" data-rlo="${esc(c)}" inputmode="decimal" value="${ov[c] ?? S.settings.rl[c]}" ${dis}></div>`).join('') : '') + (!gk.length && !cats.length ? '<p class="small muted">Zuerst Räume mit Fläche und Reinigungsgruppe erfassen.</p>' : '') + (Object.keys(ov).length && !dis ? `<button type="button" class="btn btn-g btn-sm" data-act="rlReset">Auf Standard zurücksetzen</button>` : '');
-  } else h += `<p class="small muted" style="margin:0">Es gelten die in den Einstellungen hinterlegten Leistungszahlen.</p>`;
-  return h + '</div>';
+  const custom = o.rlMode === 'custom', nOv = Object.keys(o.rlOv || {}).length;
+  return `<div class="rlbox"><div class="field"><label>Leistungszahlen für die Berechnung</label><div class="seg">${[['std', 'Gemäss Standard-Leistungszahlen'], ['custom', 'Leistungszahlen bearbeiten']].map(([v, l]) => `<label><input type="radio" name="rlmode" value="${v}" data-rlm="1" ${(custom ? 'custom' : 'std') === v ? 'checked' : ''} ${dis}><span>${l}</span></label>`).join('')}</div></div>
+    <p class="small muted" style="margin:0 0 ${custom ? 8 : 0}px">${custom ? 'Für diese Offerte gelten angepasste Leistungszahlen' + (nOv ? ' (' + nOv + ' geändert)' : '') + '. Die hinterlegten Standardwerte bleiben unverändert.' : 'Es gelten die hinterlegten Aduna-Richtleistungen, passend zum Reinigungsrhythmus jedes Raums (z. B. 1× pro Woche).'}</p>
+    ${custom && !dis ? `<button type="button" class="btn btn-s btn-sm" data-act="rlOpen">Leistungszahlen bearbeiten …</button>` : ''}</div>`;
+}
+function rlPanelHtml(oid) {
+  const o = objOf(oid); if (!o) return '';
+  const rows = rlUsed(o), cats = rlCats(o), ov = o.rlOv || {}, dis = (o.status !== 'erfassung' && !o.revising && !o.lvEditing) ? 'disabled' : '';
+  return `<div class="panel-h"><div><div class="eyebrow">Diese Offerte</div><h2 id="panelTitle">Leistungszahlen</h2></div><button class="icon-btn" data-act="closePanel" aria-label="Schliessen"><svg><use href="#i-x"/></svg></button></div>
+  <div class="panel-b"><p class="small muted" style="margin-top:0">Richtleistung in m² pro Stunde je Reinigungsgruppe, Bodenart und Rhythmus. Änderungen gelten nur für diese Offerte. Geänderte Werte sind markiert.</p>
+  ${rows.length ? rows.map((x, i) => `<div class="rlrow"><label for="rlg${i}">${esc(x.name)}<small class="muted" style="display:block">${BART.find(b => b[0] === x.a)[1]} · ${x.n}× pro Woche</small></label><span class="small muted">Standard ${fmtN(x.std, 2)}</span><input id="rlg${i}" data-rlo="${esc(x.k)}" inputmode="decimal" value="${ov[x.k] ?? x.std}" class="${ov[x.k] ? 'ed' : ''}" ${dis}></div>`).join('') : '<p class="muted small">Noch keine Räume mit Fläche und Reinigungsgruppe.</p>'}
+  ${cats.length ? `<div class="sec-t">Räume ohne Richtleistung</div>` + cats.map((c, i) => `<div class="rlrow"><label for="rlo${i}">${esc(c)}</label><span class="small muted">Standard ${fmtN(S.settings.rl[c], 0)}</span><input id="rlo${i}" data-rlo="${esc(c)}" inputmode="decimal" value="${ov[c] ?? S.settings.rl[c]}" class="${ov[c] ? 'ed' : ''}" ${dis}></div>`).join('') : ''}</div>
+  <div class="panel-f">${Object.keys(ov).length && !dis ? `<button class="btn btn-s" data-act="rlReset">Auf Standard zurücksetzen</button>` : ''}<button class="btn btn-p" data-act="closePanel" style="margin-left:auto">Fertig</button></div>`;
 }
 const rlOf = t => t.custom ? Infinity : (RL_CTX && RL_CTX[t.cat]) || S.settings.rlTask[t.id] || S.settings.rl[t.cat] || 1000;
 function groupMap(code) {
@@ -1654,7 +1677,7 @@ const varList = o => {
 };
 const objOf = id => S.objects.find(o => o.id === id);
 const curObj = () => objOf(UI.cur);
-function defaultDispo(o) { const n = (o.days || []).length; return n >= 6 ? '6x' : n === 5 ? '5x' : n === 4 ? '4x' : n === 3 ? '3x' : n === 2 ? '2x' : '1x'; }
+function defaultDispo(o) { const n = (o.days || []).length; return n >= 7 ? '7x' : n === 6 ? '6x' : n === 5 ? '5x' : n === 4 ? '4x' : n === 3 ? '3x' : n === 2 ? '2x' : '1x'; }
 function nextNr(o) {
   const d = parseDay(o.besDatum || isoDay(TODAY)); const key = `${String(d.getFullYear()).slice(2)}${pad(d.getMonth()+1)}${pad(d.getDate())}`;
   S.seq[key] = (S.seq[key] || 10) + 1; return `${key}-${pad(S.seq[key])}`;
@@ -2569,16 +2592,12 @@ function renderSet() {
     <p class="foot-n">Quelle: Aduna-Matrix «Leistungsverzeichnis · Reinigungsgruppen». Wöchentliche Codes (1x, 3x, 5x) folgen der Dispo des Raums. Einige Gruppennamen waren im Export abgekürzt und sind ergänzt.</p>`;
   }
   if (UI.setTab === 'rl') {
-    body = `<div class="card fsec form"><h2>Richtleistungen pro Reinigungsgruppe (Aduna)</h2><p class="hint">Fläche in m², die pro Stunde gereinigt wird, je Bodenart. Stunden pro Einsatz = Fläche ÷ Richtleistung. Leer oder 0: der Raum rechnet nach den Kategorien unten. Geänderte Werte sind markiert.</p>
-      <div class="rlgt"><div class="rlgh"><span>Gruppe</span>${BART.map(b => `<span>${b[1]}</span>`).join('')}</div>${GROUPS.map(g => `<div class="rlgr"><span>${g.code} ${esc(g.name)}</span>${BART.map(b => { const ed = (S.settings.rlG || {})[g.code + '|' + b[0]]; return `<input inputmode="decimal" data-rlg="${g.code}|${b[0]}" value="${rlgStd(g.code, b[0]) || ''}" ${ed > 0 ? 'class="ed"' : ''} aria-label="${g.code} ${b[1]}">`; }).join('')}</div>`).join('')}</div>
-      ${Object.keys(S.settings.rlG || {}).length ? '<div class="factions"><button class="btn btn-s btn-sm" data-act="rlgReset">Alle auf Aduna-Standard zurücksetzen</button></div>' : ''}
-    </div>
-    <div class="card fsec form"><h2>Leistungswerte pro Kategorie (Ersatzwerte)</h2><p class="hint">Gelten nur für Räume ohne Richtleistung. Fläche in m², die pro Stunde für eine Ausführung der Tätigkeit gereinigt wird.</p>
-      ${CATALOG.cats.map(c => `<div class="field"><label for="rl-${CATALOG.cats.indexOf(c)}">${esc(c.name)}</label><input id="rl-${CATALOG.cats.indexOf(c)}" inputmode="decimal" data-rl="${esc(c.name)}" value="${S.settings.rl[c.name]}"></div>`).join('')}
-    </div>
-    <div class="card fsec form"><h2>Abweichende Werte pro Tätigkeit</h2><p class="hint">Leer lassen, dann gilt der Wert der Kategorie.</p>
-      <div class="search" style="margin-bottom:12px"><svg><use href="#i-search"/></svg><input id="setQ" type="search" placeholder="Tätigkeit suchen" value="${esc(UI.setQ)}" data-q="setQ" aria-label="Tätigkeit suchen"></div>
-      ${TASK_ORDER.filter(id => !UI.setQ || TASKS[id].name.toLowerCase().includes(UI.setQ.toLowerCase())).slice(0, 60).map(id => `<div class="tk"><span class="nm">${esc(TASKS[id].name)}<div class="small muted">${esc(TASKS[id].cat)}</div></span><input style="width:96px;min-height:36px;border:1px solid var(--cs-line-strong);border-radius:6px;padding:4px 8px;font-size:15px;text-align:right" inputmode="decimal" data-rlt="${id}" value="${S.settings.rlTask[id] || ''}" placeholder="${S.settings.rl[TASKS[id].cat]}" aria-label="m² pro Stunde ${esc(TASKS[id].name)}"></div>`).join('')}
+    const N = RHY.includes(UI.rlN) ? UI.rlN : 1, seenF = new Set(), rl = S.settings.rlG || {};
+    const rowsG = GROUPS.filter(g => { const f = FAMILIES[g.code]; if (!f) return true; if (seenF.has(f)) return false; seenF.add(f); return true; });
+    body = `<div class="card fsec form"><h2>Leistungszahlen pro Reinigungsgruppe (Aduna)</h2><p class="hint">Fläche in m², die pro Stunde gereinigt wird, je Bodenart und Reinigungsrhythmus. Wählt Mirco in der Offerte z. B. «1× pro Woche», gelten automatisch die Werte dieses Rhythmus. Stunden pro Einsatz = Fläche ÷ Leistungszahl. Geänderte Werte sind markiert.</p>
+      <div class="rhytabs" role="tablist">${RHY.map(n => `<button type="button" role="tab" class="rhytab" aria-selected="${n === N}" data-act="rlN" data-v="${n}">${n}× pro Woche</button>`).join('')}</div>
+      <div class="rlgt"><div class="rlgh"><span>Gruppe</span>${BART.map(b => `<span>${b[1]}</span>`).join('')}</div>${rowsG.map(g => { const fam = FAMILIES[g.code]; return `<div class="rlgr"><span>${fam ? esc(FAM_LABEL[fam]) : g.code + ' ' + esc(g.name)}</span>${BART.map(b => { const ed = rl[rlgKey(g.code, b[0], N)]; return `<input inputmode="decimal" data-rlg="${rlgKey(g.code, b[0], N)}" value="${rlgStd(g.code, b[0], N) || ''}" ${ed ? 'class="ed"' : ''} aria-label="${g.code} ${b[1]} ${N}× pro Woche">`; }).join('')}</div>`; }).join('')}</div>
+      ${Object.keys(rl).length ? '<div class="factions"><button class="btn btn-s btn-sm" data-act="rlgReset">Alle auf Aduna-Standard zurücksetzen</button></div>' : ''}
     </div>`;
   }
   if (UI.setTab === 'dis') {
@@ -2694,6 +2713,7 @@ function renderPanel(keepScroll) {
   if (p.type === 'obj') html = objPanelHtml(objOf(p.id));
   if (p.type === 'off') html = offPanelHtml(p.id);
   if (p.type === 'lv') html = lvPanelHtml(p.id);
+  if (p.type === 'rl') html = rlPanelHtml(p.oid);
   if (p.type === 'kun') html = kunPanelHtml(S.customers.find(c => c.id === p.id));
   if (p.type === 'grp') html = grpPanelHtml(p.id);
   if (p.type === 'plan') html = planPanelHtml();
@@ -2893,8 +2913,10 @@ const ACT = {
   titelSet: el => { const o = curObj(); if (!o) return; const k = o.photos[+el.dataset.i]; o.titel = o.titel === k ? null : k; save(); renderBes(); toast(o.titel ? 'Titelbild gewählt' : 'Titelbild entfernt', 'info'); },
   roomUp: el => moveRoom(el.dataset.id, -1),
   roomDown: el => moveRoom(el.dataset.id, 1),
+  rlOpen: () => { const o = curObj(); if (o) openPanel({ type: 'rl', oid: o.id }); },
+  rlN: el => { UI.rlN = +el.dataset.v; renderSet(); },
   rlgReset: () => { S.settings.rlG = {}; save(); renderSet(); toast('Aduna-Standard wiederhergestellt'); },
-  rlReset: () => { const o = curObj(); o.rlOv = {}; save(); renderBes(); refreshBesLive(); },
+  rlReset: () => { const o = curObj(); o.rlOv = {}; save(); renderBes(); refreshBesLive(); if (UI.panel && UI.panel.type === 'rl') renderPanel(true); },
   gebSel: el => { UI.geb = el.dataset.id; renderBes(); },
   gebAdd: () => { const o = curObj(); gebFix(o); const g = { id: uid(), n: '', a: '' }; o.geb.push(g); UI.geb = g.id; save(); renderBes(); const i = $('#gbN'); i && i.focus({ preventScroll: true }); },
   gebNext: () => { const o = curObj(); gebFix(o); const i = o.geb.findIndex(g => g.id === UI.geb); if (i < o.geb.length - 1) UI.geb = o.geb[i + 1].id; else { const g = { id: uid(), n: '', a: '' }; o.geb.push(g); UI.geb = g.id; } UI.floor = 'Alle'; save(); renderBes(); const q = $('#sec-raumbuch'); q && q.scrollIntoView({ behavior: 'smooth', block: 'start' }); },
@@ -3093,7 +3115,7 @@ document.addEventListener('input', e => {
   if (t.dataset.lb) { const L = num($('#rL').value), B = num($('#rB').value); if (L > 0 && B > 0) { const x = curRoom(); if (x) { x[1].flaeche = Math.round(L * B * 10) / 10; $('#rM2').value = x[1].flaeche; save(); refreshRoomCalc(); refreshBesLive(); } } return; }
   if (t.dataset.vm != null && t.dataset.vm !== '') { const o = curObj(); if (!o) return; const v = o.vars[+t.dataset.vm]; v.m = num(t.value); const e = document.getElementById('vp' + (+t.dataset.vm + 1)); if (e) e.textContent = v.m > 0 && v.tage.length ? `≈ CHF ${fmtN(v.m / (v.tage.length * WF()), 2)} pro Reinigung · ${chf(v.m * 12)} pro Jahr` : 'Reinigungstage und Preis eingeben'; save(); return; }
   if (t.dataset.sxn != null || t.dataset.sxp != null) { const o = curObj(); if (!o || !o.sx) return; if (t.dataset.sxn != null) o.sx[+t.dataset.sxn].n = t.value; else { const v = parseFloat(String(t.value).replace(/'/g, '').replace(',', '.')); o.sx[+t.dataset.sxp].p = v > 0 ? v : null; } save(); refreshBesLive(); return; }
-  if (t.dataset.rlo) { const o = curObj(); if (!o) return; const v = num(t.value); o.rlOv = o.rlOv || {}; const kk = t.dataset.rlo, stdv = kk.includes('|') ? rlgStd(kk.split('|')[0], kk.split('|')[1]) : S.settings.rl[kk]; if (v > 0 && v !== stdv) o.rlOv[kk] = v; else delete o.rlOv[kk]; save(); refreshBesLive(); return; }
+  if (t.dataset.rlo) { const o = curObj(); if (!o) return; const v = num(t.value); o.rlOv = o.rlOv || {}; const kk = t.dataset.rlo, stdv = kk.includes('|') ? (() => { const [c, a, n] = kk.split('|'); return rlgStd(c === 'büro' ? '2.10' : c === 'wc' ? '7.10' : c, a, +n); })() : S.settings.rl[kk]; if (v > 0 && v !== stdv) o.rlOv[kk] = v; else delete o.rlOv[kk]; save(); refreshBesLive(); t.classList.toggle('ed', !!o.rlOv[kk]); return; }
   if (t.dataset.bsx) { const o = curObj(); o.bodenStd = t.value.trim().slice(0, 30) || 'Andere'; save(); return; }
   if (t.dataset.bx) { const x = curRoom(); if (!x) return; x[1].boden = t.value.trim().slice(0, 30) || 'Andere'; save(); refreshBesLive(); return; }
   if (t.dataset.gn || t.dataset.ga) { const o = curObj(); if (!o || !o.geb) return; const g = o.geb.find(x => x.id === UI.geb); if (!g) return; if (t.dataset.gn) { g.n = t.value; const i = o.geb.indexOf(g), ch = document.querySelector(`.gchip[data-id="${g.id}"]`); if (ch) ch.innerHTML = `<b>${gebLet(i)}</b> ${esc(gebName(o, g, i))}<span class="cnt">${o.rooms.filter(r => r.geb === g.id).length}</span>`; } else g.a = t.value; save(); return; }
@@ -3107,7 +3129,7 @@ document.addEventListener('input', e => {
   if (t.dataset.o && o) { o[t.dataset.o] = t.dataset.num ? num(t.value) : t.value; t.closest('.field')?.classList.remove('err'); save(); refreshBesLive(); return; }
   if (t.dataset.c && o) { custOf(o)[t.dataset.c] = t.value; t.closest('.field')?.classList.remove('err'); save(); refreshBesLive(); return; }
   if (t.dataset.r) { const x = curRoom(); if (!x) return; x[1][t.dataset.r] = t.dataset.num ? num(t.value) : t.value; save(); refreshRoomCalc(); refreshBesLive(); return; }
-  if (t.dataset.rlg) { const [c, a] = t.dataset.rlg.split('|'), base = (RLG[c] || [])[BART.findIndex(x => x[0] === a)] || 0, v = num(t.value); S.settings.rlG = S.settings.rlG || {}; if (v !== base && (v > 0 || base > 0)) S.settings.rlG[t.dataset.rlg] = v > 0 ? v : -1; else delete S.settings.rlG[t.dataset.rlg]; save(); return; }
+  if (t.dataset.rlg) { const kk = t.dataset.rlg, [c, a, n] = kk.split('|'), code = c === 'büro' ? '2.10' : c === 'wc' ? '7.10' : c, base = rlgBase(code, a, +n), v = num(t.value); S.settings.rlG = S.settings.rlG || {}; if (v !== base && (v > 0 || base > 0)) S.settings.rlG[kk] = v > 0 ? v : -1; else delete S.settings.rlG[kk]; save(); t.classList.toggle('ed', kk in S.settings.rlG); return; }
   if (t.dataset.rl) { const v = num(t.value); if (v > 0) { S.settings.rl[t.dataset.rl] = v; save(); } return; }
   if (t.dataset.rlt) { const v = num(t.value); if (v > 0) S.settings.rlTask[t.dataset.rlt] = v; else delete S.settings.rlTask[t.dataset.rlt]; save(); return; }
   if (t.dataset.sset) { const v = num(t.value); if (v > 0) { S.settings[t.dataset.sset] = v; save(); } return; }
@@ -3131,7 +3153,7 @@ document.addEventListener('change', e => {
   if (t.dataset.day && o) { const d = t.dataset.day; o.days = t.checked ? DAYS.filter(x => o.days.includes(x) || x === d) : o.days.filter(x => x !== d); save(); renderBes(); return; }
   if (t.dataset.vday && o) { const [i, d] = t.dataset.vday.split(':'), v = o.vars[+i]; v.tage = t.checked ? DAYS.filter(x => v.tage.includes(x) || x === d) : v.tage.filter(x => x !== d); save(); renderBes(); return; }
   if (t.dataset.vrec != null && t.dataset.vrec !== '' && o) { const i = +t.dataset.vrec; o.recMain = false; o.vars.forEach(v => v.rec = false); if (t.checked) { if (i === 0) o.recMain = true; else o.vars[i - 1].rec = true; } save(); renderBes(); return; }
-  if (t.dataset.rlm && o) { o.rlMode = t.value === 'custom' ? 'custom' : 'std'; if (o.rlMode === 'custom' && !o.rlOv) o.rlOv = {}; save(); renderBes(); refreshBesLive(); return; }
+  if (t.dataset.rlm && o) { o.rlMode = t.value === 'custom' ? 'custom' : 'std'; if (o.rlMode === 'custom' && !o.rlOv) o.rlOv = {}; save(); renderBes(); refreshBesLive(); if (o.rlMode === 'custom') openPanel({ type: 'rl', oid: o.id }); return; }
   if (t.dataset.bst) { const o = curObj(); o.bodenStdT = t.dataset.bst === 'textil' ? 'textil' : 'hart'; save(); return; }
   if (t.dataset.bt) { const x = curRoom(); if (!x) return; x[1].bodenT = t.value === 'textil' ? 'textil' : null; save(); renderPanel(true); refreshBesLive(); return; }
   if (t.dataset.multi && o) { o.multi = t.value === 'Ja'; if (o.multi) { gebFix(o); UI.geb = o.geb[0].id; } save(); renderBes(); return; }
