@@ -388,6 +388,8 @@ body{-webkit-tap-highlight-color:transparent}
 .sxrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:10px;align-items:end}@media(max-width:560px){.sxrow{grid-template-columns:minmax(0,1fr)}}
 
 .xform{border:1.5px dashed var(--cs-teal,#1b8285);border-radius:12px;padding:10px;margin:8px 0;display:grid;gap:8px;background:var(--cs-ice,#eaf5f6)}
+
+.tnb{border:0;background:none;color:var(--cs-teal,#1b8285);cursor:pointer;font-size:14px;padding:0 4px}.tnin{flex:1;min-width:0;padding:6px 8px;border:1px solid var(--cs-teal,#1b8285);border-radius:8px;font:inherit}
 </style>
 
 <!-- Icon-Sprite (eine Linien-Familie, 1.8 px, runde Enden) -->
@@ -1545,7 +1547,7 @@ function roomTasks(r) {
     const wk = (code !== 'B' && WEEKLY(code)) ? perExec * parseInt(code) : 0;            // Std. pro Woche
     const per = (code !== 'B' && !WEEKLY(code)) ? perExec * perYear(code) : 0;          // Std. pro Jahr (periodisch)
     const h = (wk * WF() + per / 12) * 12;                                              // Std. pro Jahr gesamt
-    out.push({ t, raw, code, h, wk, per, perExec });
+    out.push({ t: r.tn && r.tn[id] ? { ...t, name: r.tn[id], ov: true } : t, raw, code, h, wk, per, perExec });
   });
   return out.sort((a, b) => (ORDER_IDX[a.t.id] ?? 9999) - (ORDER_IDX[b.t.id] ?? 9999));
 }
@@ -2092,7 +2094,7 @@ function roomPanelHtml(o, r) {
   let lastCat = '', tasksHtml = '';
   ids.forEach(id => { const t = TASKS[id], on = id in map, x = hById[id];
     if (t.cat !== lastCat) { tasksHtml += `<div class="tcat">${esc(t.cat)}</div>`; lastCat = t.cat; }
-    tasksHtml += `<div class="tk ${on ? '' : 'off'}"><input type="checkbox" data-tk="${id}" ${on ? 'checked' : ''} ${dis} aria-label="${esc(t.name)}"><span class="nm">${esc(t.name)}</span>${on ? `<select data-tkc="${id}" ${dis} aria-label="Code ${esc(t.name)}">${codeOptions(map[id], r.dispo)}</select><span class="hh">${t.custom ? '' : x && x.code !== 'B' ? fmtN(x.h, 1) + ' h' : 'n. B.'}</span>` : ''}${t.custom && !dis ? `<button type="button" class="btn btn-g btn-sm" data-act="xDel" data-id="${id}" aria-label="Eigene Leistung entfernen">×</button>` : ''}</div>`;
+    tasksHtml += `<div class="tk ${on ? '' : 'off'}"><input type="checkbox" data-tk="${id}" ${on ? 'checked' : ''} ${dis} aria-label="${esc(t.name)}">${UI.tnEdit === id && !dis ? `<input class="tnin" data-tn="${id}" value="${esc((r.tn && r.tn[id]) || t.name)}" maxlength="80" aria-label="Bezeichnung ändern">` : `<span class="nm">${esc((r.tn && r.tn[id]) || t.name)}${r.tn && r.tn[id] ? ' <span class="badge b-info">angepasst</span>' : ''}${dis ? '' : ` <button type="button" class="tnb" data-act="tnEdit" data-id="${id}" aria-label="Bezeichnung ändern" title="Bezeichnung ändern">✎</button>`}</span>`}${on ? `<select data-tkc="${id}" ${dis} aria-label="Code ${esc(t.name)}">${codeOptions(map[id], r.dispo)}</select><span class="hh">${t.custom ? '' : x && x.code !== 'B' ? fmtN(x.h, 1) + ' h' : 'n. B.'}</span>` : ''}${t.custom && !dis ? `<button type="button" class="btn btn-g btn-sm" data-act="xDel" data-id="${id}" aria-label="Eigene Leistung entfernen">×</button>` : ''}</div>`;
   });
   const std = defaultDispo(o);
   const BODEN_TOP = ['Keramik','Parkett','Vinyl','Textil','Laminat','Linoleum','PVC','Naturstein (G)','Beton','Andere'];
@@ -2193,7 +2195,7 @@ function docRaumbuch(o) {
 function docLV(o) {
   const blocks = {};
   o.rooms.filter(r => r.gruppe).forEach(r => {
-    const ts = roomTasks(r); const sig = r.gruppe + '|' + ts.map(x => x.t.id + ':' + x.code).join(',');
+    const ts = roomTasks(r); const sig = r.gruppe + '|' + ts.map(x => x.t.id + ':' + x.code + (x.t.ov ? '~' + x.t.name : '')).join(',');
     if (!blocks[sig]) blocks[sig] = { g: r.gruppe, ts, rooms: [] };
     blocks[sig].rooms.push(r);
   });
@@ -2832,19 +2834,20 @@ const ACT = {
     if (/Toilette|Küche|Garderobe|Treppen/.test(el.dataset.n)) r.boden = 'Keramik';
     o.rooms.push(r); UI.floor = floor; UI.flashRoom = r.id; save(); refreshBesLive();
     const keep = window.scrollY; renderBes(); window.scrollTo({ top: keep });
-    if (!el.dataset.n) { UI.showTasks = false; UI.showNote = false; openPanel({ type: 'room', oid: o.id, id: r.id }); setTimeout(() => { const f = $('#rBez'); f && f.focus({ preventScroll: true }); }, 320); }
+    if (!el.dataset.n) { UI.showTasks = true; UI.showNote = false; openPanel({ type: 'room', oid: o.id, id: r.id }); setTimeout(() => { const f = $('#rBez'); f && f.focus({ preventScroll: true }); }, 320); }
     else { const row = document.querySelector(`.rrow[data-id="${r.id}"]`); if (row) { row.scrollIntoView({ block: 'nearest' }); } toast(`${el.dataset.n}${r.nr ? ' ' + r.nr : ''} hinzugefügt`, 'check'); }
   },
-  openRoom: el => { UI.showTasks = false; UI.showNote = false; openPanel({ type: 'room', oid: UI.cur, id: el.dataset.id }); },
+  openRoom: el => { UI.tnEdit = null; UI.showTasks = true; UI.showNote = false; openPanel({ type: 'room', oid: UI.cur, id: el.dataset.id }); },
   closePanel: () => closePanel(),
   dispo: el => { const x = curRoom(); if (!x) return; const [o, r] = x; r.dispo = el.dataset.v;
     const fam = FAMILIES[r.gruppe]; if (fam && FAMILY_BY[fam][r.dispo]) r.gruppe = FAMILY_BY[fam][r.dispo];
     save(); renderPanel(true); refreshBesLive(); },
+  tnEdit: el => { UI.tnEdit = el.dataset.id; renderPanel(true); setTimeout(() => { const i = document.querySelector('.tnin'); i && (i.focus(), i.select()); }, 50); },
   xAdd: () => { UI.xAdd = !UI.xAdd; renderPanel(true); setTimeout(() => { const i = $('#xName'); i && i.focus({ preventScroll: true }); }, 50); },
   xSave: () => { const x = curRoom(); if (!x) return; const r = x[1], n = ($('#xName').value || '').trim().replace(/\s+/g, ' '); if (!n) { toast('Bitte Bezeichnung der Leistung eingeben.', 'warning'); return; } const id = 'x' + uid(); (r.xt = r.xt || []).push({ id, n }); r.custom = { ...roomMap(r), [id]: $('#xCode').value || 'R' }; UI.xAdd = false; UI.showTasks = true; save(); renderPanel(true); refreshBesLive(); toast('Leistung hinzugefügt', 'check'); },
   xDel: el => { const x = curRoom(); if (!x) return; const r = x[1]; r.xt = (r.xt || []).filter(y => y.id !== el.dataset.id); const m = { ...roomMap(r) }; delete m[el.dataset.id]; r.custom = m; save(); renderPanel(true); refreshBesLive(); },
   toggleAll: () => { UI.showAll = !UI.showAll; renderPanel(true); },
-  resetTasks: () => { const x = curRoom(); if (!x) return; x[1].custom = null; save(); renderPanel(true); refreshBesLive(); toast('Leistungen auf Gruppe zurückgesetzt'); },
+  resetTasks: () => { const x = curRoom(); if (!x) return; x[1].custom = null; x[1].tn = null; save(); renderPanel(true); refreshBesLive(); toast('Leistungen auf Gruppe zurückgesetzt'); },
   askDel: () => { UI.confirmDel = true; renderPanel(true); const b = $('#panel .panel-b'); b.scrollTop = b.scrollHeight; },
   cancelDel: () => { UI.confirmDel = false; renderPanel(true); },
   delRoom: () => { const x = curRoom(); if (!x) return; const [o, r] = x; o.rooms = o.rooms.filter(y => y !== r); save(); closePanel(); refreshBesLive(); toast('Raum gelöscht', 'info'); },
@@ -3056,6 +3059,7 @@ document.addEventListener('change', e => {
   if (t.dataset.rs) { const x = curRoom(); if (!x) return; const r = x[1]; r[t.dataset.rs] = t.value;
     if (t.dataset.rs === 'gruppe') { r.custom = null; const fam = FAMILIES[r.gruppe]; if (fam && FAMILY_BY[fam][r.dispo]) r.gruppe = FAMILY_BY[fam][r.dispo]; }
     save(); renderPanel(true); refreshBesLive(); return; }
+  if (t.dataset.tn) { const x = curRoom(); if (!x) return; const r = x[1], id = t.dataset.tn, v = t.value.trim().replace(/\s+/g, ' '); UI.tnEdit = null; r.tn = { ...(r.tn || {}) }; const orig = (TASKS[id] || {}).name; if (!v || v === orig) delete r.tn[id]; else r.tn[id] = v; if (!Object.keys(r.tn).length) r.tn = null; save(); renderPanel(true); refreshBesLive(); return; }
   if (t.dataset.tk || t.dataset.tkc) { const x = curRoom(); if (!x) return; const r = x[1];
     const m = { ...roomMap(r) }; const id = t.dataset.tk || t.dataset.tkc;
     if (t.dataset.tk) { if (t.checked) m[id] = 'R'; else delete m[id]; } else m[id] = t.value;
@@ -3134,7 +3138,7 @@ const ROOM_W = {
 const roomName = (lang, bez) => { const W = ROOM_W[lang]; if (!W || !bez) return bez || ''; const s = String(bez).trim(); if (W[s]) return W[s];
   return s.split(/(\s+)/).map(w => { if (W[w]) return W[w]; const k = Object.keys(W).find(x => x.length > 4 && w.toLowerCase() === x.toLowerCase()); return k ? W[k] : w; }).join(''); };
 const TR = {
-  task: (lang, t) => (i18nOf(lang).tasks || {})[t.id] || t.name,
+  task: (lang, t) => t.ov ? t.name : (i18nOf(lang).tasks || {})[t.id] || t.name,
   cat: (lang, c) => (i18nOf(lang).cats || {})[c] || c,
   group: (lang, g) => { const n = (i18nOf(lang).groups || {})[g] || (GROUP[g] ? GROUP[g].name : ''); return n.replace(/ (\d)[x×] (pro Woche|per week|a settimana|por semana)$/, ' - $1x ' + i18nOf(lang).ui.wk).replace(/ (\d)×$/, ' - $1x ' + i18nOf(lang).ui.wk); },
   dispo: (lang, d) => ((i18nOf(lang).dispo || {})[d.code] || d.label).replace('×', 'x'),
@@ -3540,7 +3544,7 @@ async function drawSheets(ctx, which) {
 
   /* Leistungsverzeichnis: zwei Spalten, Blöcke pro Reinigungsgruppe */
   const blocks = {};
-  o.rooms.filter(r => r.gruppe).forEach(r => { const ts = roomTasks(r); const sig = r.gruppe + '|' + ts.map(x => x.t.id + ':' + x.code).join(','); if (!blocks[sig]) blocks[sig] = { g: r.gruppe, ts, rooms: [] }; blocks[sig].rooms.push(r); });
+  o.rooms.filter(r => r.gruppe).forEach(r => { const ts = roomTasks(r); const sig = r.gruppe + '|' + ts.map(x => x.t.id + ':' + x.code + (x.t.ov ? '~' + x.t.name : '')).join(','); if (!blocks[sig]) blocks[sig] = { g: r.gruppe, ts, rooms: [] }; blocks[sig].rooms.push(r); });
   const list = Object.values(blocks).sort((a, b) => a.g.localeCompare(b.g));
   const cnt = {}; list.forEach(b => cnt[b.g] = (cnt[b.g] || 0) + 1);
   const COLS = [{ x0: G.x0, x1: 297.8 }, { x0: 297.8, x1: G.x1 }];
