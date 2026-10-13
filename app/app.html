@@ -278,6 +278,8 @@ body{-webkit-tap-highlight-color:transparent}
 .tk .hh{font-size:12px;color:var(--cs-fg-2);width:54px;text-align:right;font-variant-numeric:tabular-nums}
 .thumbs{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .thumbs img{width:76px;height:76px;object-fit:cover;border-radius:8px;border:1px solid var(--cs-line)}
+.thumbs.tb{gap:10px}.tbi{display:flex;flex-direction:column;gap:4px;align-items:stretch;width:96px}.tbi img{width:96px;height:76px}.tbi.sel img{border:3px solid var(--cs-teal,#0e7c80)}.tbb{font-size:11px;font-weight:700;border:1px solid var(--cs-line-strong);background:#fff;color:var(--cs-fg-2);border-radius:99px;padding:4px 6px;cursor:pointer;text-align:center}.tbb.on{background:var(--cs-teal,#0e7c80);color:#fff;border-color:var(--cs-teal,#0e7c80)}
+.logobar{display:flex;align-items:center;gap:12px;border-radius:12px;padding:10px 14px;margin-bottom:14px;border:1px solid #bfe0d6;background:#f0faf6}.logobar.miss{border-color:#f0d3a6;background:#fff8ec}.lbimg{width:72px;height:44px;border:1px solid var(--cs-line);border-radius:8px;background:#fff;display:flex;align-items:center;justify-content:center;color:#b9c4c7;flex:0 0 auto}.lbimg img{max-width:100%;max-height:100%;object-fit:contain}.lbtx{display:flex;flex-direction:column;font-size:13px;gap:2px}.logobar.ok .lbtx b{color:#1b8a5a}.logobar.miss .lbtx b{color:#b86e00}.lbtx span{color:var(--cs-fg-2);font-size:12px}
 .upl{position:relative;overflow:hidden}
 .upl input{position:absolute;inset:0;opacity:0;cursor:pointer}
 .sig{border:1px dashed var(--cs-line-strong);border-radius:10px;background:var(--cs-bg-soft);width:100%;height:150px;touch-action:none;display:block}
@@ -1947,6 +1949,7 @@ function renderBes() {
   el.innerHTML = phead(`Besichtigung · ${fmtDay(o.besDatum)}${o.besZeit ? ' · ' + o.besZeit + ' Uhr' : ''}${o.verkaeufer ? ' · ' + esc(o.verkaeufer) : ''}`, esc(cu.firma || 'Neue Besichtigung'), esc(o.adresse || 'Adresse erfassen'), planBtn) + `
   <div class="content">
     <button class="btn btn-g btn-sm" data-act="besList" style="margin:-6px 0 10px -10px">${ico('i-back')}Alle Besichtigungen</button>
+    ${logoBarHtml(o)}
     ${o.hinweis ? `<div class="infobox" style="margin-bottom:16px">${ico('i-info')}<div><b>Hinweis vom Admin-Team:</b> ${esc(o.hinweis)}</div></div>` : ''}
     ${o.lvEditing ? `<div class="adjcard"><b>Leistungsverzeichnis wird angepasst${o.lvRev ? ' (Version ' + (o.lvRev + 1) + ')' : ''}</b><p>Räume, Leistungen und Häufigkeiten ändern. Die Offerte und der Kunde bleiben unberührt. Jede Änderung wird im Änderungsprotokoll festgehalten.</p><div class="field" style="margin:0 0 10px"><label for="lvNote">Was wurde geändert? (für das Protokoll)</label><input id="lvNote" placeholder="z. B. Raum 2.04 neu, Fenster entfallen, Toiletten 5x statt 3x"></div><div class="factions" style="margin:0"><button type="button" class="btn btn-p" data-act="lvSave">Leistungsverzeichnis speichern</button><button type="button" class="btn btn-s" data-act="lvCancel">Abbrechen</button></div></div>
     <div class="aicard" hidden style="display:none"><b>${ico('i-info', 18)}KI-Assistent: Änderung einfach beschreiben</b><p>Schreibe, was sich ändert. Der Assistent passt Raumbuch und Leistungsverzeichnis unten sofort an. Alles lässt sich mit «Rückgängig» zurücknehmen.</p><textarea id="aiIn" placeholder="z. B. Im 2. OG kommt ein neues Büro 2.04 mit 18 m² dazu. Das Archiv im UG entfällt. Die Toiletten im EG werden neu 5x pro Woche gereinigt.">${esc(UI.aiText || '')}</textarea><div class="factions" style="margin:8px 0 0"><button type="button" class="btn btn-p" data-act="aiRun" ${UI.aiBusy ? 'disabled' : ''}>${UI.aiBusy ? 'Assistent arbeitet…' : 'Anpassen lassen'}</button>${UI.aiBusy ? '<button type="button" class="btn btn-s" data-act="aiStop">Stopp</button>' : ''}${AIUNDO[o.id] ? '<button type="button" class="btn btn-s" data-act="aiUndo">Rückgängig</button>' : ''}</div>${UI.aiMsg ? `<div class="aiout">${UI.aiMsg}</div>` : ''}</div>` : ''}
@@ -2005,7 +2008,7 @@ function renderBes() {
 
       <div class="card fsec acc ${secOpen('zusatz', SM.zusatz.st) ? 'open' : ''}" id="sec-zusatz"><button type="button" class="acc-h" data-act="secT" data-k="zusatz" aria-expanded="${secOpen('zusatz', SM.zusatz.st)}"><span><span class="acc-t">Fotos und Notizen</span><span class="acc-s">${SM.zusatz.status}</span></span>${secIcon(SM.zusatz.st)}</button><div class="acc-b"><p class="hint">Interne Angaben für Innendienst und Einsatzplanung. Sie erscheinen nicht in der Offerte.</p>
         <div class="field"><label for="bDiv">Diverses</label><textarea id="bDiv" data-o="diverses" placeholder="Zutritt, Schlüssel, Besonderheiten" ${dis}>${esc(o.diverses)}</textarea></div>
-        <div class="field"><label>Bilderdokumentation</label><label class="btn btn-s upl" style="justify-self:start">${ico('i-cam')}Fotos hinzufügen<input type="file" accept="image/*" multiple data-file="photos" ${dis}></label>${o.photos.length ? `<div class="thumbs">${o.photos.map(p => `<img src="${med(p)}" alt="Objektfoto">`).join('')}</div>` : ''}</div>
+        <div class="field"><label>Bilderdokumentation</label><label class="btn btn-s upl" style="justify-self:start">${ico('i-cam')}Fotos hinzufügen<input type="file" accept="image/*" multiple data-file="photos" ${dis}></label>${o.photos.length ? `<p class="small muted" style="margin:6px 0 0">Ein Foto kann als Titelbild der Offerte dienen.</p><div class="thumbs tb">${o.photos.map((p, i) => `<div class="tbi ${o.titel === p ? 'sel' : ''}"><img src="${med(p)}" alt="Objektfoto">${dis ? (o.titel === p ? '<span class="tbb on">★ Titelbild</span>' : '') : `<button type="button" class="tbb ${o.titel === p ? 'on' : ''}" data-act="titelSet" data-i="${i}">${o.titel === p ? '★ Titelbild' : 'Als Titelbild'}</button>`}</div>`).join('')}</div>` : ''}</div>
         <div class="field"><label>Skizze / Grundriss</label><label class="btn btn-s upl" style="justify-self:start">${ico('i-up')}Datei hochladen<input type="file" accept="image/*,application/pdf" data-file="skizze" ${dis}></label>${o.skizze.length ? `<div class="thumbs">${o.skizze.map(p => med(p).startsWith('data:image') ? `<img src="${med(p)}" alt="Skizze">` : `<span class="badge b-info">PDF</span>`).join('')}</div>` : ''}</div>
       </div></div>
 
@@ -2020,6 +2023,10 @@ function renderBes() {
 }
 /* Mehrere Gebäude: o.multi, o.geb = [{id, n, a}], Raum r.geb = Gebäude-ID */
 function gebLet(i) { return String.fromCharCode(65 + i); }
+function logoBarHtml(o) {
+  const cu = custOf(o), src = med(cu.logo), has = !!src, tp = o.titel && (o.photos || []).includes(o.titel);
+  return `<div class="logobar ${has ? 'ok' : 'miss'}"><div class="lbimg">${has ? `<img src="${src}" alt="Kundenlogo">` : '–'}</div><div class="lbtx"><b>${has ? 'Kundenlogo hinterlegt' : 'Kundenlogo fehlt noch'}</b><span>${has ? 'Vom Admin-Bereich, wird auf der Offerte übernommen.' : 'Der Admin hat noch kein Logo eingefügt. Die Offerte geht ohne Logo raus, bis es da ist.'}${tp ? ' Titelbild gewählt.' : ''}</span></div></div>`;
+}
 function gebFix(o) {
   if (!o.geb || !o.geb.length) o.geb = [{ id: uid(), n: '', a: '' }];
   o.rooms.forEach(r => { if (!o.geb.some(g => g.id === r.geb)) r.geb = o.geb[0].id; });
@@ -2165,6 +2172,7 @@ function roomPanelHtml(o, r) {
         <span class="small muted">${r.dispo === 'E' ? 'Eigenreinigung: Der Kunde reinigt diesen Raum selbst. Keine Reinigungsgruppe nötig, keine Stunden, kein Preis. Der Raum bleibt im Raumbuch aufgeführt.' : DISPO_BY[r.dispo]?.label + ' · ' + perYear(r.dispo) + ' Ausführungen pro Jahr'}${fam ? ' · Gruppe wechselt automatisch (1x/3x/5x)' : ''}</span></div>
       <div class="field"><label for="rM2">Fläche (m²) <span class="muted small">optional</span></label><div class="frow" style="grid-template-columns:1fr 1fr"><input id="rM2" data-r="flaeche" data-num="1" inputmode="decimal" value="${r.flaeche ?? ''}" placeholder="m²" ${dis}>${dis ? '<span></span>' : `<div class="lb" style="margin:0"><input id="rL" inputmode="decimal" placeholder="L" data-lb="1" aria-label="Länge in Metern"><span>×</span><input id="rB" inputmode="decimal" placeholder="B" data-lb="1" aria-label="Breite in Metern"><span>m</span></div>`}</div>
         ${r.flaeche > 0 ? `<span class="small muted">${fmtN(rc.execMin, 0)} Min. pro Reinigung · ${fmtN(rc.hours / 12, 2)} h pro Monat</span>` : ''}</div>
+      ${o.multi && o.geb && o.geb.length > 1 ? `<div class="field"><label for="rGeb">Gebäude</label><select id="rGeb" data-rs="geb" ${dis}>${o.geb.map((g, i) => `<option value="${g.id}" ${g.id === r.geb ? 'selected' : ''}>${gebLet(i)} · ${esc(gebName(o, g, i))}${g.a ? ' (' + esc(g.a) + ')' : ''}</option>`).join('')}</select></div>` : ''}
       <div class="frow"><div class="field"><label for="rFloor">Stockwerk</label><select id="rFloor" data-rs="floor" ${dis}>${floorsOf(o).map(f => `<option ${f === r.floor ? 'selected' : ''}>${esc(f)}</option>`).join('')}<option value="__neu">Anderes Stockwerk …</option></select><input id="rFloorNew" placeholder="z. B. 6. OG, Dachgeschoss" maxlength="24" hidden ${dis}></div>
         ${r.dispo === 'E' ? `<div class="field"><label>Reinigungsgruppe <span class="muted small">nicht nötig bei Eigenreinigung</span></label><div style="border:1px solid var(--cs-line);border-radius:8px;padding:11px 12px;background:#f1f5f6;color:#8a9a9e">– nicht erforderlich –</div></div></div>` : `<div class="field"><label for="rGrp">Reinigungsgruppe <span class="req">*</span></label><select id="rGrp" data-rs="gruppe" ${dis || (r.dispo === 'E' ? 'disabled' : '')}><option value="">${r.dispo === 'E' ? '– nicht erforderlich –' : '– wählen –'}</option>${GROUPS.map(g => `<option value="${g.code}" ${g.code === r.gruppe ? 'selected' : ''}>${g.code} ${esc(g.name)}</option>`).join('')}</select></div></div>`}
       <div class="chips" style="margin:2px 0 10px">
@@ -2882,6 +2890,7 @@ const ACT = {
   floorAdd: () => { const o = curObj(), i = $('#fNewIn'), f = addFloor(o, i && i.value); UI.floorNew = false; if (f) { UI.floor = f; save(); } renderBes(); },
   sxAdd: () => { const o = curObj(); o.sx = o.sx || []; if (o.sx.length >= SX_MAX) return; o.sx.push({ n: '', p: null }); save(); renderBes(); const i = $('#sxn' + (o.sx.length - 1)); i && i.focus({ preventScroll: true }); },
   sxDel: el => { const o = curObj(); o.sx.splice(+el.dataset.i, 1); save(); renderBes(); refreshBesLive(); },
+  titelSet: el => { const o = curObj(); if (!o) return; const k = o.photos[+el.dataset.i]; o.titel = o.titel === k ? null : k; save(); renderBes(); toast(o.titel ? 'Titelbild gewählt' : 'Titelbild entfernt', 'info'); },
   roomUp: el => moveRoom(el.dataset.id, -1),
   roomDown: el => moveRoom(el.dataset.id, 1),
   rlgReset: () => { S.settings.rlG = {}; save(); renderSet(); toast('Aduna-Standard wiederhergestellt'); },
@@ -3131,6 +3140,7 @@ document.addEventListener('change', e => {
   if (t.dataset.rs === 'floor' && t.value === '__neu') { const n = $('#rFloorNew'); if (n) { n.hidden = false; n.focus(); } return; }
   if (t.dataset.rs) { const x = curRoom(); if (!x) return; const r = x[1]; r[t.dataset.rs] = t.value;
     if (t.dataset.rs === 'gruppe') { r.custom = null; const fam = FAMILIES[r.gruppe]; if (fam && FAMILY_BY[fam][r.dispo]) r.gruppe = FAMILY_BY[fam][r.dispo]; }
+    if (t.dataset.rs === 'geb' && o) { const gi = o.geb.findIndex(g => g.id === t.value); if (gi >= 0) toast('Raum ins Gebäude ' + gebLet(gi) + ' verschoben', 'info'); }
     save(); renderPanel(true); refreshBesLive(); return; }
   if (t.dataset.tn) { const x = curRoom(); if (!x) return; const r = x[1], id = t.dataset.tn, v = t.value.trim().replace(/\s+/g, ' '); UI.tnEdit = null; r.tn = { ...(r.tn || {}) }; const orig = (TASKS[id] || {}).name; if (!v || v === orig) delete r.tn[id]; else r.tn[id] = v; if (!Object.keys(r.tn).length) r.tn = null; save(); renderPanel(true); refreshBesLive(); return; }
   if (t.dataset.tk || t.dataset.tkc) { const x = curRoom(); if (!x) return; const r = x[1];
@@ -3298,7 +3308,13 @@ async function buildOfferPdf(o, lang = 'de') {
   /* Reihenfolge: Firmenlogo des Kunden (gespeichert oder automatisch geladen) → Objektfoto → neutrale Fläche mit Clean-Service-Logo */
   const logoSrc = med(cu.logo);
   let drawn = false;
-  if (logoSrc && logoSrc.startsWith('data:image')) {
+  const tsrc = o.titel && (o.photos || []).includes(o.titel) ? med(o.titel) : '';
+  if (tsrc && tsrc.startsWith('data:image')) {
+    const tj = await coverJpeg(tsrc, (img.x1 - img.x) / (img.t1 - img.t)).catch(() => null);
+    if (tj) { const tim = await out.embedJpg(tj); p1.drawImage(tim, { x: img.x, y: H - img.t1, width: img.x1 - img.x, height: img.t1 - img.t }); drawn = true;
+      if (logoSrc && logoSrc.startsWith('data:image')) { const lim = await imgOf(logoSrc); if (lim) { const bw = 120, bh = 50, s0 = Math.min((bw - 12) / lim.width, (bh - 10) / lim.height), W2 = 480, H2 = Math.round(W2 * bh / bw), cv2 = document.createElement('canvas'); cv2.width = W2; cv2.height = H2; const g2 = cv2.getContext('2d'); g2.fillStyle = '#ffffff'; g2.fillRect(0, 0, W2, H2); const k2 = Math.min((W2 * 0.9) / lim.width, (H2 * 0.8) / lim.height); g2.drawImage(lim, (W2 - lim.width * k2) / 2, (H2 - lim.height * k2) / 2, lim.width * k2, lim.height * k2); const lj = await out.embedJpg(b64bytes(cv2.toDataURL('image/jpeg', 0.92).split(',')[1])); p1.drawImage(lj, { x: img.x + 10, y: H - img.t1 + 10, width: bw, height: bh }); } } }
+  }
+  if (!drawn && logoSrc && logoSrc.startsWith('data:image')) {
     const im = await imgOf(logoSrc);
     if (im) { const W = 1400, Hh = Math.round(W * (img.t1 - img.t) / (img.x1 - img.x)), cv = document.createElement('canvas'); cv.width = W; cv.height = Hh; const g = cv.getContext('2d');
       g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, Hh); const s = Math.min(W * 0.62 / im.width, Hh * 0.56 / im.height), w = im.width * s, h = im.height * s; g.drawImage(im, (W - w) / 2, (Hh - h) / 2, w, h);
