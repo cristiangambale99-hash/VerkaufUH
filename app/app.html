@@ -390,6 +390,8 @@ body{-webkit-tap-highlight-color:transparent}
 .xform{border:1.5px dashed var(--cs-teal,#1b8285);border-radius:12px;padding:10px;margin:8px 0;display:grid;gap:8px;background:var(--cs-ice,#eaf5f6)}
 
 .tnb{border:0;background:none;color:var(--cs-teal,#1b8285);cursor:pointer;font-size:14px;padding:0 4px}.tnin{flex:1;min-width:0;padding:6px 8px;border:1px solid var(--cs-teal,#1b8285);border-radius:8px;font:inherit}
+
+.rlbox{border-top:1px solid var(--cs-line,#d6e6e9);margin:10px 0;padding-top:10px}.rlrow{display:grid;grid-template-columns:minmax(0,1fr) auto 90px;gap:8px;align-items:center;margin-bottom:6px}.rlrow label{font-size:13px}.rlrow input{padding:7px 9px;text-align:right}.bodenx{border:1.5px dashed var(--cs-teal,#1b8285);border-radius:12px;padding:10px;margin-top:8px;background:var(--cs-ice,#eaf5f6)}
 </style>
 
 <!-- Icon-Sprite (eine Linien-Familie, 1.8 px, runde Enden) -->
@@ -794,6 +796,8 @@ const perYear = c => c === 'B' ? 0 : (DISPO_BY[c] ? DISPO_BY[c].perYear : 0);
 const BODEN_STD = ['Vinyl','Parkett','Keramik','Textil','Laminat','Beton','Linoleum','PVC','Naturstein (G)','Andere'];
 const BODEN = [['Parkett','hart'],['Laminat','hart'],['Keramik','hart'],['Textil','textil'],['Beton','hart'],['Linoleum','hart'],['Naturstein (G)','hart'],['PVC','hart'],['Vinyl','hart'],['Andere','hart']];
 const isTextil = b => (BODEN.find(x => x[0] === b) || [])[1] === 'textil';
+const bodenCustom = b => !!b && !BODEN.some(x => x[0] === b);          // selbst eingetragener Bodenbelag (Freitext)
+const isTextilR = r => r.bodenT ? r.bodenT === 'textil' : isTextil(r.boden);
 const FLOORS = ['UG','EG','1. OG','2. OG','3. OG','4. OG','5. OG'];
 /* Reihenfolge auch für selbst eingetragene Stockwerke (z. B. «6. OG», «Dachgeschoss», «2. UG») */
 /* Sonderleistungen mit optionalem Pauschalpreis: [Schlüssel, Text Offerte DE, EN, Frage, Kurzname] */
@@ -1526,7 +1530,20 @@ function renderLoading() {
 /* Eigene Leistungen (vom Verkäufer pro Raum ergänzt): r.xt = [{id, n}], ohne Richtleistung (keine zusätzlichen Stunden) */
 const XCAT = 'Weitere Leistungen', CAT_LAST = {}; TASK_ORDER.forEach((id, i) => { CAT_LAST[TASKS[id].cat] = i; });
 function regX(r) { (r.xt || []).forEach((x, i) => { const cat = x.c && CAT_LAST[x.c] != null ? x.c : XCAT; TASKS[x.id] = { id: x.id, name: x.n, cat, codes: {}, custom: true }; ORDER_IDX[x.id] = (CAT_LAST[cat] ?? 9999) + 0.5 + i * 0.001; }); }
-const rlOf = t => t.custom ? Infinity : S.settings.rlTask[t.id] || S.settings.rl[t.cat] || 1000;
+/* Leistungszahlen (m²/h): Standard aus den Einstellungen oder pro Offerte angepasst (o.rlMode = 'custom', o.rlOv = {Kategorie: m²/h}) */
+let RL_CTX = null;
+const rlCtx = o => { RL_CTX = o && o.rlMode === 'custom' ? (o.rlOv || {}) : null; };
+function rlCats(o) { rlCtx(o); const set = new Set(); o.rooms.forEach(r => roomTasks(r).forEach(x => set.add(x.t.cat))); return CATALOG.cats.map(c => c.name).filter(n => set.has(n)); }
+function rlHtml(o, dis) {
+  const custom = o.rlMode === 'custom';
+  let h = `<div class="rlbox"><div class="field"><label>Leistungszahlen für die Berechnung</label><div class="seg">${[['std', 'Standard (hinterlegt)'], ['custom', 'Für diese Offerte anpassen']].map(([v, l]) => `<label><input type="radio" name="rlmode" value="${v}" data-rlm="1" ${(custom ? 'custom' : 'std') === v ? 'checked' : ''} ${dis}><span>${l}</span></label>`).join('')}</div></div>`;
+  if (custom) {
+    const cats = rlCats(o), ov = o.rlOv || {};
+    h += `<p class="small muted" style="margin:0 0 6px">Fläche in m², die pro Stunde gereinigt wird. Gilt nur für diese Offerte, die hinterlegten Standardwerte bleiben unverändert.</p>` + (cats.length ? cats.map((c, i) => `<div class="rlrow"><label for="rlo${i}">${esc(c)}</label><span class="small muted">Standard ${fmtN(S.settings.rl[c], 0)}</span><input id="rlo${i}" data-rlo="${esc(c)}" inputmode="decimal" value="${ov[c] ?? S.settings.rl[c]}" ${dis}></div>`).join('') : '<p class="small muted">Zuerst Räume erfassen.</p>') + (Object.keys(ov).length && !dis ? `<button type="button" class="btn btn-g btn-sm" data-act="rlReset">Auf Standard zurücksetzen</button>` : '');
+  } else h += `<p class="small muted" style="margin:0">Es gelten die in den Einstellungen hinterlegten Leistungszahlen.</p>`;
+  return h + '</div>';
+}
+const rlOf = t => t.custom ? Infinity : (RL_CTX && RL_CTX[t.cat]) || S.settings.rlTask[t.id] || S.settings.rl[t.cat] || 1000;
 function groupMap(code) {
   const out = {};
   TASK_ORDER.forEach(id => { const c = TASKS[id].codes[code]; if (c) out[id] = WEEKLY(c) ? 'R' : c; });
@@ -1537,7 +1554,7 @@ function groupMap(code) {
 function roomMap(r) { return r.custom || (r.gruppe ? groupMap(r.gruppe) : {}); }
 function roomTasks(r) {
   regX(r);
-  const tex = isTextil(r.boden), out = [];
+  const tex = isTextilR(r), out = [];
   Object.entries(roomMap(r)).forEach(([id, raw]) => {
     const t = TASKS[id]; if (!t) return;
     if (t.cat === 'Boden - Textil' && !tex) return;
@@ -1570,6 +1587,7 @@ function roomCalc(r) {
    plus periodische Arbeiten (M, 14T, Q, H, J) anteilig pro Monat. Wochenfaktor 4.33 = 52 Wochen ÷ 12 Monate. */
 const WF = () => (S && S.settings && S.settings.wf > 0) ? S.settings.wf : 52 / 12;
 function objCalc(o) {
+  rlCtx(o);
   let wk = 0, per = 0, area = 0, bad = 0;
   o.rooms.forEach(r => { const c = roomCalc(r); wk += c.wk; per += c.per; area += r.flaeche > 0 ? r.flaeche : 0; if (roomIssues(r).length) bad++; });
   const rate = o.rate || S.settings.rate;
@@ -1931,7 +1949,7 @@ function renderBes() {
       <div class="card fsec acc ${secOpen('raumbuch', SM.raumbuch.st) ? 'open' : ''}" id="sec-raumbuch"><button type="button" class="acc-h" data-act="secT" data-k="raumbuch" aria-expanded="${secOpen('raumbuch', SM.raumbuch.st)}"><span><span class="acc-t">Raumbuch</span><span class="acc-s">${SM.raumbuch.status}</span></span>${secIcon(SM.raumbuch.st)}</button><div class="acc-b"><p class="hint">Raumtyp antippen legt den Raum sofort an, mehrmals antippen legt mehrere an. Boden und Fläche ergänzt du bei Bedarf in der Zeile.</p>
         ${gebHtml(o, locked)}
         <div class="field" style="margin-bottom:6px"><label>Stockwerk</label><div class="chips">${['Alle', ...floorsOf(o).reverse()].map(f => { const n = o.rooms.filter(r => inG(r) && (f === 'Alle' || r.floor === f)).length; return `<button type="button" class="chip" data-act="floor" data-f="${f}" aria-pressed="${UI.floor === f}">${f}${n ? `<span class="cnt">${n}</span>` : ''}</button>`; }).join('')}${locked ? '' : UI.floorNew ? `<span class="fnew"><input id="fNewIn" placeholder="z. B. 6. OG, Dachgeschoss" maxlength="24" autocomplete="off"><button type="button" class="btn btn-s btn-sm" data-act="floorAdd">Hinzufügen</button></span>` : `<button type="button" class="chip" data-act="floorNew" style="border-style:dashed">+ Stockwerk eintragen</button>`}</div></div>
-        ${locked ? '' : `<div class="field" style="margin-bottom:8px"><label>Boden für neue Räume <span class="small muted">(Toiletten und Küchen: Keramik)</span></label><div class="chips">${BODEN_STD.slice(0, 6).map(bd => `<button type="button" class="chip" data-act="bodenStd" data-v="${esc(bd)}" aria-pressed="${(o.bodenStd || 'Vinyl') === bd}">${esc(bd)}</button>`).join('')}</div></div>
+        ${locked ? '' : `<div class="field" style="margin-bottom:8px"><label>Boden für neue Räume <span class="small muted">(Toiletten und Küchen: Keramik)</span></label><div class="chips">${BODEN_STD.slice(0, 6).map(bd => `<button type="button" class="chip" data-act="bodenStd" data-v="${esc(bd)}" aria-pressed="${(o.bodenStd || 'Vinyl') === bd}">${esc(bd)}</button>`).join('')}<button type="button" class="chip" data-act="bodenStd" data-v="Andere" aria-pressed="${bodenCustom(o.bodenStd) || o.bodenStd === 'Andere'}">Andere</button></div>${(bodenCustom(o.bodenStd) || o.bodenStd === 'Andere') ? `<div class="bodenx"><label class="small">Bodenbelag selbst eintragen</label><input id="stdBodenX" data-bsx="1" maxlength="30" placeholder="z. B. Gummi" value="${esc(o.bodenStd === 'Andere' ? '' : o.bodenStd)}"><div class="seg" style="margin-top:6px">${[['hart', 'Hartbelag (glatt)'], ['textil', 'Textil / Teppich']].map(([v, l]) => `<label><input type="radio" name="bsxt" value="${v}" data-bst="${v}" ${((o.bodenStdT || 'hart') === v) ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></div>` : ''}</div>
         <div class="field" style="margin-bottom:4px"><label>Raum hinzufügen${UI.floor === 'Alle' ? ' (Stockwerk zuerst wählen, sonst EG)' : ' im ' + UI.floor}</label></div>
         <div class="quick">${(UI.moreTypes ? RAUMTYPEN : RAUMTYPEN.slice(0, 9)).map(([n, g]) => `<button type="button" class="qbtn" data-act="addRoom" data-n="${esc(n)}" data-g="${g}">+ ${esc(n)}${(() => { const k = o.rooms.filter(r => inG(r) && r.bez === n && (UI.floor === 'Alle' || r.floor === UI.floor)).length; return k ? ` <span class="cnt">${k}</span>` : ''; })()}</button>`).join('')}${UI.moreTypes ? `<button type="button" class="qbtn" data-act="addRoom" data-n="" data-g="">+ Andere</button><button type="button" class="qbtn" data-act="moreTypes" style="color:var(--cs-fg-2)">weniger</button>` : `<button type="button" class="qbtn" data-act="moreTypes" style="color:var(--cs-fg-2)">mehr …</button>`}</div>`}
         <div id="roomList">${roomListHtml(o, grouped)}</div>
@@ -1941,6 +1959,7 @@ function renderBes() {
         ${o.stdProTag ? `<div class="zeiten">${DAYS.filter(d => o.days.includes(d)).map(d => `<div class="field"><label for="st-${d}">${d} (Stunden)</label><input id="st-${d}" data-st="${d}" inputmode="decimal" value="${esc(((o.stdTage || {})[d] ?? '') + '')}" placeholder="z. B. 2.5" ${dis}></div>`).join('') || '<p class="muted small">Zuerst Reinigungstage wählen.</p>'}</div>
         <div class="frow">${fieldHtml('bRate','Stundensatz (CHF/h)',o.rate,`data-o="rate" data-num="1" inputmode="decimal" ${dis}`,true)}</div>` : `<div class="frow">${fieldHtml('bStd','Stunden pro Einsatz (Erfahrungswert)',o.stdEinsatz ?? '',`data-o="stdEinsatz" data-num="1" inputmode="decimal" placeholder="${c.calcPerClean > 0 ? 'Vorschlag ' + fmtN(c.calcPerClean, 2) : 'z. B. 2.5'}" ${dis}`)}${fieldHtml('bRate','Stundensatz (CHF/h)',o.rate,`data-o="rate" data-num="1" inputmode="decimal" ${dis}`,true)}</div>`}
         <div class="calcline small muted" id="calcLine">${calcLineText(c)}</div>
+        ${rlHtml(o, dis)}
         <div class="pricebox"><span class="muted">Berechnete Monatspauschale</span><b id="calcMonthly">${chf(c.calcMonthly)}</b></div>
         ${fieldHtml('bPausch','Monatspauschale manuell (CHF, überschreibt die Berechnung)',o.pauschale ?? '',`data-o="pauschale" data-num="1" inputmode="decimal" placeholder="${fmtN(c.calcMonthly, 2)}" ${dis}`)}
         ${varHtml(o, dis)}
@@ -2083,9 +2102,10 @@ function codeOptions(sel, dispo) {
   return opts.map(([v, l]) => `<option value="${v}" ${v === sel ? 'selected' : ''}>${esc(l)}</option>`).join('');
 }
 function roomPanelHtml(o, r) {
+  rlCtx(o);
   const locked = o.status !== 'erfassung' && !o.revising && !o.lvEditing, dis = locked ? 'disabled' : '';
   const map = roomMap(r), rc = roomCalc(r), iss = roomIssues(r);
-  const tex = isTextil(r.boden);
+  const tex = isTextilR(r);
   const fam = FAMILIES[r.gruppe];
   const visible = id => { const t = TASKS[id]; if (t.cat === 'Boden - Textil' && !tex) return false; if (t.cat === 'Boden - Hartbeläge' && tex) return false; return true; };
   const gm = r.gruppe ? groupMap(r.gruppe) : {};
@@ -2105,7 +2125,8 @@ function roomPanelHtml(o, r) {
     <div class="panel-b" data-keep="room">
       <div class="frow" style="grid-template-columns:1fr 88px"><div class="field"><label for="rBez">Bezeichnung <span class="req">*</span></label><input id="rBez" data-r="bez" value="${esc(r.bez)}" ${dis} list="rtypes"><datalist id="rtypes">${RAUMTYPEN.map(([n]) => `<option value="${esc(n)}">`).join('')}</datalist></div>
         <div class="field"><label for="rNr">Nr.</label><input id="rNr" data-r="nr" value="${esc(r.nr)}" placeholder="–" ${dis}></div></div>
-      <div class="field"><label>Bodenbelag <span class="req">*</span></label><div class="chips">${BODEN_TOP.map(bd => `<button type="button" class="chip" data-act="bodenPick" data-v="${esc(bd)}" aria-pressed="${r.boden === bd}" ${dis}>${esc(bd)}</button>`).join('')}</div></div>
+      <div class="field"><label>Bodenbelag <span class="req">*</span></label><div class="chips">${BODEN_TOP.map(bd => `<button type="button" class="chip" data-act="bodenPick" data-v="${esc(bd)}" aria-pressed="${r.boden === bd || (bd === 'Andere' && bodenCustom(r.boden))}" ${dis}>${esc(bd)}</button>`).join('')}</div>
+        ${r.boden === 'Andere' || bodenCustom(r.boden) ? `<div class="bodenx"><label for="rBodenX">Bodenbelag selbst eintragen</label><input id="rBodenX" data-bx="1" value="${r.boden === 'Andere' ? '' : esc(r.boden)}" maxlength="30" placeholder="z. B. Gummi, Epoxid, Kork, Gitterrost" ${dis}><div class="seg" style="margin-top:6px">${[['hart', 'Hartbelag (glatt)'], ['textil', 'Textil / Teppich']].map(([v, l]) => `<label><input type="radio" name="rBodenT" value="${v}" data-bt="1" ${((r.bodenT || (isTextil(r.boden) ? 'textil' : 'hart')) === v) ? 'checked' : ''} ${dis}><span>${l}</span></label>`).join('')}</div></div>` : ''}</div>
       <div class="field"><label>Reinigung</label><div class="chips">${DISPO.filter(d => d.code !== 'B').map(d => `<button type="button" class="chip" data-act="dispo" data-v="${d.code}" aria-pressed="${r.dispo === d.code}" ${dis} title="${d.label}">${d.code}${d.code === std ? ' · Standard' : ''}</button>`).join('')}</div>
         <span class="small muted">${DISPO_BY[r.dispo]?.label} · ${perYear(r.dispo)} Ausführungen pro Jahr${fam ? ' · Gruppe wechselt automatisch (1x/3x/5x)' : ''}</span></div>
       <div class="field"><label for="rM2">Fläche (m²) <span class="muted small">optional</span></label><div class="frow" style="grid-template-columns:1fr 1fr"><input id="rM2" data-r="flaeche" data-num="1" inputmode="decimal" value="${r.flaeche ?? ''}" placeholder="m²" ${dis}>${dis ? '<span></span>' : `<div class="lb" style="margin:0"><input id="rL" inputmode="decimal" placeholder="L" data-lb="1" aria-label="Länge in Metern"><span>×</span><input id="rB" inputmode="decimal" placeholder="B" data-lb="1" aria-label="Breite in Metern"><span>m</span></div>`}</div>
@@ -2129,6 +2150,7 @@ function roomPanelHtml(o, r) {
 function refreshRoomCalc() {
   const p = UI.panel; if (!p || p.type !== 'room') return;
   const o = objOf(p.oid), r = o && o.rooms.find(x => x.id === p.id); if (!r) return;
+  rlCtx(o);
   const rc = roomCalc(r);
   const byId = Object.fromEntries(rc.ts.map(x => [x.t.id, x]));
   $$('.tk').forEach(row => { const cb = row.querySelector('[data-tk]'), hh = row.querySelector('.hh'); if (cb && hh) { const x = byId[cb.dataset.tk]; hh.textContent = x && x.code !== 'B' ? fmtN(x.h, 1) + ' h' : 'n. B.'; } });
@@ -2790,8 +2812,8 @@ const ACT = {
   nextRoom: () => { closePanel(); const q = $('#sec-raumbuch'); if (q) { const u = UI.sec || (UI.sec = {}); u.raumbuch = true; q.classList.add('open'); const qa = q.querySelector('.quick'); (qa || q).scrollIntoView({ behavior: 'smooth', block: 'start' }); if (qa) { qa.classList.add('flash'); setTimeout(() => qa.classList.remove('flash'), 1200); } } },
   varAdd: () => { const o = curObj(); if (!o) return; o.vars = o.vars || []; const n = Math.min(5, ((o.vars.length ? o.vars[o.vars.length - 1].tage : o.days).length || 0) + 1) || 1; o.vars.push({ id: uid(), n: '', tage: DAYS.slice(0, n), m: null, rec: false }); save(); renderBes(); },
   varDel: el => { const o = curObj(); if (!o) return; o.vars.splice(+el.dataset.i, 1); if (!o.vars.length) o.recMain = false; save(); renderBes(); },
-  bodenStd: el => { const o = curObj(); o.bodenStd = el.dataset.v; save(); renderBes(); },
-  bodenPick: el => { const x = curRoom(); if (!x) return; x[1].boden = el.dataset.v; save(); renderPanel(true); refreshBesLive(); },
+  bodenStd: el => { const o = curObj(); o.bodenStd = el.dataset.v; if (el.dataset.v !== 'Andere') o.bodenStdT = null; save(); renderBes(); },
+  bodenPick: el => { const x = curRoom(); if (!x) return; x[1].boden = el.dataset.v; x[1].bodenT = null; save(); renderPanel(true); refreshBesLive(); },
   toggleTasks: () => { UI.showTasks = !UI.showTasks; renderPanel(true); },
   moreTypes: () => { UI.moreTypes = !UI.moreTypes; renderBes(); },
   toggleNote: () => { UI.showNote = !UI.showNote; renderPanel(true); if (UI.showNote) setTimeout(() => { const n = $('#rNotiz'); n && n.focus(); }, 60); },
@@ -2821,6 +2843,7 @@ const ACT = {
   floorAdd: () => { const o = curObj(), i = $('#fNewIn'), f = addFloor(o, i && i.value); UI.floorNew = false; if (f) { UI.floor = f; save(); } renderBes(); },
   sxAdd: () => { const o = curObj(); o.sx = o.sx || []; if (o.sx.length >= SX_MAX) return; o.sx.push({ n: '', p: null }); save(); renderBes(); const i = $('#sxn' + (o.sx.length - 1)); i && i.focus({ preventScroll: true }); },
   sxDel: el => { const o = curObj(); o.sx.splice(+el.dataset.i, 1); save(); renderBes(); refreshBesLive(); },
+  rlReset: () => { const o = curObj(); o.rlOv = {}; save(); renderBes(); refreshBesLive(); },
   gebSel: el => { UI.geb = el.dataset.id; renderBes(); },
   gebAdd: () => { const o = curObj(); gebFix(o); const g = { id: uid(), n: '', a: '' }; o.geb.push(g); UI.geb = g.id; save(); renderBes(); const i = $('#gbN'); i && i.focus({ preventScroll: true }); },
   gebNext: () => { const o = curObj(); gebFix(o); const i = o.geb.findIndex(g => g.id === UI.geb); if (i < o.geb.length - 1) UI.geb = o.geb[i + 1].id; else { const g = { id: uid(), n: '', a: '' }; o.geb.push(g); UI.geb = g.id; } UI.floor = 'Alle'; save(); renderBes(); const q = $('#sec-raumbuch'); q && q.scrollIntoView({ behavior: 'smooth', block: 'start' }); },
@@ -2829,7 +2852,7 @@ const ACT = {
     const o = curObj(); const floor = UI.floor === 'Alle' ? 'EG' : UI.floor;
     const d = defaultDispo(o); let g = el.dataset.g; if (FAMILIES[g] && FAMILY_BY[FAMILIES[g]][d]) g = FAMILY_BY[FAMILIES[g]][d];
     const sameName = o.rooms.filter(r => r.bez === el.dataset.n && r.floor === floor && (!o.multi || r.geb === UI.geb)).length;
-    const r = { id: uid(), floor, bez: el.dataset.n, nr: sameName ? String(sameName + 1) : '', gruppe: g, flaeche: null, boden: o.bodenStd || 'Vinyl', dispo: d, custom: null, notiz: '', photos: [] };
+    const r = { id: uid(), floor, bez: el.dataset.n, nr: sameName ? String(sameName + 1) : '', gruppe: g, flaeche: null, boden: o.bodenStd || 'Vinyl', bodenT: bodenCustom(o.bodenStd) ? (o.bodenStdT || 'hart') : null, dispo: d, custom: null, notiz: '', photos: [] };
     if (o.multi) { gebFix(o); r.geb = UI.geb; }
     if (sameName === 1) { const first = o.rooms.find(x => x.bez === el.dataset.n && x.floor === floor && (!o.multi || x.geb === UI.geb)); if (first && !first.nr) first.nr = '1'; }
     if (/Toilette|Küche|Garderobe|Treppen/.test(el.dataset.n)) r.boden = 'Keramik';
@@ -3019,6 +3042,9 @@ document.addEventListener('input', e => {
   if (t.dataset.lb) { const L = num($('#rL').value), B = num($('#rB').value); if (L > 0 && B > 0) { const x = curRoom(); if (x) { x[1].flaeche = Math.round(L * B * 10) / 10; $('#rM2').value = x[1].flaeche; save(); refreshRoomCalc(); refreshBesLive(); } } return; }
   if (t.dataset.vm != null && t.dataset.vm !== '') { const o = curObj(); if (!o) return; const v = o.vars[+t.dataset.vm]; v.m = num(t.value); const e = document.getElementById('vp' + (+t.dataset.vm + 1)); if (e) e.textContent = v.m > 0 && v.tage.length ? `≈ CHF ${fmtN(v.m / (v.tage.length * WF()), 2)} pro Reinigung · ${chf(v.m * 12)} pro Jahr` : 'Reinigungstage und Preis eingeben'; save(); return; }
   if (t.dataset.sxn != null || t.dataset.sxp != null) { const o = curObj(); if (!o || !o.sx) return; if (t.dataset.sxn != null) o.sx[+t.dataset.sxn].n = t.value; else { const v = parseFloat(String(t.value).replace(/'/g, '').replace(',', '.')); o.sx[+t.dataset.sxp].p = v > 0 ? v : null; } save(); refreshBesLive(); return; }
+  if (t.dataset.rlo) { const o = curObj(); if (!o) return; const v = num(t.value); o.rlOv = o.rlOv || {}; if (v > 0 && v !== S.settings.rl[t.dataset.rlo]) o.rlOv[t.dataset.rlo] = v; else delete o.rlOv[t.dataset.rlo]; save(); refreshBesLive(); return; }
+  if (t.dataset.bsx) { const o = curObj(); o.bodenStd = t.value.trim().slice(0, 30) || 'Andere'; save(); return; }
+  if (t.dataset.bx) { const x = curRoom(); if (!x) return; x[1].boden = t.value.trim().slice(0, 30) || 'Andere'; save(); refreshBesLive(); return; }
   if (t.dataset.gn || t.dataset.ga) { const o = curObj(); if (!o || !o.geb) return; const g = o.geb.find(x => x.id === UI.geb); if (!g) return; if (t.dataset.gn) { g.n = t.value; const i = o.geb.indexOf(g), ch = document.querySelector(`.gchip[data-id="${g.id}"]`); if (ch) ch.innerHTML = `<b>${gebLet(i)}</b> ${esc(gebName(o, g, i))}<span class="cnt">${o.rooms.filter(r => r.geb === g.id).length}</span>`; } else g.a = t.value; save(); return; }
   if (t.dataset.vn != null && t.dataset.vn !== '') { const o = curObj(); if (!o) return; const i = +t.dataset.vn; if (i === 0) o.varMainN = t.value; else o.vars[i - 1].n = t.value; save(); return; }
   if (t.dataset.st) { const o = curObj(); if (!o) return; o.stdTage = o.stdTage || {}; o.stdTage[t.dataset.st] = num(t.value); save(); refreshBesLive(); return; }
@@ -3053,6 +3079,9 @@ document.addEventListener('change', e => {
   if (t.dataset.day && o) { const d = t.dataset.day; o.days = t.checked ? DAYS.filter(x => o.days.includes(x) || x === d) : o.days.filter(x => x !== d); save(); renderBes(); return; }
   if (t.dataset.vday && o) { const [i, d] = t.dataset.vday.split(':'), v = o.vars[+i]; v.tage = t.checked ? DAYS.filter(x => v.tage.includes(x) || x === d) : v.tage.filter(x => x !== d); save(); renderBes(); return; }
   if (t.dataset.vrec != null && t.dataset.vrec !== '' && o) { const i = +t.dataset.vrec; o.recMain = false; o.vars.forEach(v => v.rec = false); if (t.checked) { if (i === 0) o.recMain = true; else o.vars[i - 1].rec = true; } save(); renderBes(); return; }
+  if (t.dataset.rlm && o) { o.rlMode = t.value === 'custom' ? 'custom' : 'std'; if (o.rlMode === 'custom' && !o.rlOv) o.rlOv = {}; save(); renderBes(); refreshBesLive(); return; }
+  if (t.dataset.bst) { const o = curObj(); o.bodenStdT = t.dataset.bst === 'textil' ? 'textil' : 'hart'; save(); return; }
+  if (t.dataset.bt) { const x = curRoom(); if (!x) return; x[1].bodenT = t.value === 'textil' ? 'textil' : null; save(); renderPanel(true); refreshBesLive(); return; }
   if (t.dataset.multi && o) { o.multi = t.value === 'Ja'; if (o.multi) { gebFix(o); UI.geb = o.geb[0].id; } save(); renderBes(); return; }
   if (t.dataset.yn && o) { o[t.dataset.yn] = t.value === 'Ja'; const wr = document.getElementById(t.dataset.yn + 'Wrap'); if (wr) { wr.hidden = t.value !== 'Ja'; if (t.value === 'Ja') { const i = wr.querySelector('input'); i && i.focus(); } } save(); refreshBesLive(); return; }
   if (t.id === 'rFloorNew') { const x = curRoom(); if (!x) return; const f = addFloor(x[0], t.value); if (f) { x[1].floor = f; UI.floor = f; save(); refreshBesLive(); openPanel({ type: 'room', oid: x[0].id, id: x[1].id }); renderBes(); } return; }
@@ -3533,7 +3562,7 @@ async function drawSheets(ctx, which) {
     t8(p, TR.floor(lang, f), 32.7, y, { bold: true, size: 10 }); if (perRoom) t8(p, hf.toFixed(2), 500, y - 1.5, { align: 'right' }); y += 15.5;
     for (const r of rs) {
       if (y > G.foot - 6) { await rbPage(); t8(p, TR.floor(lang, f) + ' (' + U('cont') + ')', 32.7, y, { bold: true, size: 10 }); y += 15.5; }
-      t8(p, fit(roomName(lang, r.bez), 118, fH, 8), 32.7, y); t8(p, r.nr || '', 157, y); t8(p, bodenCodeL(lang, r.boden), 200, y); t8(p, r.dispo || '', 271, y);
+      t8(p, fit(roomName(lang, r.bez), 118, fH, 8), 32.7, y); t8(p, r.nr || '', 157, y); t8(p, fit(bodenCodeL(lang, r.boden), 66, fH, 8), 200, y); t8(p, r.dispo || '', 271, y);
       if (r.flaeche > 0) t8(p, Number(r.flaeche).toFixed(2), 307.6, y);
       t8(p, fit(`${r.gruppe || ''} ${TR.group(lang, r.gruppe)}`, 100, fH, 8), 349, y); if (perRoom) t8(p, roomCalc(r).hours.toFixed(2), 500, y, { align: 'right' });
       y += G.lh;
