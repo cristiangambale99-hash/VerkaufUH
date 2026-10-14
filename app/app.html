@@ -2146,7 +2146,7 @@ function refreshBesLive() {
   const cl = $('#calcLine'); if (cl) cl.textContent = calcLineText(c);
   const SM = secMeta(o, c, custOf(o)); Object.entries(SM).forEach(([k, m]) => { const h = $(`#sec-${k} .acc-h`); if (!h) return; const st = h.querySelector('.acc-s'); if (st) st.innerHTML = m.status; const ic = h.querySelector('.acc-i'); if (ic) ic.outerHTML = secIcon(m.st); });
   const sp = $('#bStd'); if (sp) sp.placeholder = c.calcPerClean > 0 ? 'Vorschlag ' + fmtN(c.calcPerClean, 2) : 'z. B. 2.5';
-  const shown = o.rooms.filter(r => UI.floor === 'Alle' || r.floor === UI.floor); const g = {}; shown.forEach(r => (g[r.floor] = g[r.floor] || []).push(r));
+  const shown = o.rooms.filter(r => (!o.multi || r.geb === UI.geb) && (UI.floor === 'Alle' || r.floor === UI.floor)); const g = {}; shown.forEach(r => (g[r.floor] = g[r.floor] || []).push(r));
   const rl = $('#roomList'); if (rl) { rl.innerHTML = roomListHtml(o, g); hydrateIcons(rl); }
   const hdr = $('[data-view="bes"] .phead h1'); if (hdr) hdr.textContent = custOf(o).firma || 'Neue Besichtigung';
 }
@@ -2956,7 +2956,7 @@ const ACT = {
   delRoom: () => { const x = curRoom(); if (!x) return; const [o, r] = x; o.rooms = o.rooms.filter(y => y !== r); save(); closePanel(); refreshBesLive(); toast('Raum gelöscht', 'info'); },
   dupRoom: () => { const x = curRoom(); if (!x) return; const [o, r] = x;
     const c = JSON.parse(JSON.stringify(r)); c.id = uid(); c.photos = []; c.nr = r.nr && /^\d+$/.test(r.nr) ? String(Math.max(...o.rooms.filter(y => y.bez === r.bez).map(y => parseInt(y.nr) || 0)) + 1) : r.nr;
-    o.rooms.splice(o.rooms.indexOf(r) + 1, 0, c); save(); refreshBesLive(); openPanel({ type: 'room', oid: o.id, id: c.id }); toast('Raum dupliziert'); },
+    o.rooms.splice(o.rooms.indexOf(r) + 1, 0, c); save(); if (o.multi) { UI.geb = c.geb; renderBes(); } else refreshBesLive(); openPanel({ type: 'room', oid: o.id, id: c.id }); toast('Raum dupliziert'); },
   applyDispo: () => { const o = curObj(), d = defaultDispo(o); o.rooms.forEach(r => { r.dispo = d; const fam = FAMILIES[r.gruppe]; if (fam && FAMILY_BY[fam][d]) r.gruppe = FAMILY_BY[fam][d]; }); save(); renderBes(); toast(`Dispo ${d} auf ${o.rooms.length} Räume angewendet`); },
   sigClear: () => { const o = curObj(); if (o.signature) delete S.media[o.signature]; o.signature = null; save(); const cv = $('#sig'); cv.getContext('2d').clearRect(0, 0, cv.width, cv.height); },
   saveDraft: () => { save(); toast('Entwurf gespeichert'); },
@@ -3168,7 +3168,7 @@ document.addEventListener('change', e => {
   if (t.dataset.rs === 'floor' && t.value === '__neu') { const n = $('#rFloorNew'); if (n) { n.hidden = false; n.focus(); } return; }
   if (t.dataset.rs) { const x = curRoom(); if (!x) return; const r = x[1]; r[t.dataset.rs] = t.value;
     if (t.dataset.rs === 'gruppe') { r.custom = null; const fam = FAMILIES[r.gruppe]; if (fam && FAMILY_BY[fam][r.dispo]) r.gruppe = FAMILY_BY[fam][r.dispo]; }
-    if (t.dataset.rs === 'geb' && o) { const gi = o.geb.findIndex(g => g.id === t.value); if (gi >= 0) toast('Raum ins Gebäude ' + gebLet(gi) + ' verschoben', 'info'); }
+    if (t.dataset.rs === 'geb' && o) { const gi = o.geb.findIndex(g => g.id === t.value); if (gi >= 0) { UI.geb = t.value; save(); renderBes(); renderPanel(true); toast('Raum ins Gebäude ' + gebLet(gi) + ' · ' + gebName(o, o.geb[gi], gi) + ' verschoben', 'info'); return; } }
     save(); renderPanel(true); refreshBesLive(); return; }
   if (t.dataset.tn) { const x = curRoom(); if (!x) return; const r = x[1], id = t.dataset.tn, v = t.value.trim().replace(/\s+/g, ' '); UI.tnEdit = null; r.tn = { ...(r.tn || {}) }; const orig = (TASKS[id] || {}).name; if (!v || v === orig) delete r.tn[id]; else r.tn[id] = v; if (!Object.keys(r.tn).length) r.tn = null; save(); renderPanel(true); refreshBesLive(); return; }
   if (t.dataset.tk || t.dataset.tkc) { const x = curRoom(); if (!x) return; const r = x[1];
