@@ -395,7 +395,7 @@ body{-webkit-tap-highlight-color:transparent}
 
 .tnb{border:0;background:none;color:var(--cs-teal,#1b8285);cursor:pointer;font-size:14px;padding:0 4px}.tnin{flex:1;min-width:0;padding:6px 8px;border:1px solid var(--cs-teal,#1b8285);border-radius:8px;font:inherit}
 
-.panel-b p.small+.rlrow{margin-top:14px}.rhytabs{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 12px}.rhytab{border:1px solid var(--cs-line-strong,#b9d3d6);background:#fff;border-radius:999px;padding:7px 12px;font-size:14px;cursor:pointer}.rhytab[aria-selected=true]{background:var(--cs-teal,#1b8285);color:#fff;border-color:var(--cs-teal,#1b8285)}.rlgr input.ed{border-color:var(--cs-teal,#1b8285);background:#e8f5f5}.rlrow input.ed{border-color:var(--cs-teal,#1b8285);background:#e8f5f5}.rlbox{border-top:1px solid var(--cs-line,#d6e6e9);margin:10px 0;padding-top:10px}.rlrow{display:grid;grid-template-columns:minmax(0,1fr) auto 90px;gap:8px;align-items:center;margin-bottom:6px}.rlrow label{font-size:13px}.rlrow input{padding:7px 9px;text-align:right}.bodenx{border:1.5px dashed var(--cs-teal,#1b8285);border-radius:12px;padding:10px;margin-top:8px;background:var(--cs-ice,#eaf5f6)}
+.panel-b p.small+.rlrow{margin-top:14px}.rhytabs{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 12px}.rhytab{border:1px solid var(--cs-line-strong,#b9d3d6);background:#fff;border-radius:999px;padding:7px 12px;font-size:14px;cursor:pointer}.rhytab[aria-selected=true]{background:var(--cs-teal,#1b8285);color:#fff;border-color:var(--cs-teal,#1b8285)}.rlgr input.ed{border-color:var(--cs-teal,#1b8285);background:#e8f5f5}.rlrow input.ed{border-color:var(--cs-teal,#1b8285);background:#e8f5f5}.slrow .frow{align-items:start}.slstd{display:block;margin-top:4px}.slchg{color:var(--cs-teal,#1b8285)}.lnk{background:none;border:0;padding:0;color:var(--cs-teal,#1b8285);font:inherit;text-decoration:underline;cursor:pointer}.slrow{border-top:1px solid var(--cs-line,#d6e6e9);padding-top:10px;margin-top:10px}.slrow:first-of-type{border-top:0;margin-top:0;padding-top:0}.sltot{background:var(--cs-ice,#eaf5f6);border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;font-size:14px;margin-bottom:6px}.sltot b{color:var(--cs-teal,#1b8285);font-size:16px}.rlbox{border-top:1px solid var(--cs-line,#d6e6e9);margin:10px 0;padding-top:10px}.rlrow{display:grid;grid-template-columns:minmax(0,1fr) auto 90px;gap:8px;align-items:center;margin-bottom:6px}.rlrow label{font-size:13px}.rlrow input{padding:7px 9px;text-align:right}.bodenx{border:1.5px dashed var(--cs-teal,#1b8285);border-radius:12px;padding:10px;margin-top:8px;background:var(--cs-ice,#eaf5f6)}
 </style>
 
 <!-- Icon-Sprite (eine Linien-Familie, 1.8 px, runde Enden) -->
@@ -808,7 +808,12 @@ const FLOORS = ['UG','EG','1. OG','2. OG','3. OG','4. OG','5. OG'];
 /* Reihenfolge auch für selbst eingetragene Stockwerke (z. B. «6. OG», «Dachgeschoss», «2. UG») */
 /* Sonderleistungen mit optionalem Pauschalpreis: [Schlüssel, Text Offerte DE, EN, Frage, Kurzname] */
 const SLX = [['fenster', 'Fensterreinigung 2-seitig', 'Window cleaning, both sides', 'Pauschalpreis Fensterreinigung?', 'Fensterreinigung'], ['glas', 'Glastrennwände 2-seitig', 'Glass partitions, both sides', 'Pauschalpreis Glastrennwände?', 'Glastrennwände'], ['teppich', 'Teppiche sprühextrahieren', 'Carpet spray extraction', 'Pauschalpreis Teppiche sprühextrahieren?', 'Teppiche']];
-function slMissing(o) { for (const x of SLX) if (o[x[0]] && !(o[x[0] + 'Preis'] > 0)) return x[4]; for (const x of (o.sx || [])) if (((x.n || '').trim() ? 1 : 0) !== (x.p > 0 ? 1 : 0)) return (x.n || '').trim() || 'Andere Leistung'; return ''; }
+/* Sonderleistungen: Modus 'liste' (nur Preisliste), 'pauschal' (Preis pro Ausführung) oder 'm2' (m² × Einheitspreis = Total) */
+const SL_EP = { fenster: 6, glas: 4, teppich: 1.9 };
+const slMode = (o, k) => o[k + 'Mode'] === 'pauschal' || (!o[k + 'Mode'] && o[k]) ? 'pauschal' : 'm2';
+const slEP = (o, k) => o[k + 'EP'] > 0 ? +o[k + 'EP'] : SL_EP[k];
+const slTotal = (o, k) => { const m = slMode(o, k); return m === 'pauschal' ? (o[k + 'Preis'] > 0 ? +o[k + 'Preis'] : 0) : m === 'm2' ? Math.round((o[k + 'M2'] > 0 ? +o[k + 'M2'] : 0) * slEP(o, k) * 100) / 100 : 0; };
+function slMissing(o) { for (const x of SLX) { if (slMode(o, x[0]) === 'pauschal' && !(slTotal(o, x[0]) > 0)) return x[4]; } for (const x of (o.sx || [])) if (((x.n || '').trim() ? 1 : 0) !== (x.p > 0 ? 1 : 0)) return (x.n || '').trim() || 'Andere Leistung'; return ''; }
 const SX_MAX = 3;
 function fRank(f) { const i = FLOORS.indexOf(f); if (i >= 0) return i; const m = /^(\d+)\.?\s*(OG|UG)/i.exec(f || ''); if (m) return m[2].toUpperCase() === 'OG' ? +m[1] + 1 : -(+m[1]) + 0.5; if (/dach|attika/i.test(f)) return 50; if (/zwischen|galerie|mezz/i.test(f)) return 1.5; if (/aussen|umgebung|garage|parking|tiefgarage/i.test(f)) return -50; return 40; }
 function floorsOf(o) { return [...new Set([...FLOORS, ...(o.floorsX || []), ...o.rooms.map(r => r.floor).filter(Boolean)])].sort((a, b) => fRank(a) - fRank(b)); }
@@ -1668,10 +1673,10 @@ function objCalc(o) {
   const calcMonthly = monthHours * rate;
   const base = o.pauschale > 0 ? o.pauschale : calcMonthly;
   const wash = o.wasch && o.waschPreis > 0 ? +o.waschPreis : 0;      // Tücherservice, monatlich
-  const slv = {}; SLX.forEach(x => { slv[x[0]] = o[x[0]] && o[x[0] + 'Preis'] > 0 ? +o[x[0] + 'Preis'] : 0; }); const { fenster, glas, teppich } = slv; const sx = (o.sx || []).filter(x => (x.n || '').trim() && x.p > 0).slice(0, SX_MAX).map(x => ({ n: x.n.trim(), p: +x.p }));  // Fensterreinigung pauschal pro Ausführung (nicht im Monatsbetrag)
+  const slv = {}, slm = {}; SLX.forEach(x => { slv[x[0]] = slTotal(o, x[0]); slm[x[0]] = { mode: slMode(o, x[0]), m2: o[x[0] + 'M2'] > 0 ? +o[x[0] + 'M2'] : 0, ep: slEP(o, x[0]) }; }); const { fenster, glas, teppich } = slv; const sx = (o.sx || []).filter(x => (x.n || '').trim() && x.p > 0).slice(0, SX_MAX).map(x => ({ n: x.n.trim(), p: +x.p }));  // Fensterreinigung pauschal pro Ausführung (nicht im Monatsbetrag)
   const monthly = base + wash;
   const mode = o.pauschale > 0 ? 'pauschale' : einsatz ? 'einsatz' : 'flaeche';
-  return { proTag, tage, hours, area, bad, noArea, rate, wk, per, nWeek, perClean, calcPerClean, einsatz, mode, monthHoursWeekly, monthHoursPer, monthHours, wf: WF(), calcMonthly, base, wash, fenster, glas, teppich, sx, monthly, annual: monthly * 12, perWeek: wk };
+  return { proTag, tage, hours, area, bad, noArea, rate, wk, per, nWeek, perClean, calcPerClean, einsatz, mode, monthHoursWeekly, monthHoursPer, monthHours, wf: WF(), calcMonthly, base, wash, fenster, glas, teppich, slm, sx, monthly, annual: monthly * 12, perWeek: wk };
 }
 const custOf = o => S.customers.find(c => c.id === o.customerId) || {};
 /* Preisvarianten: Variante 1 = Hauptpreis des Objekts, weitere Varianten von Hand (z. B. 1x und 2x pro Woche) */
@@ -2025,8 +2030,9 @@ function renderBes() {
         ${varHtml(o, dis)}
         <div class="field"><label>Waschservice (Tücherservice) offerieren?</label><div class="seg">${['Ja','Nein'].map(v => `<label><input type="radio" name="wasch" value="${v}" data-yn="wasch" ${(o.wasch ? 'Ja' : 'Nein') === v ? 'checked' : ''} ${dis}><span>${v}</span></label>`).join('')}</div></div>
         <div id="waschWrap" ${o.wasch ? '' : 'hidden'}>${fieldHtml('bWasch','Waschservice pro Monat (CHF, exkl. MwSt.)',o.waschPreis ?? '',`data-o="waschPreis" data-num="1" inputmode="decimal" placeholder="z. B. 40.00" ${dis}`)}</div>
-        <div class="slbox"><div class="small muted" style="margin-bottom:6px">Grundreinigungen / Sonderleistungen: Bei «Ja» ersetzt der Pauschalpreis die m²-Zeile in der Offerte.</div>${SLX.map(([k, , , q, nm]) => `<div class="field"><label>${q}</label><div class="seg">${['Ja','Nein'].map(v => `<label><input type="radio" name="${k}" value="${v}" data-yn="${k}" ${(o[k] ? 'Ja' : 'Nein') === v ? 'checked' : ''} ${dis}><span>${v}</span></label>`).join('')}</div></div>
-        <div id="${k}Wrap" ${o[k] ? '' : 'hidden'}>${fieldHtml('b' + k, nm + ' pauschal pro Ausführung (CHF, exkl. MwSt.)', o[k + 'Preis'] ?? '', `data-o="${k}Preis" data-num="1" inputmode="decimal" placeholder="z. B. 490.00" ${dis}`)}</div>`).join('')}
+        <div class="slbox"><div class="small muted" style="margin-bottom:6px">Grundreinigungen / Sonderleistungen: pro Leistung wählen, ein Pauschalpreis pro Ausführung oder Abrechnung nach m² (ohne Fläche gilt nur die Preisliste).</div>${SLX.map(([k, n1, , , nm]) => { const md = slMode(o, k), tot = slTotal(o, k); return `<div class="slrow"><div class="field"><label>${n1}</label><div class="seg">${[['pauschal', 'Pauschal'], ['m2', 'Nach m²']].map(([v, l]) => `<label><input type="radio" name="slm-${k}" value="${v}" data-slm="${k}" ${md === v ? 'checked' : ''} ${dis}><span>${l}</span></label>`).join('')}</div></div>
+          ${md === 'pauschal' ? fieldHtml('b' + k, nm + ' pauschal pro Ausführung (CHF, exkl. MwSt.)', o[k + 'Preis'] ?? '', `data-o="${k}Preis" data-num="1" inputmode="decimal" placeholder="z. B. 490.00" ${dis}`) : ''}
+          ${md === 'm2' ? `<div class="frow">${fieldHtml('b' + k + 'M', 'Fläche (m²)', o[k + 'M2'] ?? '', `data-o="${k}M2" data-num="1" data-sl="${k}" inputmode="decimal" placeholder="leer = nur Preisliste" ${dis}`)}${fieldHtml('b' + k + 'E', 'Einheitspreis (CHF pro m²)', slEP(o, k).toFixed(2), `data-o="${k}EP" data-num="1" data-sl="${k}" inputmode="decimal" ${dis}`).replace('</div>', `<span class="small muted slstd">${Math.abs(slEP(o, k) - SL_EP[k]) > 0.001 ? '<b class="slchg">Für diese Offerte angepasst</b> · Standard ' + chf(SL_EP[k]) + (dis ? '' : ' · <button type="button" class="lnk" data-act="slEpReset" data-k="' + k + '">zurücksetzen</button>') : 'Standardpreis ' + chf(SL_EP[k]) + ' · für diese Offerte änderbar'}</span></div>`)}</div><div class="sltot">Total exkl. MwSt. <b id="slT-${k}">${tot > 0 ? chf(tot) : '–'}</b></div>` : ''}</div>`; }).join('')}
         ${(o.sx || []).map((x, i) => `<div class="sxrow"><div class="field"><label for="sxn${i}">Andere Leistung ${i + 1}</label><input id="sxn${i}" data-sxn="${i}" value="${esc(x.n || '')}" placeholder="z. B. Entsorgungsservice" maxlength="60" ${dis}></div><div class="field"><label for="sxp${i}">Pauschalpreis (CHF, exkl. MwSt.)</label><input id="sxp${i}" data-sxp="${i}" inputmode="decimal" value="${esc(x.p ?? '')}" placeholder="z. B. 120.00" ${dis}></div>${dis ? '' : `<button type="button" class="btn btn-sm" data-act="sxDel" data-i="${i}" aria-label="Entfernen" style="align-self:end;color:var(--cs-fg-2)">Entfernen</button>`}</div>`).join('')}
         ${dis || (o.sx || []).length >= SX_MAX ? '' : `<button type="button" class="chip" data-act="sxAdd" style="border-style:dashed;margin-top:4px">+ Andere Leistung (z. B. Entsorgungsservice)</button>`}</div>
       </div></div>
@@ -2323,7 +2329,7 @@ function docOffer(o) {
       <tr><td>Einsatz pro Woche</td><td class="num" style="text-align:right">${c.proTag ? c.tage.filter(t => t[1] > 0).map(t => t[0] + ' ' + fmtN(t[1], 2) + ' h').join(' + ') : fmtN(c.perClean, 2) + ' h' + (c.einsatz ? ' (Erfahrungswert)' : ' (Ø aus Flächen)') + ' × ' + c.nWeek + ' Reinigungen'} = ${fmtN(c.wk, 2)} h</td></tr>
       <tr><td>Einsatz pro Monat</td><td class="num" style="text-align:right">${fmtN(c.wk, 2)} h × ${fmtN(c.wf, 2)} + ${fmtN(c.monthHoursPer, 2)} h periodisch = ${fmtN(c.monthHours, 2)} h</td></tr>
       <tr><td>Berechnungsgrundlage</td><td class="num" style="text-align:right">${fmtN(c.monthHours, 2)} h × ${chf(c.rate)}${o.pauschale > 0 ? ' (Pauschale gerundet)' : ''}</td></tr>
-      ${[...SLX.filter(x => c[x[0]]).map(x => [x[1], c[x[0]]]), ...c.sx.map(x => [x.n, x.p])].map(x => `<tr><td>${esc(x[0])}</td><td class="num" style="text-align:right">Pauschal ${chf(x[1])} pro Ausführung</td></tr>`).join('')}
+      ${[...SLX.filter(x => c[x[0]]).map(x => [x[1], c[x[0]], c.slm[x[0]]]), ...c.sx.map(x => [x.n, x.p])].map(x => `<tr><td>${esc(x[0])}</td><td class="num" style="text-align:right">${x[2] && x[2].mode === 'm2' ? fmtN(x[2].m2, 1) + ' m² × ' + chf(x[2].ep) + ' = ' + chf(x[1]) : 'Pauschal ' + chf(x[1]) + ' pro Ausführung'}</td></tr>`).join('')}
       </tbody></table>
     <p class="foot-n">Raumbuch und Leistungsverzeichnis sind Bestandteil dieser Offerte. Verrechnung monatlich, Zahlungsfrist 30 Tage netto.</p>
   </div>`;
@@ -2923,6 +2929,7 @@ const ACT = {
   rlN: el => { UI.rlN = +el.dataset.v; renderSet(); },
   rlgReset: () => { S.settings.rlG = {}; save(); renderSet(); toast('Aduna-Standard wiederhergestellt'); },
   rlReset: () => { const o = curObj(); o.rlOv = {}; save(); renderBes(); refreshBesLive(); if (UI.panel && UI.panel.type === 'rl') renderPanel(true); },
+  slEpReset: el => { const o = curObj(), k = el.dataset.k; if (!o) return; delete o[k + 'EP']; save(); renderBes(); },
   gebSel: el => { UI.geb = el.dataset.id; renderBes(); },
   gebAdd: () => { const o = curObj(); gebFix(o); const g = { id: uid(), n: '', a: '' }; o.geb.push(g); UI.geb = g.id; save(); renderBes(); const i = $('#gbN'); i && i.focus({ preventScroll: true }); },
   gebNext: () => { const o = curObj(); gebFix(o); const i = o.geb.findIndex(g => g.id === UI.geb); if (i < o.geb.length - 1) UI.geb = o.geb[i + 1].id; else { const g = { id: uid(), n: '', a: '' }; o.geb.push(g); UI.geb = g.id; } UI.floor = 'Alle'; save(); renderBes(); const q = $('#sec-raumbuch'); q && q.scrollIntoView({ behavior: 'smooth', block: 'start' }); },
@@ -2956,7 +2963,7 @@ const ACT = {
   delRoom: () => { const x = curRoom(); if (!x) return; const [o, r] = x; o.rooms = o.rooms.filter(y => y !== r); save(); closePanel(); refreshBesLive(); toast('Raum gelöscht', 'info'); },
   dupRoom: () => { const x = curRoom(); if (!x) return; const [o, r] = x;
     const c = JSON.parse(JSON.stringify(r)); c.id = uid(); c.photos = []; c.nr = r.nr && /^\d+$/.test(r.nr) ? String(Math.max(...o.rooms.filter(y => y.bez === r.bez).map(y => parseInt(y.nr) || 0)) + 1) : r.nr;
-    o.rooms.splice(o.rooms.indexOf(r) + 1, 0, c); save(); if (o.multi) { UI.geb = c.geb; renderBes(); } else refreshBesLive(); openPanel({ type: 'room', oid: o.id, id: c.id }); toast('Raum dupliziert'); },
+    o.rooms.splice(o.rooms.indexOf(r) + 1, 0, c); save(); if (o.multi) { UI.geb = c.geb; renderBes(); } else refreshBesLive(); openPanel({ type: 'room', oid: o.id, id: c.id }); toast('Raum dupliziert · Gebäude und Stockwerk unten anpassbar'); setTimeout(() => { const f = $('#rFloor'); f && f.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 350); },
   applyDispo: () => { const o = curObj(), d = defaultDispo(o); o.rooms.forEach(r => { r.dispo = d; const fam = FAMILIES[r.gruppe]; if (fam && FAMILY_BY[fam][d]) r.gruppe = FAMILY_BY[fam][d]; }); save(); renderBes(); toast(`Dispo ${d} auf ${o.rooms.length} Räume angewendet`); },
   sigClear: () => { const o = curObj(); if (o.signature) delete S.media[o.signature]; o.signature = null; save(); const cv = $('#sig'); cv.getContext('2d').clearRect(0, 0, cv.width, cv.height); },
   saveDraft: () => { save(); toast('Entwurf gespeichert'); },
@@ -3132,7 +3139,7 @@ document.addEventListener('input', e => {
   if (t.dataset.sstr) { S.settings[t.dataset.sstr] = t.value; save(); return; }
   if (t.dataset.q) { UI[t.dataset.q] = t.value; const pos = t.selectionStart; RENDER[UI.view](); const n = $('#' + t.id); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (x) {} } return; }
   const o = curObj();
-  if (t.dataset.o && o) { o[t.dataset.o] = t.dataset.num ? num(t.value) : t.value; t.closest('.field')?.classList.remove('err'); save(); refreshBesLive(); return; }
+  if (t.dataset.o && o) { o[t.dataset.o] = t.dataset.num ? num(t.value) : t.value; t.closest('.field')?.classList.remove('err'); if (t.dataset.sl) { const e = document.getElementById('slT-' + t.dataset.sl), v = slTotal(o, t.dataset.sl); if (e) e.textContent = v > 0 ? chf(v) : '–'; } save(); refreshBesLive(); return; }
   if (t.dataset.c && o) { custOf(o)[t.dataset.c] = t.value; t.closest('.field')?.classList.remove('err'); save(); refreshBesLive(); return; }
   if (t.dataset.r) { const x = curRoom(); if (!x) return; x[1][t.dataset.r] = t.dataset.num ? num(t.value) : t.value; save(); refreshRoomCalc(); refreshBesLive(); return; }
   if (t.dataset.rlg) { const kk = t.dataset.rlg, [c, a, n] = kk.split('|'), code = c === 'büro' ? '2.10' : c === 'wc' ? '7.10' : c, base = rlgBase(code, a, +n), v = num(t.value); S.settings.rlG = S.settings.rlG || {}; if (v !== base && (v > 0 || base > 0)) S.settings.rlG[kk] = v > 0 ? v : -1; else delete S.settings.rlG[kk]; save(); t.classList.toggle('ed', kk in S.settings.rlG); return; }
@@ -3163,12 +3170,14 @@ document.addEventListener('change', e => {
   if (t.dataset.bst) { const o = curObj(); o.bodenStdT = t.dataset.bst === 'textil' ? 'textil' : 'hart'; save(); return; }
   if (t.dataset.bt) { const x = curRoom(); if (!x) return; x[1].bodenT = t.value === 'textil' ? 'textil' : null; save(); renderPanel(true); refreshBesLive(); return; }
   if (t.dataset.multi && o) { o.multi = t.value === 'Ja'; if (o.multi) { gebFix(o); UI.geb = o.geb[0].id; } save(); renderBes(); return; }
+  if (t.dataset.slm && o) { const k = t.dataset.slm; o[k + 'Mode'] = t.value; o[k] = t.value === 'pauschal'; save(); renderBes(); return; }
   if (t.dataset.yn && o) { o[t.dataset.yn] = t.value === 'Ja'; const wr = document.getElementById(t.dataset.yn + 'Wrap'); if (wr) { wr.hidden = t.value !== 'Ja'; if (t.value === 'Ja') { const i = wr.querySelector('input'); i && i.focus(); } } save(); refreshBesLive(); return; }
   if (t.id === 'rFloorNew') { const x = curRoom(); if (!x) return; const f = addFloor(x[0], t.value); if (f) { x[1].floor = f; UI.floor = f; save(); refreshBesLive(); openPanel({ type: 'room', oid: x[0].id, id: x[1].id }); renderBes(); } return; }
   if (t.dataset.rs === 'floor' && t.value === '__neu') { const n = $('#rFloorNew'); if (n) { n.hidden = false; n.focus(); } return; }
   if (t.dataset.rs) { const x = curRoom(); if (!x) return; const r = x[1]; r[t.dataset.rs] = t.value;
     if (t.dataset.rs === 'gruppe') { r.custom = null; const fam = FAMILIES[r.gruppe]; if (fam && FAMILY_BY[fam][r.dispo]) r.gruppe = FAMILY_BY[fam][r.dispo]; }
     if (t.dataset.rs === 'geb' && o) { const gi = o.geb.findIndex(g => g.id === t.value); if (gi >= 0) { UI.geb = t.value; save(); renderBes(); renderPanel(true); toast('Raum ins Gebäude ' + gebLet(gi) + ' · ' + gebName(o, o.geb[gi], gi) + ' verschoben', 'info'); return; } }
+    if (t.dataset.rs === 'floor' && UI.floor !== 'Alle' && t.value) { UI.floor = t.value; save(); renderBes(); renderPanel(true); toast('Raum nach ' + t.value + ' verschoben', 'info'); return; }
     save(); renderPanel(true); refreshBesLive(); return; }
   if (t.dataset.tn) { const x = curRoom(); if (!x) return; const r = x[1], id = t.dataset.tn, v = t.value.trim().replace(/\s+/g, ' '); UI.tnEdit = null; r.tn = { ...(r.tn || {}) }; const orig = (TASKS[id] || {}).name; if (!v || v === orig) delete r.tn[id]; else r.tn[id] = v; if (!Object.keys(r.tn).length) r.tn = null; save(); renderPanel(true); refreshBesLive(); return; }
   if (t.dataset.tk || t.dataset.tkc) { const x = curRoom(); if (!x) return; const r = x[1];
@@ -3456,11 +3465,15 @@ async function buildOfferPdf(o, lang = 'de') {
   }
   /* Abschnitt 2 (Grundreinigungen / Sonderleistungen): Zeilen mit Pauschalpreis ersetzen die m²-Zeile */
   SLX.forEach((x, i) => {
-    if (!(c[x[0]] > 0)) return;
+    const m = (c.slm && c.slm[x[0]]) || { mode: c[x[0]] > 0 ? 'pauschal' : 'm2', m2: 0, ep: ({ fenster: 6, glas: 4, teppich: 1.9 })[x[0]] };
+    if (m.mode === 'm2' && !(m.m2 > 0) && Math.abs(m.ep - ({ fenster: 6, glas: 4, teppich: 1.9 })[x[0]]) < 0.001) return;   // unveränderte Preislisten-Zeile bleibt wie in der Vorlage
     const off = 22.32 * i + SH, top = 329.81 + off, bot = 351.65 + off, by = 344.6 + off, ln = rgb(0.851, 0.851, 0.851);
     p11.drawRectangle({ x: 65.9, y: H - (bot - 0.2), width: 474.1, height: bot - top - 0.4, color: i % 2 ? rgb(0.949, 0.949, 0.949) : C.white, borderWidth: 0 });
     [225.17, 330.19, 435.22].forEach(xx => p11.drawLine({ start: { x: xx, y: H - top }, end: { x: xx, y: H - bot }, thickness: 0.48, color: ln }));
-    txt(p11, en ? x[2] : x[1], 71.7, by); txt(p11, en ? 'Flat rate' : 'Pauschal', 231.7, by); txt(p11, en ? 'Per service' : 'Pro Ausführung', 336.7, by); txt(p11, `CHF ${pdfNum(c[x[0]])}`, 441.7, by);
+    txt(p11, en ? x[2] : x[1], 71.7, by);
+    if (m.mode === 'pauschal') { txt(p11, en ? 'Flat rate' : 'Pauschal', 231.7, by); txt(p11, en ? 'Per service' : 'Pro Ausführung', 336.7, by); txt(p11, `CHF ${pdfNum(c[x[0]])}`, 441.7, by); }
+    else if (m.m2 > 0) { txt(p11, `${pdfNum(m.m2, Number.isInteger(m.m2) ? 0 : 1)} m2`, 231.7, by); txt(p11, `CHF ${pdfNum(m.ep)} / m2`, 336.7, by); txt(p11, `CHF ${pdfNum(c[x[0]])}`, 441.7, by); }
+    else { txt(p11, 'm2', 231.7, by); txt(p11, `CHF ${pdfNum(m.ep)} / m2`, 336.7, by); txt(p11, 'CHF', 441.7, by); }
   });
   SLn.forEach((x, i) => {
     const k = 3 + i, off = 22.32 * k + SH, top = 329.81 + off, bot = 351.65 + off, by = 344.6 + off, ln = rgb(0.851, 0.851, 0.851);
