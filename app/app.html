@@ -395,7 +395,7 @@ body{-webkit-tap-highlight-color:transparent}
 
 .tnb{border:0;background:none;color:var(--cs-teal,#1b8285);cursor:pointer;font-size:14px;padding:0 4px}.tnin{flex:1;min-width:0;padding:6px 8px;border:1px solid var(--cs-teal,#1b8285);border-radius:8px;font:inherit}
 
-.panel-b p.small+.rlrow{margin-top:14px}.rhytabs{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 12px}.rhytab{border:1px solid var(--cs-line-strong,#b9d3d6);background:#fff;border-radius:999px;padding:7px 12px;font-size:14px;cursor:pointer}.rhytab[aria-selected=true]{background:var(--cs-teal,#1b8285);color:#fff;border-color:var(--cs-teal,#1b8285)}.rlgr input.ed{border-color:var(--cs-teal,#1b8285);background:#e8f5f5}.rlrow input.ed{border-color:var(--cs-teal,#1b8285);background:#e8f5f5}.slrow .frow{align-items:start}.slstd{display:block;margin-top:4px}.slchg{color:var(--cs-teal,#1b8285)}.lnk{background:none;border:0;padding:0;color:var(--cs-teal,#1b8285);font:inherit;text-decoration:underline;cursor:pointer}.slrow{border-top:1px solid var(--cs-line,#d6e6e9);padding-top:10px;margin-top:10px}.slrow:first-of-type{border-top:0;margin-top:0;padding-top:0}.sltot{background:var(--cs-ice,#eaf5f6);border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;font-size:14px;margin-bottom:6px}.sltot b{color:var(--cs-teal,#1b8285);font-size:16px}.rlbox{border-top:1px solid var(--cs-line,#d6e6e9);margin:10px 0;padding-top:10px}.rlrow{display:grid;grid-template-columns:minmax(0,1fr) auto 90px;gap:8px;align-items:center;margin-bottom:6px}.rlrow label{font-size:13px}.rlrow input{padding:7px 9px;text-align:right}.bodenx{border:1.5px dashed var(--cs-teal,#1b8285);border-radius:12px;padding:10px;margin-top:8px;background:var(--cs-ice,#eaf5f6)}
+.panel-b p.small+.rlrow{margin-top:14px}.rhytabs{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 12px}.rhytab{border:1px solid var(--cs-line-strong,#b9d3d6);background:#fff;border-radius:999px;padding:7px 12px;font-size:14px;cursor:pointer}.rhytab[aria-selected=true]{background:var(--cs-teal,#1b8285);color:#fff;border-color:var(--cs-teal,#1b8285)}.rlgr input.ed{border-color:var(--cs-teal,#1b8285);background:#e8f5f5}.rlrow input.ed{border-color:var(--cs-teal,#1b8285);background:#e8f5f5}.slrow .frow{align-items:start}.sxrow textarea{min-height:0;resize:none;width:100%;line-height:1.35}.slstd{display:block;margin-top:4px}.slchg{color:var(--cs-teal,#1b8285)}.lnk{background:none;border:0;padding:0;color:var(--cs-teal,#1b8285);font:inherit;text-decoration:underline;cursor:pointer}.slrow{border-top:1px solid var(--cs-line,#d6e6e9);padding-top:10px;margin-top:10px}.slrow:first-of-type{border-top:0;margin-top:0;padding-top:0}.sltot{background:var(--cs-ice,#eaf5f6);border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;font-size:14px;margin-bottom:6px}.sltot b{color:var(--cs-teal,#1b8285);font-size:16px}.rlbox{border-top:1px solid var(--cs-line,#d6e6e9);margin:10px 0;padding-top:10px}.rlrow{display:grid;grid-template-columns:minmax(0,1fr) auto 90px;gap:8px;align-items:center;margin-bottom:6px}.rlrow label{font-size:13px}.rlrow input{padding:7px 9px;text-align:right}.bodenx{border:1.5px dashed var(--cs-teal,#1b8285);border-radius:12px;padding:10px;margin-top:8px;background:var(--cs-ice,#eaf5f6)}
 </style>
 
 <!-- Icon-Sprite (eine Linien-Familie, 1.8 px, runde Enden) -->
@@ -810,10 +810,18 @@ const FLOORS = ['UG','EG','1. OG','2. OG','3. OG','4. OG','5. OG'];
 const SLX = [['fenster', 'Fensterreinigung 2-seitig', 'Window cleaning, both sides', 'Pauschalpreis Fensterreinigung?', 'Fensterreinigung'], ['glas', 'Glastrennwände 2-seitig', 'Glass partitions, both sides', 'Pauschalpreis Glastrennwände?', 'Glastrennwände'], ['teppich', 'Teppiche sprühextrahieren', 'Carpet spray extraction', 'Pauschalpreis Teppiche sprühextrahieren?', 'Teppiche']];
 /* Sonderleistungen: Modus 'liste' (nur Preisliste), 'pauschal' (Preis pro Ausführung) oder 'm2' (m² × Einheitspreis = Total) */
 const SL_EP = { fenster: 6, glas: 4, teppich: 1.9 };
-const slMode = (o, k) => o[k + 'Mode'] === 'pauschal' || (!o[k + 'Mode'] && o[k]) ? 'pauschal' : 'm2';
+const slMode = (o, k) => { const m = o[k + 'Mode']; return m === 'pauschal' || m === 'nein' || m === 'm2' ? m : (o[k] ? 'pauschal' : 'm2'); };
 const slEP = (o, k) => o[k + 'EP'] > 0 ? +o[k + 'EP'] : SL_EP[k];
 const slTotal = (o, k) => { const m = slMode(o, k); return m === 'pauschal' ? (o[k + 'Preis'] > 0 ? +o[k + 'Preis'] : 0) : m === 'm2' ? Math.round((o[k + 'M2'] > 0 ? +o[k + 'M2'] : 0) * slEP(o, k) * 100) / 100 : 0; };
-function slMissing(o) { for (const x of SLX) { if (slMode(o, x[0]) === 'pauschal' && !(slTotal(o, x[0]) > 0)) return x[4]; } for (const x of (o.sx || [])) if (((x.n || '').trim() ? 1 : 0) !== (x.p > 0 ? 1 : 0)) return (x.n || '').trim() || 'Andere Leistung'; return ''; }
+/* Zusatzleistung (Preset oder «Andere Leistung» sx0, sx1 …): gemeinsame Feldzugriffe */
+function slF(o, id) {
+  if (id.startsWith('sx')) { const x = (o.sx || [])[+id.slice(2)] || {}; return { get: f => x[f], set: (f, v) => { x[f] = v; } }; }
+  const N = { mode: 'Mode', m2: 'M2', ep: 'EP', p: 'Preis', unit: 'Unit', ut: 'UT' };
+  return { get: f => o[id + N[f]], set: (f, v) => { o[id + N[f]] = v; } };
+}
+const slTotalX = x => (x.mode === 'm2') ? Math.round((x.m2 > 0 ? +x.m2 : 0) * (x.ep > 0 ? +x.ep : 0) * 100) / 100 : (x.p > 0 ? +x.p : 0);
+const slUnitOf = g => { const u = g.unit || 'aus'; return { u, t: u === 'and' ? String(g.ut || '').trim() : '' }; };
+function slMissing(o) { for (const x of SLX) { if (slMode(o, x[0]) === 'pauschal' && !(slTotal(o, x[0]) > 0)) return x[4]; if (slMode(o, x[0]) === 'm2' && o[x[0] + 'M2'] > 0 && !(slEP(o, x[0]) > 0)) return x[4]; } for (const x of (o.sx || [])) if (((x.n || '').trim() ? 1 : 0) !== (slTotalX(x) > 0 ? 1 : 0)) return (x.n || '').trim() || 'Andere Leistung'; return ''; }
 const SX_MAX = 3;
 function fRank(f) { const i = FLOORS.indexOf(f); if (i >= 0) return i; const m = /^(\d+)\.?\s*(OG|UG)/i.exec(f || ''); if (m) return m[2].toUpperCase() === 'OG' ? +m[1] + 1 : -(+m[1]) + 0.5; if (/dach|attika/i.test(f)) return 50; if (/zwischen|galerie|mezz/i.test(f)) return 1.5; if (/aussen|umgebung|garage|parking|tiefgarage/i.test(f)) return -50; return 40; }
 function floorsOf(o) { return [...new Set([...FLOORS, ...(o.floorsX || []), ...o.rooms.map(r => r.floor).filter(Boolean)])].sort((a, b) => fRank(a) - fRank(b)); }
@@ -1673,7 +1681,7 @@ function objCalc(o) {
   const calcMonthly = monthHours * rate;
   const base = o.pauschale > 0 ? o.pauschale : calcMonthly;
   const wash = o.wasch && o.waschPreis > 0 ? +o.waschPreis : 0;      // Tücherservice, monatlich
-  const slv = {}, slm = {}; SLX.forEach(x => { slv[x[0]] = slTotal(o, x[0]); slm[x[0]] = { mode: slMode(o, x[0]), m2: o[x[0] + 'M2'] > 0 ? +o[x[0] + 'M2'] : 0, ep: slEP(o, x[0]) }; }); const { fenster, glas, teppich } = slv; const sx = (o.sx || []).filter(x => (x.n || '').trim() && x.p > 0).slice(0, SX_MAX).map(x => ({ n: x.n.trim(), p: +x.p }));  // Fensterreinigung pauschal pro Ausführung (nicht im Monatsbetrag)
+  const slv = {}, slm = {}; SLX.forEach(x => { slv[x[0]] = slTotal(o, x[0]); slm[x[0]] = { mode: slMode(o, x[0]), m2: o[x[0] + 'M2'] > 0 ? +o[x[0] + 'M2'] : 0, ep: slEP(o, x[0]), unit: slUnitOf({ unit: o[x[0] + 'Unit'], ut: o[x[0] + 'UT'] }) }; }); const { fenster, glas, teppich } = slv; const sx = (o.sx || []).map(x => ({ n: (x.n || '').trim(), p: slTotalX(x), mode: x.mode === 'm2' ? 'm2' : 'pauschal', m2: x.m2 > 0 ? +x.m2 : 0, ep: x.ep > 0 ? +x.ep : 0, unit: slUnitOf(x) })).filter(x => x.n && x.p > 0).slice(0, SX_MAX);  // Fensterreinigung pauschal pro Ausführung (nicht im Monatsbetrag)
   const monthly = base + wash;
   const mode = o.pauschale > 0 ? 'pauschale' : einsatz ? 'einsatz' : 'flaeche';
   return { proTag, tage, hours, area, bad, noArea, rate, wk, per, nWeek, perClean, calcPerClean, einsatz, mode, monthHoursWeekly, monthHoursPer, monthHours, wf: WF(), calcMonthly, base, wash, fenster, glas, teppich, slm, sx, monthly, annual: monthly * 12, perWeek: wk };
@@ -1917,6 +1925,25 @@ function varHtml(o, dis) {
     ${vs.length ? card(0, null, true) + vs.map((v, k) => card(k + 1, v, false)).join('') : ''}
     ${dis ? '' : `<button type="button" class="vadd" data-act="varAdd">+ ${vs.length ? 'Weitere Variante hinzufügen' : 'Variante hinzufügen (z. B. andere Anzahl Reinigungen pro Woche)'}</button>`}</div>`;
 }
+function slEdHtml(o, id, dis, title) {
+  const sx = id.startsWith('sx'), g = slF(o, id), md = sx ? (g.get('mode') === 'm2' ? 'm2' : 'pauschal') : slMode(o, id);
+  const tot = sx ? slTotalX({ mode: md, m2: g.get('m2'), ep: g.get('ep'), p: g.get('p') }) : slTotal(o, id), unit = g.get('unit') || 'aus';
+  const modes = [['pauschal', 'Pauschal'], ['m2', 'Nach m²']].concat(sx ? [] : [['nein', 'Nicht offerieren']]);
+  const nm = sx ? (g.get('n') || '') : '';
+  const fld = (f, label, val, ph, h = '') => fieldHtml('s-' + id + '-' + f, label, val ?? '', `data-slf="${id}|${f}" data-num="1" inputmode="decimal" placeholder="${ph}" ${dis}`).replace(/<\/div>$/, h + '</div>');
+  const ep0 = sx ? null : SL_EP[id];
+  const epHint = sx ? '' : `<span class="small muted slstd">${Math.abs(slEP(o, id) - ep0) > 0.001 ? '<b class="slchg">Für diese Offerte angepasst</b> · Standard ' + chf(ep0) + (dis ? '' : ' · <button type="button" class="lnk" data-act="slEpReset" data-k="' + id + '">zurücksetzen</button>') : 'Standardpreis ' + chf(ep0) + ' · für diese Offerte änderbar'}</span>`;
+  const head = sx ? `<div class="sxrow"><div class="field"><label for="sxn${id.slice(2)}">Andere Leistung ${+id.slice(2) + 1}</label><textarea id="sxn${id.slice(2)}" data-sxn="${id.slice(2)}" rows="${Math.max(2, Math.ceil((nm || '').length / 30))}" placeholder="z. B. Baureinigung" maxlength="120" ${dis}>${esc(nm)}</textarea></div>${dis ? '' : `<button type="button" class="btn btn-sm" data-act="sxDel" data-i="${id.slice(2)}" aria-label="Entfernen" style="align-self:end;color:var(--cs-fg-2)">Entfernen</button>`}</div>` : `<div class="field" style="margin-bottom:6px"><label>${title}</label></div>`;
+  const seg = (f, cur, arr) => `<div class="seg">${arr.map(([v, l]) => `<label><input type="radio" name="slr-${id}-${f}" value="${v}" data-slr="${id}|${f}" ${cur === v ? 'checked' : ''} ${dis}><span>${l}</span></label>`).join('')}</div>`;
+  let body = seg('mode', md, modes);
+  if (md === 'nein') body += '<p class="small muted" style="margin:8px 0 0">Wird in der Offerte nicht angezeigt.</p>';
+  else {
+    if (md === 'pauschal') body += `<div style="margin-top:8px">${fld('p', 'Pauschalpreis (CHF, exkl. MwSt.)', g.get('p'), 'z. B. 490.00')}</div>`;
+    else body += `<div class="frow" style="margin-top:8px">${fld('m2', 'Fläche (m²)', g.get('m2'), sx ? 'z. B. 120' : 'leer = nur Preisliste')}${fld('ep', 'Einheitspreis (CHF pro m²)', sx ? g.get('ep') : slEP(o, id).toFixed(2), sx ? 'z. B. 3.50' : '', epHint)}</div><div class="sltot">Total exkl. MwSt. <b id="slT-${id}">${tot > 0 ? chf(tot) : '–'}</b></div>`;
+    body += `<div class="field" style="margin-top:8px"><label>Abrechnung</label>${seg('unit', unit, [['aus', 'Pro Ausführung'], ['mon', 'Pro Monat'], ['and', 'Andere']])}${unit === 'and' ? `<input style="margin-top:8px" data-slf="${id}|ut" value="${esc(g.get('ut') || '')}" placeholder="z. B. pro Einsatz, pro Quartal, einmalig" maxlength="40" ${dis}>` : ''}</div>`;
+  }
+  return `<div class="slrow">${head}${body}</div>`;
+}
 function fieldHtml(id, label, val, attrs = '', req = false, type = 'text', extra = '') {
   return `<div class="field" id="f-${id}"><label for="${id}">${label}${req ? ' <span class="req">*</span>' : ''}</label><input id="${id}" type="${type === 'time' ? 'text' : type}"${type === 'time' ? ' inputmode="numeric" maxlength="5" placeholder="HH:MM" autocomplete="off" data-t24="1"' : ''} value="${esc(val ?? '')}" ${attrs}><span class="msg">Bitte ausfüllen.</span>${extra}</div>`;
 }
@@ -2030,10 +2057,8 @@ function renderBes() {
         ${varHtml(o, dis)}
         <div class="field"><label>Waschservice (Tücherservice) offerieren?</label><div class="seg">${['Ja','Nein'].map(v => `<label><input type="radio" name="wasch" value="${v}" data-yn="wasch" ${(o.wasch ? 'Ja' : 'Nein') === v ? 'checked' : ''} ${dis}><span>${v}</span></label>`).join('')}</div></div>
         <div id="waschWrap" ${o.wasch ? '' : 'hidden'}>${fieldHtml('bWasch','Waschservice pro Monat (CHF, exkl. MwSt.)',o.waschPreis ?? '',`data-o="waschPreis" data-num="1" inputmode="decimal" placeholder="z. B. 40.00" ${dis}`)}</div>
-        <div class="slbox"><div class="small muted" style="margin-bottom:6px">Grundreinigungen / Sonderleistungen: pro Leistung wählen, ein Pauschalpreis pro Ausführung oder Abrechnung nach m² (ohne Fläche gilt nur die Preisliste).</div>${SLX.map(([k, n1, , , nm]) => { const md = slMode(o, k), tot = slTotal(o, k); return `<div class="slrow"><div class="field"><label>${n1}</label><div class="seg">${[['pauschal', 'Pauschal'], ['m2', 'Nach m²']].map(([v, l]) => `<label><input type="radio" name="slm-${k}" value="${v}" data-slm="${k}" ${md === v ? 'checked' : ''} ${dis}><span>${l}</span></label>`).join('')}</div></div>
-          ${md === 'pauschal' ? fieldHtml('b' + k, nm + ' pauschal pro Ausführung (CHF, exkl. MwSt.)', o[k + 'Preis'] ?? '', `data-o="${k}Preis" data-num="1" inputmode="decimal" placeholder="z. B. 490.00" ${dis}`) : ''}
-          ${md === 'm2' ? `<div class="frow">${fieldHtml('b' + k + 'M', 'Fläche (m²)', o[k + 'M2'] ?? '', `data-o="${k}M2" data-num="1" data-sl="${k}" inputmode="decimal" placeholder="leer = nur Preisliste" ${dis}`)}${fieldHtml('b' + k + 'E', 'Einheitspreis (CHF pro m²)', slEP(o, k).toFixed(2), `data-o="${k}EP" data-num="1" data-sl="${k}" inputmode="decimal" ${dis}`).replace('</div>', `<span class="small muted slstd">${Math.abs(slEP(o, k) - SL_EP[k]) > 0.001 ? '<b class="slchg">Für diese Offerte angepasst</b> · Standard ' + chf(SL_EP[k]) + (dis ? '' : ' · <button type="button" class="lnk" data-act="slEpReset" data-k="' + k + '">zurücksetzen</button>') : 'Standardpreis ' + chf(SL_EP[k]) + ' · für diese Offerte änderbar'}</span></div>`)}</div><div class="sltot">Total exkl. MwSt. <b id="slT-${k}">${tot > 0 ? chf(tot) : '–'}</b></div>` : ''}</div>`; }).join('')}
-        ${(o.sx || []).map((x, i) => `<div class="sxrow"><div class="field"><label for="sxn${i}">Andere Leistung ${i + 1}</label><input id="sxn${i}" data-sxn="${i}" value="${esc(x.n || '')}" placeholder="z. B. Entsorgungsservice" maxlength="60" ${dis}></div><div class="field"><label for="sxp${i}">Pauschalpreis (CHF, exkl. MwSt.)</label><input id="sxp${i}" data-sxp="${i}" inputmode="decimal" value="${esc(x.p ?? '')}" placeholder="z. B. 120.00" ${dis}></div>${dis ? '' : `<button type="button" class="btn btn-sm" data-act="sxDel" data-i="${i}" aria-label="Entfernen" style="align-self:end;color:var(--cs-fg-2)">Entfernen</button>`}</div>`).join('')}
+        <div class="slbox"><div class="small muted" style="margin-bottom:6px">Grundreinigungen / Sonderleistungen: pro Leistung Pauschal oder nach m², Abrechnung pro Ausführung, pro Monat oder anders. «Nicht offerieren» blendet die Leistung in der Offerte aus.</div>${SLX.map(([k, n1]) => slEdHtml(o, k, dis, n1)).join('')}
+        ${(o.sx || []).map((x, i) => slEdHtml(o, 'sx' + i, dis, '')).join('')}
         ${dis || (o.sx || []).length >= SX_MAX ? '' : `<button type="button" class="chip" data-act="sxAdd" style="border-style:dashed;margin-top:4px">+ Andere Leistung (z. B. Entsorgungsservice)</button>`}</div>
       </div></div>
 
@@ -2329,7 +2354,7 @@ function docOffer(o) {
       <tr><td>Einsatz pro Woche</td><td class="num" style="text-align:right">${c.proTag ? c.tage.filter(t => t[1] > 0).map(t => t[0] + ' ' + fmtN(t[1], 2) + ' h').join(' + ') : fmtN(c.perClean, 2) + ' h' + (c.einsatz ? ' (Erfahrungswert)' : ' (Ø aus Flächen)') + ' × ' + c.nWeek + ' Reinigungen'} = ${fmtN(c.wk, 2)} h</td></tr>
       <tr><td>Einsatz pro Monat</td><td class="num" style="text-align:right">${fmtN(c.wk, 2)} h × ${fmtN(c.wf, 2)} + ${fmtN(c.monthHoursPer, 2)} h periodisch = ${fmtN(c.monthHours, 2)} h</td></tr>
       <tr><td>Berechnungsgrundlage</td><td class="num" style="text-align:right">${fmtN(c.monthHours, 2)} h × ${chf(c.rate)}${o.pauschale > 0 ? ' (Pauschale gerundet)' : ''}</td></tr>
-      ${[...SLX.filter(x => c[x[0]]).map(x => [x[1], c[x[0]], c.slm[x[0]]]), ...c.sx.map(x => [x.n, x.p])].map(x => `<tr><td>${esc(x[0])}</td><td class="num" style="text-align:right">${x[2] && x[2].mode === 'm2' ? fmtN(x[2].m2, 1) + ' m² × ' + chf(x[2].ep) + ' = ' + chf(x[1]) : 'Pauschal ' + chf(x[1]) + ' pro Ausführung'}</td></tr>`).join('')}
+      ${[...SLX.filter(x => c[x[0]]).map(x => [x[1], c[x[0]], c.slm[x[0]]]), ...c.sx.map(x => [x.n, x.p, x])].map(x => { const m = x[2], ul = m.unit.u === 'mon' ? 'pro Monat' : m.unit.u === 'and' && m.unit.t ? m.unit.t : 'pro Ausführung'; return `<tr><td>${esc(x[0])}</td><td class="num" style="text-align:right">${m.mode === 'm2' ? fmtN(m.m2, 1) + ' m² × ' + chf(m.ep) + ' = ' + chf(x[1]) : 'Pauschal ' + chf(x[1])} ${esc(ul)}</td></tr>`; }).join('')}
       </tbody></table>
     <p class="foot-n">Raumbuch und Leistungsverzeichnis sind Bestandteil dieser Offerte. Verrechnung monatlich, Zahlungsfrist 30 Tage netto.</p>
   </div>`;
@@ -2920,7 +2945,7 @@ const ACT = {
   floor: el => { UI.floor = el.dataset.f; renderBes(); },
   floorNew: () => { UI.floorNew = true; renderBes(); const i = $('#fNewIn'); i && i.focus({ preventScroll: true }); },
   floorAdd: () => { const o = curObj(), i = $('#fNewIn'), f = addFloor(o, i && i.value); UI.floorNew = false; if (f) { UI.floor = f; save(); } renderBes(); },
-  sxAdd: () => { const o = curObj(); o.sx = o.sx || []; if (o.sx.length >= SX_MAX) return; o.sx.push({ n: '', p: null }); save(); renderBes(); const i = $('#sxn' + (o.sx.length - 1)); i && i.focus({ preventScroll: true }); },
+  sxAdd: () => { const o = curObj(); o.sx = o.sx || []; if (o.sx.length >= SX_MAX) return; o.sx.push({ n: '', mode: 'pauschal', p: null, unit: 'aus' }); save(); renderBes(); const i = $('#sxn' + (o.sx.length - 1)); i && i.focus({ preventScroll: true }); },
   sxDel: el => { const o = curObj(); o.sx.splice(+el.dataset.i, 1); save(); renderBes(); refreshBesLive(); },
   titelSet: el => { const o = curObj(); if (!o) return; const k = o.photos[+el.dataset.i]; o.titel = o.titel === k ? null : k; save(); renderBes(); toast(o.titel ? 'Titelbild gewählt' : 'Titelbild entfernt', 'info'); },
   roomUp: el => moveRoom(el.dataset.id, -1),
@@ -3127,7 +3152,7 @@ document.addEventListener('input', e => {
   if (t.dataset.grv && UI.gr && t.tagName === 'INPUT') { const [pi, ri, k] = t.dataset.grv.split(':'); const r = UI.gr.pages[+pi].result[+ri]; if (k === 'flaeche') { r.flaeche = num(t.value); if (r.flaeche > 0 && r.quelle === 'fehlt') r.quelle = 'geschätzt'; } else r[k] = t.value; return; }
   if (t.dataset.lb) { const L = num($('#rL').value), B = num($('#rB').value); if (L > 0 && B > 0) { const x = curRoom(); if (x) { x[1].flaeche = Math.round(L * B * 10) / 10; $('#rM2').value = x[1].flaeche; save(); refreshRoomCalc(); refreshBesLive(); } } return; }
   if (t.dataset.vm != null && t.dataset.vm !== '') { const o = curObj(); if (!o) return; const v = o.vars[+t.dataset.vm]; v.m = num(t.value); const e = document.getElementById('vp' + (+t.dataset.vm + 1)); if (e) e.textContent = v.m > 0 && v.tage.length ? `≈ CHF ${fmtN(v.m / (v.tage.length * WF()), 2)} pro Reinigung · ${chf(v.m * 12)} pro Jahr` : 'Reinigungstage und Preis eingeben'; save(); return; }
-  if (t.dataset.sxn != null || t.dataset.sxp != null) { const o = curObj(); if (!o || !o.sx) return; if (t.dataset.sxn != null) o.sx[+t.dataset.sxn].n = t.value; else { const v = parseFloat(String(t.value).replace(/'/g, '').replace(',', '.')); o.sx[+t.dataset.sxp].p = v > 0 ? v : null; } save(); refreshBesLive(); return; }
+  if (t.dataset.sxn != null) { if (t.tagName === 'TEXTAREA') { t.style.height = 'auto'; t.style.height = t.scrollHeight + 2 + 'px'; } const o = curObj(); if (!o || !o.sx) return; o.sx[+t.dataset.sxn].n = t.value; save(); refreshBesLive(); return; }
   if (t.dataset.rlo) { const o = curObj(); if (!o) return; const v = num(t.value); o.rlOv = o.rlOv || {}; const kk = t.dataset.rlo, stdv = kk.includes('|') ? (() => { const [c, a, n] = kk.split('|'); return rlgStd(c === 'büro' ? '2.10' : c === 'wc' ? '7.10' : c, a, +n); })() : S.settings.rl[kk]; if (v > 0 && v !== stdv) o.rlOv[kk] = v; else delete o.rlOv[kk]; save(); refreshBesLive(); t.classList.toggle('ed', !!o.rlOv[kk]); return; }
   if (t.dataset.bsx) { const o = curObj(); o.bodenStd = t.value.trim().slice(0, 30) || 'Andere'; save(); return; }
   if (t.dataset.bx) { const x = curRoom(); if (!x) return; x[1].boden = t.value.trim().slice(0, 30) || 'Andere'; save(); refreshBesLive(); return; }
@@ -3170,7 +3195,8 @@ document.addEventListener('change', e => {
   if (t.dataset.bst) { const o = curObj(); o.bodenStdT = t.dataset.bst === 'textil' ? 'textil' : 'hart'; save(); return; }
   if (t.dataset.bt) { const x = curRoom(); if (!x) return; x[1].bodenT = t.value === 'textil' ? 'textil' : null; save(); renderPanel(true); refreshBesLive(); return; }
   if (t.dataset.multi && o) { o.multi = t.value === 'Ja'; if (o.multi) { gebFix(o); UI.geb = o.geb[0].id; } save(); renderBes(); return; }
-  if (t.dataset.slm && o) { const k = t.dataset.slm; o[k + 'Mode'] = t.value; o[k] = t.value === 'pauschal'; save(); renderBes(); return; }
+  if (t.dataset.slr && o) { const [id, f] = t.dataset.slr.split('|'); slF(o, id).set(f, t.value); if (!id.startsWith('sx') && f === 'mode') o[id] = t.value === 'pauschal'; save(); renderBes(); return; }
+  if (t.dataset.slf && o) { const [id, f] = t.dataset.slf.split('|'), g = slF(o, id); g.set(f, t.dataset.num ? num(t.value) : t.value); const e = document.getElementById('slT-' + id); if (e) { const v = id.startsWith('sx') ? slTotalX({ mode: g.get('mode') === 'm2' ? 'm2' : 'pauschal', m2: g.get('m2'), ep: g.get('ep'), p: g.get('p') }) : slTotal(o, id); e.textContent = v > 0 ? chf(v) : '–'; } save(); refreshBesLive(); return; }
   if (t.dataset.yn && o) { o[t.dataset.yn] = t.value === 'Ja'; const wr = document.getElementById(t.dataset.yn + 'Wrap'); if (wr) { wr.hidden = t.value !== 'Ja'; if (t.value === 'Ja') { const i = wr.querySelector('input'); i && i.focus(); } } save(); refreshBesLive(); return; }
   if (t.id === 'rFloorNew') { const x = curRoom(); if (!x) return; const f = addFloor(x[0], t.value); if (f) { x[1].floor = f; UI.floor = f; save(); refreshBesLive(); openPanel({ type: 'room', oid: x[0].id, id: x[1].id }); renderBes(); } return; }
   if (t.dataset.rs === 'floor' && t.value === '__neu') { const n = $('#rFloorNew'); if (n) { n.hidden = false; n.focus(); } return; }
@@ -3423,13 +3449,27 @@ async function buildOfferPdf(o, lang = 'de') {
     txt(p11, 'Unverbindlicher Richtpreis', 74, 668, { bold: true, size: 9.5, color: C.navy });
     wrapV('Dieses Richtangebot gilt 60 Tage. Die Spanne beruht auf Ihren Angaben und unserer Erfahrung mit vergleichbaren Objekten. Den verbindlichen Preis erhalten Sie mit unserer Offerte nach der Besichtigung.', 455, 9).forEach((l, i) => txt(p11, l, 74, 683 + i * 12));
   } else {
-  txt(p11, `${pdfChf(c.annual)} ${mwst}${incl}`, 231.7, 206.6); txt(p11, `${pdfChf(c.monthly)} ${mwst}${incl}`, 231.7, 227.1); }
-  const SLn = R ? [] : (c.sx || []), SL = SLn.length * 22.32;   // eigene Pauschalleistungen (z. B. Entsorgungsservice): zusätzliche Tabellenzeilen in Abschnitt 2
+  txt(p11, `${pdfChf(c.annual)} ${mwst}${incl}`, 231.7, 206.6);
+  if (!VR.length) { white(p11, 66, 214.5, 229, 232.5); p11.drawRectangle({ x: 65.4, y: H - 232.7, width: 160, height: 18.8, color: C.ice, borderWidth: 0 }); txt(p11, en ? 'Monthly flat-rate amount' : 'Monatlicher Pauschalbetrag', 71.7, 227.1, { bold: true, size: 9, color: C.navy }); }
+  txt(p11, `${pdfChf(c.monthly)} ${mwst}${incl}`, 231.7, 227.1, { bold: !VR.length }); }
+  const SLn = R ? [] : (c.sx || []);
+  /* Zeilen von Abschnitt 2: nicht offerierte Leistungen entfallen, eigene Leistungen kommen dazu */
+  const ULBL = u => u && u.u === 'mon' ? (en ? 'Per month' : 'Pro Monat') : u && u.u === 'and' && u.t ? u.t : (en ? 'Per service' : 'Pro Ausführung');
+  const SLR = [];
+  if (!R) {
+    SLX.forEach(x => { const m = (c.slm && c.slm[x[0]]) || { mode: 'm2', m2: 0, ep: ({ fenster: 6, glas: 4, teppich: 1.9 })[x[0]], unit: { u: 'aus', t: '' } }; if (m.mode === 'nein') return; SLR.push({ name: en ? x[2] : x[1], mode: m.mode, m2: m.m2, ep: m.ep, tot: c[x[0]] || 0, unit: m.unit }); });
+    SLn.forEach(x => SLR.push({ name: x.n, mode: x.mode, m2: x.m2, ep: x.ep, tot: x.p, unit: x.unit }));
+    if (!SLR.length) SLR.push({ name: en ? 'Special services' : 'Sonderleistungen', mode: 'auf' });
+  }
+  /* Zeilenhöhen: lange Bezeichnungen / Einheiten werden sauber umbrochen, die Zeile wächst mit */
+  SLR.forEach(r => { r.nl = wrapV(String(r.name || ''), 148, 9).slice(0, 3); r.sub = r.mode === 'm2' && r.m2 > 0; r.ul = r.mode === 'pauschal' ? wrapV(ULBL(r.unit), 94, 8.5).slice(0, 3) : [];
+    const k = Math.max(r.nl.length, r.ul.length); r.h = k === 1 && !(r.sub && false) ? 22.32 : Math.round((13.2 + (k - 1) * 11 + (r.sub ? 10 : 0) + 8) * 100) / 100; if (k === 1 && r.sub) r.h = 22.32; });
+  const SLH = SLR.reduce((a, r) => a + r.h, 0), SL = R ? 0 : SLH - 3 * 22.32;
   if (SH || SL) {
     /* Bereich ab Abschnitt 2 als Vorlagen-Ausschnitt um eine Zeile nach unten setzen (Link «Preisliste» wandert mit) */
-    const [epA, epB] = await out.embedPages([tpl.getPage(6), tpl.getPage(6)], [{ left: 0, bottom: H - 398, right: 546, top: H - 276 }, { left: 0, bottom: H - 640, right: 546, top: H - 398 }]);
+    const [epA, epB] = await out.embedPages([tpl.getPage(6), tpl.getPage(6)], [{ left: 0, bottom: H - (R ? 398 : 329.5), right: 546, top: H - 276 }, { left: 0, bottom: H - 640, right: 546, top: H - 398 }]);
     white(p11, 56, 276, 546, 640);
-    p11.drawPage(epA, { x: 0, y: H - 398 - SH }); p11.drawPage(epB, { x: 0, y: H - 640 - SH - SL });
+    p11.drawPage(epA, { x: 0, y: H - (R ? 398 : 329.5) - SH }); p11.drawPage(epB, { x: 0, y: H - 640 - SH - SL });
     const an = p11.node.lookupMaybe(PDFName.of('Annots'), PDFArray);
     if (an) for (let k = 0; k < an.size(); k++) { const d = an.lookup(k, PDFDict), r = d.lookup(PDFName.of('Rect'), PDFArray); if (r) { const sh = H - r.lookup(3, PDFNumber).asNumber() > 398 ? SH + SL : SH; d.set(PDFName.of('Rect'), out.context.obj([0, 1, 2, 3].map(j => r.lookup(j, PDFNumber).asNumber() - (j % 2 ? sh : 0)))); } }
     /* neue Zeile in Tabelle 1 (Zeilenhöhe 20.4, wie die Vorlage) */
@@ -3464,24 +3504,24 @@ async function buildOfferPdf(o, lang = 'de') {
     txt(p11, en ? 'Billing cycle' : 'Verrechnungsrhythmus', 71.7, ty + 13.4, { bold: true, color: C.navy }); txt(p11, en ? 'Monthly, at the start of each month' : 'Monatlich, jeweils anfangs Monat', 231.7, ty + 13.4);
   }
   /* Abschnitt 2 (Grundreinigungen / Sonderleistungen): Zeilen mit Pauschalpreis ersetzen die m²-Zeile */
-  SLX.forEach((x, i) => {
-    const m = (c.slm && c.slm[x[0]]) || { mode: c[x[0]] > 0 ? 'pauschal' : 'm2', m2: 0, ep: ({ fenster: 6, glas: 4, teppich: 1.9 })[x[0]] };
-    if (m.mode === 'm2' && !(m.m2 > 0) && Math.abs(m.ep - ({ fenster: 6, glas: 4, teppich: 1.9 })[x[0]]) < 0.001) return;   // unveränderte Preislisten-Zeile bleibt wie in der Vorlage
-    const off = 22.32 * i + SH, top = 329.81 + off, bot = 351.65 + off, by = 344.6 + off, ln = rgb(0.851, 0.851, 0.851);
-    p11.drawRectangle({ x: 65.9, y: H - (bot - 0.2), width: 474.1, height: bot - top - 0.4, color: i % 2 ? rgb(0.949, 0.949, 0.949) : C.white, borderWidth: 0 });
-    [225.17, 330.19, 435.22].forEach(xx => p11.drawLine({ start: { x: xx, y: H - top }, end: { x: xx, y: H - bot }, thickness: 0.48, color: ln }));
-    txt(p11, en ? x[2] : x[1], 71.7, by);
-    if (m.mode === 'pauschal') { txt(p11, en ? 'Flat rate' : 'Pauschal', 231.7, by); txt(p11, en ? 'Per service' : 'Pro Ausführung', 336.7, by); txt(p11, `CHF ${pdfNum(c[x[0]])}`, 441.7, by); }
-    else if (m.m2 > 0) { txt(p11, `${pdfNum(m.m2, Number.isInteger(m.m2) ? 0 : 1)} m2`, 231.7, by); txt(p11, `CHF ${pdfNum(m.ep)} / m2`, 336.7, by); txt(p11, `CHF ${pdfNum(c[x[0]])}`, 441.7, by); }
-    else { txt(p11, 'm2', 231.7, by); txt(p11, `CHF ${pdfNum(m.ep)} / m2`, 336.7, by); txt(p11, 'CHF', 441.7, by); }
-  });
-  SLn.forEach((x, i) => {
-    const k = 3 + i, off = 22.32 * k + SH, top = 329.81 + off, bot = 351.65 + off, by = 344.6 + off, ln = rgb(0.851, 0.851, 0.851);
-    p11.drawRectangle({ x: 65.9, y: H - (bot - 0.2), width: 474.1, height: bot - top - 0.4, color: k % 2 ? rgb(0.949, 0.949, 0.949) : C.white, borderWidth: 0 });
-    p11.drawLine({ start: { x: 65.4, y: H - bot }, end: { x: 540, y: H - bot }, thickness: 0.48, color: ln });
-    [65.17, 225.17, 330.19, 435.22, 540.24].forEach(xx => p11.drawLine({ start: { x: xx, y: H - (top - 0.2) }, end: { x: xx, y: H - bot }, thickness: 0.48, color: ln }));
-    txt(p11, fit(x.n, 148, fH, 9), 71.7, by); txt(p11, en ? 'Flat rate' : 'Pauschal', 231.7, by); txt(p11, en ? 'Per service' : 'Pro Ausführung', 336.7, by); txt(p11, `CHF ${pdfNum(x.p)}`, 441.7, by);
-  });
+  if (!R) {
+    const nT = SLR.length, ln = rgb(0.851, 0.851, 0.851), GR = rgb(0.45, 0.45, 0.45);
+    let top = 329.81 + SH;
+    SLR.forEach((r, i) => {
+      const bot = top + r.h, multi = r.h > 22.4, by = top + (multi ? 13.2 : 14.79);
+      p11.drawRectangle({ x: 65.9, y: H - (bot - 0.2), width: 474.1, height: bot - top - 0.4, color: i % 2 ? rgb(0.949, 0.949, 0.949) : C.white, borderWidth: 0 });
+      p11.drawLine({ start: { x: 65.4, y: H - bot }, end: { x: 540, y: H - bot }, thickness: 0.48, color: ln });
+      [65.17, 225.17, 330.19, 435.22, 540.24].forEach(xx => p11.drawLine({ start: { x: xx, y: H - (top - 0.2) }, end: { x: xx, y: H - bot }, thickness: 0.48, color: ln }));
+      const n1 = r.sub && !multi ? by - 4.8 : by;
+      r.nl.forEach((l, j) => txt(p11, l, 71.7, n1 + j * 11));
+      if (r.sub) txt(p11, fit(ULBL(r.unit), 148, fH, 7), 71.7, multi ? by + (r.nl.length - 1) * 11 + 10 : by + 4.6, { size: 7, color: GR });
+      if (r.mode === 'auf') { txt(p11, en ? 'On request' : 'Auf Anfrage', 231.7, by); }
+      else if (r.mode === 'pauschal') { txt(p11, en ? 'Flat rate' : 'Pauschal', 231.7, by); r.ul.forEach((l, j) => txt(p11, l, 336.7, by + j * 10.5, { size: 8.5 })); txt(p11, `CHF ${pdfNum(r.tot)}`, 441.7, by); }
+      else if (r.m2 > 0) { txt(p11, `${pdfNum(r.m2, Number.isInteger(r.m2) ? 0 : 1)} m2`, 231.7, by); txt(p11, `CHF ${pdfNum(r.ep)} / m2`, 336.7, by); txt(p11, `CHF ${pdfNum(r.tot)}`, 441.7, by); }
+      else { txt(p11, 'm2', 231.7, by); txt(p11, `CHF ${pdfNum(r.ep)} / m2`, 336.7, by); txt(p11, 'CHF', 441.7, by); }
+      top = bot;
+    });
+  }
   out.addPage(p11);
   const refs = (o.refs || []).filter(r => r && r.k).slice(0, 2);
   for (let i = 7; i < 16; i++) {
