@@ -278,7 +278,14 @@ body{-webkit-tap-highlight-color:transparent}
 .tk .hh{font-size:12px;color:var(--cs-fg-2);width:54px;text-align:right;font-variant-numeric:tabular-nums}
 .thumbs{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .thumbs img{width:76px;height:76px;object-fit:cover;border-radius:8px;border:1px solid var(--cs-line)}
-.tbw{position:relative;display:inline-block}.tbi .tbw{display:block}.tbx{position:absolute;top:-7px;right:-7px;width:24px;height:24px;border-radius:50%;border:2px solid #fff;background:#c0392b;color:#fff;font-size:16px;line-height:1;font-weight:700;cursor:pointer;padding:0;display:grid;place-items:center;box-shadow:0 1px 4px rgba(0,0,0,.3)}.tbx:hover{background:#992d22}.thumbs.tb{gap:10px}.tbi{display:flex;flex-direction:column;gap:4px;align-items:stretch;width:96px}.tbi img{width:96px;height:76px}.tbi.sel img{border:3px solid var(--cs-teal,#0e7c80)}.tbb{font-size:11px;font-weight:700;border:1px solid var(--cs-line-strong);background:#fff;color:var(--cs-fg-2);border-radius:99px;padding:4px 6px;cursor:pointer;text-align:center}.tbb.on{background:var(--cs-teal,#0e7c80);color:#fff;border-color:var(--cs-teal,#0e7c80)}
+.tbw{position:relative;display:inline-block}
+.vakgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}.vakc{display:flex;flex-direction:column;gap:12px;text-align:left;padding:16px 18px;cursor:pointer;font:inherit;color:inherit;transition:border-color .15s,box-shadow .15s}.vakc:hover,.vakc[aria-selected="true"]{border-color:var(--cs-teal,#0e7c80);box-shadow:0 4px 18px rgba(14,124,128,.12)}
+.vakc .vh{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.vakc .vh{flex-wrap:wrap}.vakc .vh>div{min-width:0;flex:1 1 180px}.vakc .vh b{display:block;font-size:15.5px;text-transform:none;letter-spacing:0;color:var(--cs-fg,#16323a);font-weight:700}.vakc .vh small{display:block;color:var(--cs-fg-2);font-size:12.5px;text-transform:none;letter-spacing:0;font-weight:400;margin-top:2px}.vakc .badge{white-space:nowrap}.vakc .vm{display:flex;flex-direction:column;gap:5px;font-size:13px}.vakc .vm span{display:flex;gap:7px;align-items:center}.vakc .vm svg{color:var(--cs-teal,#0e7c80);flex:none}
+.vakc .vf{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--cs-line);padding-top:10px;min-height:42px}.vakc .go{display:flex;align-items:center;gap:2px;color:var(--cs-teal,#0e7c80);font-weight:700;font-size:13px}
+.ava{border-radius:50%;object-fit:cover;flex:none;border:2px solid #fff;box-shadow:0 0 0 1px var(--cs-line);background:#eaf5f6}.ava.ini{display:inline-grid;place-items:center;color:#0e7c80;font-weight:700;background:#ddf1f3}.avstack{display:flex}.avstack .ava{margin-left:-8px;width:30px;height:30px;font-size:11px}.avstack .ava:first-child{margin-left:0}.avstack .more{width:30px;height:30px;font-size:11px}
+.apps{display:flex;flex-direction:column;gap:10px}.appc{display:flex;gap:14px;align-items:flex-start;border:1px solid var(--cs-line);border-radius:12px;padding:14px}.appc.sel{border-color:#1e9e9b;background:var(--cs-mint-bg,#e6f6f1)}.appc.dim{opacity:.6}.appc .ai{display:flex;flex-direction:column;gap:2px;min-width:0;align-items:flex-start}.appc .ai b{font-size:15px}.appc .ai small{color:var(--cs-fg-2);font-size:12.5px}.appc .bkok{color:#1e7d5a!important}.appc .bkno{color:#a35a00!important}
+.appc .ai a{color:var(--cs-teal,#0e7c80);font-weight:600}.vfind{margin-top:8px;display:flex;flex-direction:column;gap:6px;width:100%}.vfind input{width:100%}.vfr{display:flex;flex-wrap:wrap;gap:6px}.vl{display:flex;justify-content:space-between;gap:14px;padding:6px 0;border-bottom:1px solid var(--cs-line);font-size:13.5px}.vl span:last-child{text-align:right}.vdone{display:flex;flex-direction:column;gap:5px;font-size:13px}.vdone .ok{color:#1e7d5a}.vdone .err{color:#a33}
+.nav-i{position:relative}.navdot{position:absolute;top:6px;right:16px;width:9px;height:9px;border-radius:50%;background:#e0643c;border:2px solid #fff}.tbi .tbw{display:block}.tbx{position:absolute;top:-7px;right:-7px;width:24px;height:24px;border-radius:50%;border:2px solid #fff;background:#c0392b;color:#fff;font-size:16px;line-height:1;font-weight:700;cursor:pointer;padding:0;display:grid;place-items:center;box-shadow:0 1px 4px rgba(0,0,0,.3)}.tbx:hover{background:#992d22}.thumbs.tb{gap:10px}.tbi{display:flex;flex-direction:column;gap:4px;align-items:stretch;width:96px}.tbi img{width:96px;height:76px}.tbi.sel img{border:3px solid var(--cs-teal,#0e7c80)}.tbb{font-size:11px;font-weight:700;border:1px solid var(--cs-line-strong);background:#fff;color:var(--cs-fg-2);border-radius:99px;padding:4px 6px;cursor:pointer;text-align:center}.tbb.on{background:var(--cs-teal,#0e7c80);color:#fff;border-color:var(--cs-teal,#0e7c80)}
 .logobar{display:flex;align-items:center;gap:12px;border-radius:12px;padding:10px 14px;margin-bottom:14px;border:1px solid #bfe0d6;background:#f0faf6}.logobar.miss{border-color:#f0d3a6;background:#fff8ec}.lbimg{width:72px;height:44px;border:1px solid var(--cs-line);border-radius:8px;background:#fff;display:flex;align-items:center;justify-content:center;color:#b9c4c7;flex:0 0 auto}.lbimg img{max-width:100%;max-height:100%;object-fit:contain}.lbtx{display:flex;flex-direction:column;font-size:13px;gap:2px}.logobar.ok .lbtx b{color:#1b8a5a}.logobar.miss .lbtx b{color:#b86e00}.lbtx span{color:var(--cs-fg-2);font-size:12px}
 .upl{position:relative;overflow:hidden}
 .upl input{position:absolute;inset:0;opacity:0;cursor:pointer}
@@ -428,6 +435,7 @@ body{-webkit-tap-highlight-color:transparent}
 
   </defs>
 </svg>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="i-vak" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7"/><path d="M3 12.5h18"/><path d="M12 11.5v2"/></symbol></svg>
 
 <div class="app">
   <nav class="rail" aria-label="Hauptnavigation">
@@ -435,6 +443,7 @@ body{-webkit-tap-highlight-color:transparent}
     <button class="nav-i" data-go="bes" aria-current="page"><svg><use href="#i-clip"/></svg>Besichti&shy;gungen</button>
     <button class="nav-i" data-go="off"><svg><use href="#i-doc"/></svg>Offerten</button>
     <button class="nav-i" data-go="ver"><svg><use href="#i-chart"/></svg>Verkaufs&shy;übersicht</button>
+    <button class="nav-i" data-go="vak"><svg><use href="#i-vak"/></svg>Vakanzen<span class="navdot" id="vakDot" hidden></span></button>
     <button class="nav-i" data-go="kun"><svg><use href="#i-users"/></svg>Kunden</button>
     <div class="spacer"></div>
     <button class="nav-i" data-go="set"><svg><use href="#i-cog"/></svg>Einstel&shy;lungen</button>
@@ -452,6 +461,7 @@ body{-webkit-tap-highlight-color:transparent}
     <section data-view="doc"></section>
     <section data-view="off"></section>
     <section data-view="ver"></section>
+    <section data-view="vak"></section>
     <section data-view="kun"></section>
     <section data-view="set"></section>
   </div>
@@ -465,6 +475,7 @@ body{-webkit-tap-highlight-color:transparent}
   <button class="dnav" data-go="bes"><svg><use href="#i-clip"/></svg>Besichtigungen</button>
   <button class="dnav" data-go="off"><svg><use href="#i-doc"/></svg>Offerten</button>
   <button class="dnav" data-go="ver"><svg><use href="#i-chart"/></svg>Verkaufs&shy;übersicht</button>
+  <button class="dnav" data-go="vak"><svg><use href="#i-vak"/></svg>Vakanzen</button>
   <button class="dnav" data-go="kun"><svg><use href="#i-users"/></svg>Kunden</button>
   <button class="dnav" data-go="set"><svg><use href="#i-cog"/></svg>Einstellungen</button>
 </nav>
@@ -919,7 +930,7 @@ function seed() {
 let S;
 let DB = null, DEMO = false, READY = false, NOWRITE = false;
 const LSK = 'cs-offertplattform-v2';
-const UI = { view:'bes', cur:null, floor:'Alle', panel:null, objQ:'', objF:'Alle', offQ:'', offF:'Alle', verP:'Jahr', kunQ:'', kunF:'Aktiv', setTab:'allg', setQ:'', docTab:'off', docId:null, showAll:false, confirmDel:false };
+const UI = { view:'bes', cur:null, floor:'Alle', panel:null, objQ:'', objF:'Alle', offQ:'', offF:'Alle', verP:'Jahr', kunQ:'', kunF:'Aktiv', vakF:'Offen', setTab:'allg', setQ:'', docTab:'off', docId:null, showAll:false, confirmDel:false };
 const KONDITIONEN = 'Alle Preise verstehen sich exklusive Mehrwertsteuer (8.1 %). Die Verrechnung erfolgt monatlich im Voraus, zahlbar innert 30 Tagen netto. Die Preise gelten für 12 Monate ab Vertragsbeginn. Der Vertrag ist unbefristet und beidseitig mit einer Frist von 3 Monaten auf Monatsende kündbar. Zusätzliche Arbeiten auf Wunsch werden nach Regiestundensatz verrechnet. Unsere Mitarbeitenden sind über unsere Betriebshaftpflichtversicherung versichert. Diese Offerte ist 60 Tage gültig. Es gelten die Allgemeinen Geschäftsbedingungen der Clean Service Scaramuzzo AG.';
 const MAIL_TEXT = "Sehr geehrte Damen und Herren\n\nHerzlichen Dank für Ihre Anfrage und Ihr Interesse an einer Unterhaltsreinigung. Im Anhang finden Sie unsere individuell erstellte Offerte basierend auf Ihren Angaben.\n\nWenn unser Angebot Ihren Erwartungen entspricht, freuen wir uns über die unterzeichnete Auftragserteilung.\nGerne stehen wir Ihnen auch für eine persönliche Besprechung zur Verfügung, um offene Fragen zu klären oder Details abzustimmen.\n\nZudem möchten wir Sie auf unsere attraktive Verbrauchsmaterialliste hinweisen, die Ihnen hochwertige Produkte zu fairen Preisen bietet. Werfen Sie gerne einen Blick darauf:\n[Verbrauchsmaterialliste ansehen](https://clean-service.ch/wp-content/uploads/Neue-Preisliste-UH-Verbrauch-3.pdf)\n\nWir würden uns freuen, Sie als Kunden begrüssen zu dürfen und Ihnen mit unserem professionellen Service den Alltag zu erleichtern.\n\nFreundliche Grüsse";
 const MAIL_REV_B = "Ihre angepasste Offerte für die Unterhaltsreinigung";
@@ -2602,6 +2613,118 @@ function renderKun() {
     : emptyState(F === 'Aktiv' ? 'Noch kein aktiver Kunde. Sobald eine Offerte auf «Gewonnen (aktiv)» steht, erscheint sie hier.' : 'Kein Kunde gefunden.')}</div></div>`;
   hydrateIcons(el);
 }
+
+/* =========================================================
+   VAKANZEN · gewonnene Aufträge, Bewerbungen aus dem Stellenportal, Auswahl der Raumpflegerin
+   ========================================================= */
+const vakOf = o => (o.vak = o.vak || { apps: [] });
+const vakObjs = () => S.objects.filter(o => o.status === 'gewonnen' && o.sp && (o.sp.id || o.sp.err || o.sp.busy));   // alles, was bei «Gewonnen» ins Stellenportal ging
+const vakSt = o => o.vak && o.vak.chosen ? 'Besetzt' : 'Offen';
+const initials = n => String(n || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+const avaIni = (a, sz) => `<span class="ava ini" style="width:${sz}px;height:${sz}px;font-size:${Math.round(sz * .36)}px">${esc(initials(a && a.name))}</span>`;
+const avaHtml = (a, sz = 44) => a && a.avatar ? `<img class="ava" src="${esc(a.avatar)}" alt="" referrerpolicy="no-referrer" style="width:${sz}px;height:${sz}px" data-f="${esc(avaIni(a, sz))}" onerror="this.outerHTML=this.dataset.f">` : avaIni(a, sz);
+function vakPensum(o) {
+  const days = DAYS.filter(d => (o.days || []).includes(d)), z = o.zeiten || {};
+  if (!days.length) return 'Einsatztage noch offen';
+  const t = d => String((o.zeitProTag ? z[d] : o.zeit) || '').trim();
+  const same = days.every(d => t(d) === t(days[0]));
+  return same ? days.join(', ') + (t(days[0]) ? ' · ' + t(days[0]) + ' Uhr' : '') : days.map(d => d + (t(d) ? ' ' + t(d) : '')).join(' · ');
+}
+function renderVak() {
+  const el = $('[data-view="vak"]'), F = UI.vakF || 'Offen', all = vakObjs();
+  const cnt = f => all.filter(o => f === 'Alle' || vakSt(o) === f).length;
+  const rows = all.filter(o => F === 'Alle' || vakSt(o) === F).sort((a, b) => ((a.start || {}).datum || '9').localeCompare((b.start || {}).datum || '9'));
+  const stack = o => { const ap = vakOf(o).apps || []; return ap.length ? `<span class="avstack">${ap.slice(0, 4).map(a => avaHtml(a, 30)).join('')}${ap.length > 4 ? `<span class="ava ini more">+${ap.length - 4}</span>` : ''}</span>` : ''; };
+  const stb = o => { const v = vakOf(o), n = (v.apps || []).length; if (v.chosen) { const c = v.apps.find(a => a.id === v.chosen) || {}; return `<span class="badge b-ok">Besetzt · ${esc(c.name || '')}</span>`; }
+    if (!o.sp || !o.sp.id) return '<span class="badge b-warn">Nicht im Stellenportal</span>';
+    return n ? `<span class="badge b-info">${n} Bewerbung${n > 1 ? 'en' : ''}</span>` : '<span class="badge b-neutral">Noch keine Bewerbung</span>'; };
+  el.innerHTML = phead('Vakanzen', 'Vakanzen', 'Gewonnene Aufträge, für die eine Raumpflegerin gesucht wird. Bewerbungen aus dem Stellenportal erscheinen hier automatisch. Mit «Diese Raumpflegerin nehmen» wird sie dem Kunden-Gruppenchat hinzugefügt, die anderen erhalten eine Absage und der Kunde verschwindet aus dem Stellenportal.', `<button class="btn btn-s" data-act="vakLoadAll"><span class="ld" data-loader></span>${ico('i-down')}Bewerbungen abrufen</button>`) + `
+  <div class="content"><div class="toolbar"><div class="chips">${['Offen','Besetzt','Alle'].map(f => `<button class="chip" data-act="vakF" data-v="${f}" aria-pressed="${F === f}">${f} · ${cnt(f)}</button>`).join('')}</div></div>
+  <div class="vakgrid">${rows.length ? rows.map(o => { const cu = custOf(o), st = startTxt(o); return `<button type="button" class="card vakc" data-act="openVak" data-id="${o.id}" aria-selected="${UI.panel?.type === 'vak' && UI.panel.id === o.id}">
+    <div class="vh"><div><b>${esc(cu.firma)}</b><small>${esc(o.adresse || '')}</small></div>${stb(o)}</div>
+    <div class="vm"><span>${ico('i-cal', 16)}${st ? 'Start ' + esc(st) : 'Start noch offen'}</span><span>${ico('i-clip', 16)}${esc(vakPensum(o))}</span></div>
+    <div class="vf">${stack(o) || '<span class="muted small">Wartet auf Bewerbungen aus dem Stellenportal</span>'}<span class="go">${(vakOf(o).apps || []).length && !vakOf(o).chosen ? 'Auswählen' : 'Öffnen'} ${ico('i-chev', 16)}</span></div></button>`; }).join('')
+    : `<div class="card">${emptyState(F === 'Offen' ? 'Keine offene Vakanz. Sobald eine Offerte auf «Gewonnen (aktiv)» steht, erscheint der Auftrag hier.' : 'Keine Vakanz in dieser Ansicht.')}</div>`}</div></div>`;
+  hydrateIcons(el); vakDot();
+  /* Bewerbungen automatisch abholen (höchstens alle 2 Minuten) */
+  if (BE_ON && (!UI.vakAuto || Date.now() - UI.vakAuto > 120000)) { UI.vakAuto = Date.now(); (async () => { for (const o of vakObjs().filter(o => !vakOf(o).chosen && o.sp && o.sp.id)) await vakLoad(o, null, true); })(); }
+}
+function vakDot() { const d = $('#vakDot'); if (d) d.hidden = !vakObjs().some(o => !vakOf(o).chosen && (vakOf(o).apps || []).length); }
+async function vakLoad(o, el, quiet) {
+  if (!o) return; const v = vakOf(o);
+  if (!BE_ON) { if (!quiet) toast('Nur in der Live-Version verfügbar', 'info'); return; }
+  if (!o.sp || !o.sp.id) { if (!quiet) toast('Dieser Kunde ist nicht im Stellenportal ausgeschrieben', 'warning'); return; }
+  if (el) el.classList.add('busy');
+  try {
+    const j = await spCall({ action: 'bewerbungen', id: o.sp.id });
+    if (!j.ok) throw new Error(j.error || 'Bewerbungen nicht lesbar');
+    const old = {}; (v.apps || []).forEach(a => old[a.id] = a);
+    v.apps = (j.list || []).map(b => Object.assign({}, old[String(b.id)] || {}, { id: String(b.id), name: b.name, pnr: b.personalnummer, neu: !!b.neu, datum: b.datum, uhrzeit: b.uhrzeit, at: b.created_at }));
+    const miss = v.apps.filter(a => !a.bkId && !a.bkTried);
+    if (miss.length) {
+      const m = await bkCall({ action: 'match', names: miss.map(a => a.name) }).catch(() => null);
+      if (m && m.ok) miss.forEach((a, i) => { const u = (m.users || [])[i]; a.bkTried = true; if (u) Object.assign(a, { bkId: u.id, bkName: u.name, avatar: u.avatar || '' }); });
+    }
+    v.polled = new Date().toISOString(); save();
+  } catch (e) { if (!quiet) toast('Bewerbungen: ' + (e.message || e), 'error'); }
+  finally { if (el) el.classList.remove('busy'); if (UI.view === 'vak') renderVak(); if (UI.panel && UI.panel.type === 'vak') renderPanel(true); }
+}
+async function vakSearch() {
+  const f = UI.vakFind; if (!f || !BE_ON) return;
+  try { const j = await bkCall({ action: 'users', q: f.q }); f.res = j.ok ? (j.users || []).slice(0, 8) : []; } catch (e) { f.res = []; }
+  if (UI.panel && UI.panel.type === 'vak') { renderPanel(true); const i = $('#vfQ'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }
+}
+document.addEventListener('keydown', e => { const i = e.target.closest && e.target.closest('[data-vfq]'); if (!i || e.key !== 'Enter' || !UI.vakFind) return; e.preventDefault(); UI.vakFind.q = i.value.trim(); vakSearch(); });
+function vakTexts(o, a) {
+  const cu = custOf(o), st = startTxt(o), first = String(a.name || '').trim().split(/\s+/)[0] || '';
+  return {
+    start: `Willkommen im Team, ${a.name}! Du übernimmst die Unterhaltsreinigung bei ${cu.firma}, ${o.adresse || ''}.${st ? ' Start: ' + st + '.' : ''} Einsatz: ${vakPensum(o)}. Das Leistungsverzeichnis findest du hier im Chat. Bei Fragen melde dich jederzeit hier.`,
+    absage: x => `Hallo ${String(x.name || '').trim().split(/\s+/)[0]}, vielen Dank für deine Bewerbung für ${cu.firma}. Dieses Mal haben wir uns für eine andere Mitarbeiterin entschieden. Schau gerne weiter im Stellenportal vorbei, wir freuen uns auf deine nächste Bewerbung. Liebe Grüsse, Clean Service`
+  };
+}
+const VAK_BUSY = {};
+async function vakPick(o, a) {
+  const v = vakOf(o), done = [], T = vakTexts(o, a);
+  if (!BE_ON) { toast('Nur in der Live-Version verfügbar', 'info'); return; }
+  if (v.chosen || VAK_BUSY[o.id]) return; VAK_BUSY[o.id] = 1;
+  toast('Wird ausgeführt …', 'info');
+  /* 1. In den Kunden-Gruppenchat aufnehmen + Startnachricht */
+  if (!a.bkId) done.push({ ok: false, t: `${a.name} ist in Beekeeper nicht gefunden: bitte manuell zum Gruppenchat hinzufügen` });
+  else if (!o.bk || !o.bk.chatId) done.push({ ok: false, t: 'Kein Gruppenchat vorhanden: bitte zuerst den Beekeeper-Gruppenchat eröffnen' });
+  else { try { const j = await bkCall({ action: 'addMember', chatId: o.bk.chatId, userId: a.bkId, text: T.start }); done.push({ ok: !!j.ok, t: j.ok ? `${a.name} zum Gruppenchat hinzugefügt, Startnachricht gesendet` : 'Gruppenchat: ' + (j.error || 'fehlgeschlagen') }); } catch (e) { done.push({ ok: false, t: 'Gruppenchat: ' + e.message }); } }
+  /* 2. Absagen an alle anderen */
+  for (const x of (v.apps || []).filter(x => x.id !== a.id)) {
+    if (!x.bkId) { done.push({ ok: false, t: `Absage an ${x.name} nicht möglich (nicht in Beekeeper gefunden)` }); continue; }
+    try { const j = await bkCall({ action: 'dm', userId: x.bkId, text: T.absage(x) }); x.absage = !!j.ok; done.push({ ok: !!j.ok, t: j.ok ? `Absage an ${x.name} gesendet` : `Absage an ${x.name}: ${j.error || 'fehlgeschlagen'}` }); } catch (e) { done.push({ ok: false, t: `Absage an ${x.name}: ${e.message}` }); }
+  }
+  /* 3. Aus dem Stellenportal nehmen */
+  if (o.sp && o.sp.id) { try { const j = await spCall({ action: 'vergeben', id: o.sp.id }); v.spOff = !!j.ok; done.push({ ok: !!j.ok, t: j.ok ? 'Kunde im Stellenportal als vergeben markiert (nicht mehr sichtbar)' : 'Stellenportal: ' + (j.error || 'fehlgeschlagen') }); } catch (e) { done.push({ ok: false, t: 'Stellenportal: ' + e.message }); } }
+  v.chosen = a.id; v.chosenAt = isoDay(TODAY); v.done = done; delete VAK_BUSY[o.id];
+  logO(o, `Vakanz besetzt: ${a.name}` + (done.some(x => !x.ok) ? ' (mit offenen Punkten)' : ''));
+  save(); toast(done.some(x => !x.ok) ? 'Besetzt, aber nicht alles hat geklappt (siehe Liste)' : `${a.name} ist eingeteilt`, done.some(x => !x.ok) ? 'warning' : 'sparkle');
+  if (UI.view === 'vak') renderVak(); if (UI.panel && UI.panel.type === 'vak') renderPanel(true);
+}
+function vakPanelHtml(o) {
+  if (!o) return '';
+  const cu = custOf(o), v = vakOf(o), ap = v.apps || [], st = startTxt(o), ch = v.chosen && ap.find(a => a.id === v.chosen);
+  const appCard = a => { const sel = v.chosen === a.id, other = v.chosen && !sel;
+    return `<div class="appc ${sel ? 'sel' : ''} ${other ? 'dim' : ''}">${avaHtml(a, 56)}<div class="ai"><b>${esc(a.name)}</b>
+      <small>${a.neu ? 'Neue Mitarbeiterin' : 'Personalnr. ' + esc(a.pnr || '–')}</small>
+      <small>Einführung möglich: ${a.datum ? esc(fmtDay(a.datum)) + (a.uhrzeit ? ', ' + esc(a.uhrzeit) + ' Uhr' : '') : '–'}</small>
+      <small class="${a.bkId ? 'bkok' : 'bkno'}">${a.bkId ? '✓ Beekeeper: ' + esc(a.bkName || a.name) : '⚠ In Beekeeper nicht gefunden'}${v.chosen ? '' : ` · <a href="#" data-act="vakFind" data-id="${o.id}" data-a="${esc(a.id)}">${a.bkId ? 'ändern' : 'zuordnen'}</a>`}</small>
+      ${UI.vakFind && UI.vakFind.a === a.id ? `<div class="vfind"><input id="vfQ" value="${esc(UI.vakFind.q)}" placeholder="Name in Beekeeper suchen" data-vfq="${o.id}|${esc(a.id)}"><div class="vfr">${(UI.vakFind.res || []).map(u => `<button type="button" class="chip" data-act="vakSet" data-id="${o.id}" data-a="${esc(a.id)}" data-u="${esc(String(u.id))}" data-n="${esc(u.name)}" data-av="${esc(u.avatar || '')}">${esc(u.name)}</button>`).join('') || '<span class="muted small">Suchbegriff eingeben und Enter drücken</span>'}</div></div>` : ''}
+      ${sel ? '<span class="badge b-ok" style="margin-top:6px">Ausgewählt</span>' : other ? `<span class="badge b-neutral" style="margin-top:6px">${a.absage ? 'Absage gesendet' : 'Nicht ausgewählt'}</span>` : `<button type="button" class="btn btn-p btn-sm" data-act="vakPick" data-id="${o.id}" data-a="${esc(a.id)}" style="margin-top:8px">${ico('i-ok', 16)}Diese Raumpflegerin nehmen</button>`}
+      </div></div>`; };
+  const line = (a, b) => `<div class="vl"><span class="muted">${a}</span><span>${b}</span></div>`;
+  return `<div class="panel-h"><div><div class="eyebrow">Vakanz</div><h2 id="panelTitle">${esc(cu.firma)}</h2>${v.chosen ? '<span class="badge b-ok">Besetzt</span>' : '<span class="badge b-info">Offen</span>'}</div><button class="icon-btn" data-act="closePanel" aria-label="Schliessen"><svg><use href="#i-x"/></svg></button></div>
+  <div class="panel-b">
+    ${line('Objekt', esc(o.adresse || o.name || ''))}${line('Reinigungsstart', st ? esc(st) : '<span class="muted">noch offen</span>')}${line('Einsatz', esc(vakPensum(o)))}
+    ${line('Stellenportal', o.sp && o.sp.id ? (v.chosen && v.spOff ? 'Entfernt (vergeben)' : 'Ausgeschrieben') : '<span class="muted">nicht ausgeschrieben</span>')}${line('Gruppenchat', o.bk && o.bk.chatId ? esc(o.bk.title || 'eröffnet') : '<span class="muted">noch nicht eröffnet</span>')}
+    <div class="sec-t" style="display:flex;justify-content:space-between;align-items:center">Bewerbungen (${ap.length})${v.chosen ? '' : `<button type="button" class="btn btn-s btn-sm" data-act="vakLoad" data-id="${o.id}"><span class="ld" data-loader></span>Aktualisieren</button>`}</div>
+    ${ap.length ? `<div class="apps">${ap.map(appCard).join('')}</div>` : `<p class="muted small">Noch keine Bewerbung. Sobald sich jemand im Stellenportal auf diesen Kunden bewirbt, erscheint sie hier mit Foto aus Beekeeper.</p>`}
+    ${v.done ? `<div class="sec-t">Erledigt</div><div class="vdone">${v.done.map(x => `<div class="${x.ok ? 'ok' : 'err'}">${x.ok ? '✓' : '⚠'} ${esc(x.t)}</div>`).join('')}</div>` : ''}
+  </div>`;
+}
 function kunPanelHtml(c) {
   const os = S.objects.filter(o => o.customerId === c.id);
   return `<div class="panel-h"><div><div class="eyebrow">Kunde</div><h2 id="panelTitle">${esc(c.firma)}</h2></div><button class="icon-btn" data-act="closePanel" aria-label="Schliessen"><svg><use href="#i-x"/></svg></button></div>
@@ -2731,7 +2854,7 @@ function grpPanelHtml(code) {
 /* =========================================================
    Navigation, Panel, Schublade
    ========================================================= */
-const RENDER = { ver: renderVer, dash: renderDash, bes: renderBes, obj: renderObj, doc: renderDoc, off: renderOff, kun: renderKun, set: renderSet };
+const RENDER = { vak: renderVak, ver: renderVer, dash: renderDash, bes: renderBes, obj: renderObj, doc: renderDoc, off: renderOff, kun: renderKun, set: renderSet };
 function render() { if (!READY) return; RENDER[UI.view](); }
 function go(v, keepPanel) {
   UI.view = v; if (!keepPanel) closePanel(true);
@@ -2746,7 +2869,7 @@ function openPanel(p) {
   renderPanel();
   $('#panel').classList.add('open'); $('#scrim').classList.add('open'); $('#panel').setAttribute('aria-hidden', 'false');
   setTimeout(() => { const b = $('#panel [data-act="closePanel"]'); b && b.focus({ preventScroll: true }); }, 60);
-  if (['obj','off','kun','grp'].includes(p.type)) markSelected();
+  if (['obj','off','kun','grp','vak'].includes(p.type)) markSelected();
 }
 function renderPanel(keepScroll) {
   const p = UI.panel; if (!p) return;
@@ -2757,6 +2880,7 @@ function renderPanel(keepScroll) {
   if (p.type === 'off') html = offPanelHtml(p.id);
   if (p.type === 'lv') html = lvPanelHtml(p.id);
   if (p.type === 'rl') html = rlPanelHtml(p.oid);
+  if (p.type === 'vak') html = vakPanelHtml(objOf(p.id));
   if (p.type === 'kun') html = kunPanelHtml(S.customers.find(c => c.id === p.id));
   if (p.type === 'grp') html = grpPanelHtml(p.id);
   if (p.type === 'plan') html = planPanelHtml();
@@ -3047,6 +3171,16 @@ const ACT = {
   openObj: el => openPanel({ type: 'obj', id: el.dataset.id }),
   offF: el => { UI.offF = el.dataset.v; renderOff(); },
   verP: el => { UI.verP = el.dataset.v; renderVer(); },
+  vakFind: async el => { const a = el.dataset.a; if (UI.vakFind && UI.vakFind.a === a) { UI.vakFind = null; renderPanel(true); return; } const o = objOf(el.dataset.id), ap = vakOf(o).apps.find(x => x.id === a); UI.vakFind = { a, q: (ap && ap.name || '').split(/\s+/).pop(), res: [] }; renderPanel(true); await vakSearch(); },
+  vakSet: el => { const o = objOf(el.dataset.id), ap = vakOf(o).apps.find(x => x.id === el.dataset.a); if (!ap) return; Object.assign(ap, { bkId: el.dataset.u, bkName: el.dataset.n, avatar: el.dataset.av || ap.avatar }); UI.vakFind = null; save(); renderPanel(true); renderVak(); toast('Beekeeper-Konto zugeordnet', 'check'); },
+  vakF: el => { UI.vakF = el.dataset.v; renderVak(); },
+  openVak: el => openPanel({ type: 'vak', id: el.dataset.id }),
+  vakLoad: el => vakLoad(objOf(el.dataset.id), el),
+  vakLoadAll: async el => { el.classList.add('busy'); for (const o of vakObjs().filter(o => !vakOf(o).chosen)) await vakLoad(o, null, true); el.classList.remove('busy'); renderVak(); toast('Bewerbungen aktualisiert', 'check'); },
+  vakPick: el => { const o = objOf(el.dataset.id), v = vakOf(o), a = (v.apps || []).find(x => x.id === el.dataset.a); if (!a) return;
+    const others = v.apps.filter(x => x.id !== a.id).length, st = startTxt(o);
+    askYN(`${a.name} nehmen?`, `${a.name} wird dem Gruppenchat «${(o.bk && o.bk.title) || custOf(o).firma}» hinzugefügt, mit der Nachricht zum Start${st ? ' (' + st + ')' : ''}. ${others ? others + (others > 1 ? ' andere Bewerberinnen erhalten' : ' andere Bewerberin erhält') + ' eine Absage. ' : ''}Der Kunde wird aus dem Stellenportal entfernt.`, 'Ja, nehmen', () => vakPick(o, a));
+  },
   kunF: el => { UI.kunF = el.dataset.v; renderKun(); },
   aktivSet: el => { const v = el.dataset.v, id = el.dataset.id, o = objOf(id) || S.archive.find(x => x.nr === id); if (!o) return;
     if (v === 'inaktiv') { o.inaktiv = true; o.inaktivSeit = isoDay(TODAY); } else { delete o.inaktiv; delete o.inaktivSeit; }
