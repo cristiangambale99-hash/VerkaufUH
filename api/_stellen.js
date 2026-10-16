@@ -47,6 +47,16 @@ module.exports = async (b, res) => {
       return res.status(200).json({ ok: true, id: j.id, dept: j.dept || 'UH', region: j.region, regionErmittelt: j.regionErmittelt, plzErkannt: j.plzErkannt, turnus: j.turnus, tage: j.tage, beekeeper: j.beekeeper });
     }
 
+    if (b.action === 'bewerbungen' || b.action === 'vergeben') {
+      const id = parseInt(b.id, 10); if (isNaN(id)) return res.status(200).json({ ok: false, error: 'Stellenportal-ID fehlt' });
+      const r = await fetch(URL_() + '/api/vakanz', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-portal-schluessel': SECRET() }, body: JSON.stringify({ action: b.action, id }) });
+      const text = await r.text(); let j = null; try { j = JSON.parse(text); } catch (e) {}
+      if (r.status === 404) return res.status(200).json({ ok: false, error: 'Im Stellenportal fehlt /api/vakanz (neue Version noch nicht hochgeladen)' });
+      if (r.status === 401) return res.status(200).json({ ok: false, error: 'Das Stellenportal lehnt den Schlüssel ab (STELLEN_SECRET ≠ PORTAL_SECRET)' });
+      if (!j) return res.status(200).json({ ok: false, error: 'Status ' + r.status + ': ' + text.replace(/\s+/g, ' ').slice(0, 200) });
+      return res.status(200).json(j);
+    }
+
     return res.status(200).json({ ok: false, error: 'Unbekannte Aktion' });
   } catch (e) {
     return res.status(200).json({ ok: false, error: String((e && e.message) || e) });
