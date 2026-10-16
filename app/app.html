@@ -2091,7 +2091,7 @@ function renderBes() {
 function gebLet(i) { return String.fromCharCode(65 + i); }
 function logoBarHtml(o) {
   const cu = custOf(o), src = med(cu.logo), has = !!src, tp = o.titel && (o.photos || []).includes(o.titel);
-  return `<div class="logobar ${has ? 'ok' : 'miss'}"><div class="lbimg">${has ? `<img src="${src}" alt="Kundenlogo">` : '–'}</div><div class="lbtx"><b>${has ? 'Kundenlogo hinterlegt' : 'Kundenlogo fehlt noch'}</b><span>${has ? 'Vom Admin-Bereich, wird auf der Offerte übernommen.' : 'Der Admin hat noch kein Logo eingefügt. Die Offerte geht ohne Logo raus, bis es da ist.'}${tp ? ' Titelbild gewählt.' : ''}</span></div></div>`;
+  return `<div class="logobar ${has ? 'ok' : 'miss'}"><div class="lbimg">${has ? `<img src="${src}" alt="Kundenlogo">` : '–'}</div><div class="lbtx"><b>${has ? 'Kundenlogo hinterlegt' : 'Kundenlogo fehlt noch'}</b><span>${has ? 'Vom Admin-Bereich, wird auf der Offerte übernommen.' : 'Der Admin hat noch kein Logo eingefügt. Die Offerte geht ohne Logo raus, bis es da ist.'}${tp ? ' Titelbild gewählt: Es ersetzt das Bild auf der Titelseite komplett.' : ''}</span></div></div>`;
 }
 function gebFix(o) {
   if (!o.geb || !o.geb.length) o.geb = [{ id: uid(), n: '', a: '' }];
@@ -3451,7 +3451,7 @@ async function buildOfferPdf(o, lang = 'de') {
   if (tsrc && tsrc.startsWith('data:image')) {
     const tj = await coverJpeg(tsrc, (img.x1 - img.x) / (img.t1 - img.t)).catch(() => null);
     if (tj) { const tim = await out.embedJpg(tj); p1.drawImage(tim, { x: img.x, y: H - img.t1, width: img.x1 - img.x, height: img.t1 - img.t }); drawn = true;
-      if (logoSrc && logoSrc.startsWith('data:image')) { const lim = await imgOf(logoSrc); if (lim) { const bw = 120, bh = 50, s0 = Math.min((bw - 12) / lim.width, (bh - 10) / lim.height), W2 = 480, H2 = Math.round(W2 * bh / bw), cv2 = document.createElement('canvas'); cv2.width = W2; cv2.height = H2; const g2 = cv2.getContext('2d'); g2.fillStyle = '#ffffff'; g2.fillRect(0, 0, W2, H2); const k2 = Math.min((W2 * 0.9) / lim.width, (H2 * 0.8) / lim.height); g2.drawImage(lim, (W2 - lim.width * k2) / 2, (H2 - lim.height * k2) / 2, lim.width * k2, lim.height * k2); const lj = await out.embedJpg(b64bytes(cv2.toDataURL('image/jpeg', 0.92).split(',')[1])); p1.drawImage(lj, { x: img.x + 10, y: H - img.t1 + 10, width: bw, height: bh }); } } }
+    }   /* gewähltes Titelbild ersetzt das Bild komplett: kein Kundenlogo darüber */
   }
   if (!drawn && logoSrc && logoSrc.startsWith('data:image')) {
     const im = await imgOf(logoSrc);
