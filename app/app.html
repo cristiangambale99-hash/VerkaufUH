@@ -1214,7 +1214,7 @@ async function bkCall(body) {
 }
 async function startBeekeeper(o, quiet = false) {
   if (!BE_ON || !o || !o.nr || !o.rooms || !o.rooms.length || BK_BUSY[o.id]) return;
-  const bk = o.bk = o.bk || {}; if (bk.chatId) return;
+  let bk = o.bk = o.bk || {}; if (bk.chatId) return;
   BK_BUSY[o.id] = 1; bk.busy = true; bk.err = ''; if (UI.panel) renderPanel(true);
   try {
     for (const lang of BK_LANGS) {
@@ -1224,11 +1224,11 @@ async function startBeekeeper(o, quiet = false) {
     const cu = custOf(o), obj = [o.name, o.adresse].filter(Boolean).join(', ');
     const j = await bkCall({ action: 'chat', nr: o.nr, firma: cu.firma, objekt: obj, text: `Neuer Kunde: ${cu.firma}${obj ? ', Objekt ' + obj : ''}. Offertnummer ${o.nr}.${startTxt(o) ? ' Reinigungsstart: ' + startTxt(o) + '.' : ''}${o.einf && o.einf.name ? ' Einführung durch ' + o.einf.name + '.' : ''} Hier die Leistungsverzeichnisse für das Reinigungsteam in allen Sprachen.` });
     if (!j.ok) throw new Error(j.error || 'Chat konnte nicht erstellt werden');
-    Object.assign(bk, { chatId: j.chatId, title: j.title, sent: j.sent || [], errors: j.errors || [], at: isoDay(TODAY) });
+    o = objOf(o.id) || o; bk = o.bk = Object.assign(o.bk || {}, { busy: bk.busy }); Object.assign(bk, { chatId: j.chatId, title: j.title, sent: j.sent || [], errors: j.errors || [], at: isoDay(TODAY) });
     logO(o, `Beekeeper-Gruppenchat «${j.title}» erstellt, ${(j.sent || []).length} von ${BK_LANGS.length} Leistungsverzeichnissen gesendet` + (j.errors && j.errors.length ? ' (Fehler: ' + j.errors.join(' | ') + ')' : ''));
     if (!quiet) toast(j.errors && j.errors.length ? 'Beekeeper-Chat erstellt, nicht alle Dokumente kamen an' : 'Beekeeper-Chat ist eröffnet, Leistungsverzeichnisse sind drin', j.errors && j.errors.length ? 'warning' : 'sparkle');
-  } catch (e) { bk.err = String(e.message || e); logO(o, 'Beekeeper-Chat fehlgeschlagen: ' + bk.err); if (!quiet) toast('Beekeeper-Chat fehlgeschlagen: ' + bk.err, 'error'); }
-  finally { bk.busy = false; delete BK_BUSY[o.id]; save(); if (UI.panel) renderPanel(true); }
+  } catch (e) { o = objOf(o.id) || o; bk = o.bk = Object.assign(o.bk || {}, { busy: bk.busy }); bk.err = String(e.message || e); logO(o, 'Beekeeper-Chat fehlgeschlagen: ' + bk.err); if (!quiet) toast('Beekeeper-Chat fehlgeschlagen: ' + bk.err, 'error'); }
+  finally { o = objOf(o.id) || o; bk = o.bk = o.bk || bk; bk.busy = false; delete BK_BUSY[o.id]; save(); if (UI.panel) renderPanel(true); }
 }
 const bkRow = o => {
   if (!BE_ON || o.status !== 'gewonnen' || o.inaktiv) return '';
@@ -1257,16 +1257,16 @@ function spPayload(o) {
 }
 async function startStellen(o, quiet = false) {
   if (!BE_ON || !o || !o.nr || SP_BUSY[o.id]) return;
-  const sp = o.sp = o.sp || {}; if (sp.id) return;
+  let sp = o.sp = o.sp || {}; if (sp.id) return;
   SP_BUSY[o.id] = 1; sp.busy = true; sp.err = ''; if (UI.panel) renderPanel(true);
   try {
     const j = await spCall(Object.assign({ action: 'create' }, spPayload(o)));
     if (!j.ok) throw new Error(j.error || 'Kunde konnte im Stellenportal nicht angelegt werden');
-    Object.assign(sp, { id: j.id, region: j.region, regionOk: j.regionErmittelt !== null && j.regionErmittelt !== undefined, turnus: j.turnus, bk: !!(j.beekeeper && j.beekeeper.gemeldet), at: isoDay(TODAY) });
+    o = objOf(o.id) || o; sp = o.sp = Object.assign(o.sp || {}, { busy: sp.busy }); Object.assign(sp, { id: j.id, region: j.region, regionOk: j.regionErmittelt !== null && j.regionErmittelt !== undefined, turnus: j.turnus, bk: !!(j.beekeeper && j.beekeeper.gemeldet), at: isoDay(TODAY) });
     logO(o, `Stellenportal: Kunde in UH eröffnet (${j.turnus}, ${(j.tage || []).join('/') || 'ohne Tage'})` + (sp.regionOk ? '' : ', Region nicht erkannt, bitte im Portal prüfen') + (sp.bk ? ', Meldung im Beekeeper gesendet' : ''));
     if (!quiet) toast(sp.regionOk ? 'Kunde ist im Stellenportal eröffnet' : 'Im Stellenportal eröffnet, Region bitte dort prüfen', sp.regionOk ? 'sparkle' : 'warning');
-  } catch (e) { sp.err = String(e.message || e); logO(o, 'Stellenportal fehlgeschlagen: ' + sp.err); if (!quiet) toast('Stellenportal: ' + sp.err, 'error'); }
-  finally { sp.busy = false; delete SP_BUSY[o.id]; save(); if (UI.panel) renderPanel(true); }
+  } catch (e) { o = objOf(o.id) || o; sp = o.sp = Object.assign(o.sp || {}, { busy: sp.busy }); sp.err = String(e.message || e); logO(o, 'Stellenportal fehlgeschlagen: ' + sp.err); if (!quiet) toast('Stellenportal: ' + sp.err, 'error'); }
+  finally { o = objOf(o.id) || o; sp = o.sp = o.sp || sp; sp.busy = false; delete SP_BUSY[o.id]; save(); if (UI.panel) renderPanel(true); }
 }
 const spRow = o => {
   if (!BE_ON || o.status !== 'gewonnen' || o.inaktiv) return '';
@@ -2651,18 +2651,20 @@ function renderVak() {
 }
 function vakDot() { const d = $('#vakDot'); if (d) d.hidden = !vakObjs().some(o => !vakOf(o).chosen && (vakOf(o).apps || []).length); }
 async function vakLoad(o, el, quiet) {
-  if (!o) return; const v = vakOf(o);
+  if (!o) return; let v = vakOf(o);
   if (!BE_ON) { if (!quiet) toast('Nur in der Live-Version verfügbar', 'info'); return; }
   if (!o.sp || !o.sp.id) { if (!quiet) toast('Dieser Kunde ist nicht im Stellenportal ausgeschrieben', 'warning'); return; }
   if (el) el.classList.add('busy');
   try {
     const j = await spCall({ action: 'bewerbungen', id: o.sp.id });
     if (!j.ok) throw new Error(j.error || 'Bewerbungen nicht lesbar');
+    o = objOf(o.id) || o; v = vakOf(o);   // Objekt kann während des Abrufs durch eine Synchronisierung ersetzt worden sein
     const old = {}; (v.apps || []).forEach(a => old[a.id] = a);
     v.apps = (j.list || []).map(b => Object.assign({}, old[String(b.id)] || {}, { id: String(b.id), name: b.name, pnr: b.personalnummer, neu: !!b.neu, datum: b.datum, uhrzeit: b.uhrzeit, at: b.created_at }));
     const miss = v.apps.filter(a => !a.bkId && !a.bkTried);
     if (miss.length) {
       const m = await bkCall({ action: 'match', names: miss.map(a => a.name) }).catch(() => null);
+      { const L = objOf(o.id) || o; if (L !== o) { L.vak = v; o = L; } }
       if (m && m.ok) miss.forEach((a, i) => { const u = (m.users || [])[i]; a.bkTried = true; if (u) Object.assign(a, { bkId: u.id, bkName: u.name, avatar: u.avatar || '' }); });
     }
     v.polled = new Date().toISOString(); save();
@@ -2699,6 +2701,7 @@ async function vakPick(o, a) {
   }
   /* 3. Aus dem Stellenportal nehmen */
   if (o.sp && o.sp.id) { try { const j = await spCall({ action: 'vergeben', id: o.sp.id }); v.spOff = !!j.ok; done.push({ ok: !!j.ok, t: j.ok ? 'Kunde im Stellenportal als vergeben markiert (nicht mehr sichtbar)' : 'Stellenportal: ' + (j.error || 'fehlgeschlagen') }); } catch (e) { done.push({ ok: false, t: 'Stellenportal: ' + e.message }); } }
+  { const L = objOf(o.id) || o; L.vak = v; o = L; }
   v.chosen = a.id; v.chosenAt = isoDay(TODAY); v.done = done; delete VAK_BUSY[o.id];
   logO(o, `Vakanz besetzt: ${a.name}` + (done.some(x => !x.ok) ? ' (mit offenen Punkten)' : ''));
   save(); toast(done.some(x => !x.ok) ? 'Besetzt, aber nicht alles hat geklappt (siehe Liste)' : `${a.name} ist eingeteilt`, done.some(x => !x.ok) ? 'warning' : 'sparkle');
