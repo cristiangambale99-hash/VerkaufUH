@@ -278,7 +278,7 @@ body{-webkit-tap-highlight-color:transparent}
 .tk .hh{font-size:12px;color:var(--cs-fg-2);width:54px;text-align:right;font-variant-numeric:tabular-nums}
 .thumbs{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .thumbs img{width:76px;height:76px;object-fit:cover;border-radius:8px;border:1px solid var(--cs-line)}
-.thumbs.tb{gap:10px}.tbi{display:flex;flex-direction:column;gap:4px;align-items:stretch;width:96px}.tbi img{width:96px;height:76px}.tbi.sel img{border:3px solid var(--cs-teal,#0e7c80)}.tbb{font-size:11px;font-weight:700;border:1px solid var(--cs-line-strong);background:#fff;color:var(--cs-fg-2);border-radius:99px;padding:4px 6px;cursor:pointer;text-align:center}.tbb.on{background:var(--cs-teal,#0e7c80);color:#fff;border-color:var(--cs-teal,#0e7c80)}
+.tbw{position:relative;display:inline-block}.tbi .tbw{display:block}.tbx{position:absolute;top:-7px;right:-7px;width:24px;height:24px;border-radius:50%;border:2px solid #fff;background:#c0392b;color:#fff;font-size:16px;line-height:1;font-weight:700;cursor:pointer;padding:0;display:grid;place-items:center;box-shadow:0 1px 4px rgba(0,0,0,.3)}.tbx:hover{background:#992d22}.thumbs.tb{gap:10px}.tbi{display:flex;flex-direction:column;gap:4px;align-items:stretch;width:96px}.tbi img{width:96px;height:76px}.tbi.sel img{border:3px solid var(--cs-teal,#0e7c80)}.tbb{font-size:11px;font-weight:700;border:1px solid var(--cs-line-strong);background:#fff;color:var(--cs-fg-2);border-radius:99px;padding:4px 6px;cursor:pointer;text-align:center}.tbb.on{background:var(--cs-teal,#0e7c80);color:#fff;border-color:var(--cs-teal,#0e7c80)}
 .logobar{display:flex;align-items:center;gap:12px;border-radius:12px;padding:10px 14px;margin-bottom:14px;border:1px solid #bfe0d6;background:#f0faf6}.logobar.miss{border-color:#f0d3a6;background:#fff8ec}.lbimg{width:72px;height:44px;border:1px solid var(--cs-line);border-radius:8px;background:#fff;display:flex;align-items:center;justify-content:center;color:#b9c4c7;flex:0 0 auto}.lbimg img{max-width:100%;max-height:100%;object-fit:contain}.lbtx{display:flex;flex-direction:column;font-size:13px;gap:2px}.logobar.ok .lbtx b{color:#1b8a5a}.logobar.miss .lbtx b{color:#b86e00}.lbtx span{color:var(--cs-fg-2);font-size:12px}
 .upl{position:relative;overflow:hidden}
 .upl input{position:absolute;inset:0;opacity:0;cursor:pointer}
@@ -822,7 +822,6 @@ function slF(o, id) {
 const slTotalX = x => (x.mode === 'm2') ? Math.round((x.m2 > 0 ? +x.m2 : 0) * (x.ep > 0 ? +x.ep : 0) * 100) / 100 : (x.p > 0 ? +x.p : 0);
 const slUnitOf = g => { const u = g.unit || 'aus'; return { u, t: u === 'and' ? String(g.ut || '').trim() : '' }; };
 function slMissing(o) { for (const x of SLX) { if (slMode(o, x[0]) === 'pauschal' && !(slTotal(o, x[0]) > 0)) return x[4]; if (slMode(o, x[0]) === 'm2' && o[x[0] + 'M2'] > 0 && !(slEP(o, x[0]) > 0)) return x[4]; } for (const x of (o.sx || [])) if (((x.n || '').trim() ? 1 : 0) !== (slTotalX(x) > 0 ? 1 : 0)) return (x.n || '').trim() || 'Andere Leistung'; return ''; }
-const SX_MAX = 3;
 function fRank(f) { const i = FLOORS.indexOf(f); if (i >= 0) return i; const m = /^(\d+)\.?\s*(OG|UG)/i.exec(f || ''); if (m) return m[2].toUpperCase() === 'OG' ? +m[1] + 1 : -(+m[1]) + 0.5; if (/dach|attika/i.test(f)) return 50; if (/zwischen|galerie|mezz/i.test(f)) return 1.5; if (/aussen|umgebung|garage|parking|tiefgarage/i.test(f)) return -50; return 40; }
 function floorsOf(o) { return [...new Set([...FLOORS, ...(o.floorsX || []), ...o.rooms.map(r => r.floor).filter(Boolean)])].sort((a, b) => fRank(a) - fRank(b)); }
 function addFloor(o, name) { name = (name || '').trim().replace(/\s+/g, ' '); if (!name) return null; const hit = floorsOf(o).find(f => f.toLowerCase() === name.toLowerCase()); if (hit) return hit; (o.floorsX = o.floorsX || []).push(name); return name; }
@@ -1043,7 +1042,8 @@ async function flush() {
       catch (e) {
         delete lastW[p];
         if (e && e.code === 'invalid_argument' && !p.startsWith('media/')) { NOWRITE = true; toast('Keine Schreibrechte: Änderungen werden nicht gespeichert', 'error'); break; }
-        if (e && e.code === 'quota_exceeded') { toast('Speicher voll: bitte alte Fotos entfernen', 'error'); break; }
+        if (e && e.code === 'quota_exceeded' && p.startsWith('media/')) { dropMedia(p.slice(6)); toast('Eine Datei war zu gross für den Server und wurde nicht gespeichert. Bitte ein kleineres Foto wählen.', 'error'); setTimeout(() => { save(); try { if (UI.view === 'bes') renderBes(); } catch (e2) {} }, 200); continue; }
+        if (e && e.code === 'quota_exceeded') { toast('Der Server hat die Daten abgelehnt (zu gross). Bitte Support informieren.', 'error'); break; }
         if (e && e.code === 'unavailable') { setTimeout(save, 1500 + Math.random() * 1000); }
       }
     }
@@ -1123,15 +1123,21 @@ function makeDb() {
   const cols = {}, subs = {}; let since = '1970-01-01T00:00:00Z', started = false;
   const snapOf = c => ({ docs: Object.entries(cols[c] || {}).map(([id, data]) => ({ exists: true, id, data: () => JSON.parse(JSON.stringify(data)) })) });
   async function pull() {
-    const r = await beApi('/api/docs?since=' + encodeURIComponent(since)); if (!r.ok) throw new Error('docs ' + r.status);
-    const j = await r.json(), ch = new Set();
-    j.docs.forEach(d => { (cols[d.col] = cols[d.col] || {}); if (d.deleted) delete cols[d.col][d.id]; else cols[d.col][d.id] = d.data; ch.add(d.col); });
-    if (j.docs.length) since = j.now; return ch;
+    const ch = new Set();
+    for (let guard = 0; guard < 200; guard++) {   // grosse Datenmengen seitenweise holen (Server-Limit pro Antwort)
+      const r = await beApi('/api/docs?since=' + encodeURIComponent(since)); if (!r.ok) throw new Error('docs ' + r.status);
+      const j = await r.json();
+      if (writing) return ch;   // Lokale Änderungen werden gerade geschrieben: Server-Stand jetzt nicht anwenden (sonst überschreibt er frische Fotos/Eingaben)
+      j.docs.forEach(d => { (cols[d.col] = cols[d.col] || {}); if (d.deleted) delete cols[d.col][d.id]; else cols[d.col][d.id] = d.data; ch.add(d.col); });
+      if (j.docs.length) since = j.now;
+      if (!j.more || !j.docs.length) break;
+    }
+    return ch;
   }
   async function start() {
     if (started) return; started = true;
     try { await pull(); Object.keys(subs).forEach(c => subs[c].cb(snapOf(c))); } catch (e) { Object.values(subs).forEach(x => x.err && x.err(e)); return; }
-    setInterval(async () => { if (document.hidden || BE_BUSY) return; try { const ch = await pull(); ch.forEach(c => subs[c] && subs[c].cb(snapOf(c))); } catch (e) {} }, 6000);
+    setInterval(async () => { if (document.hidden || BE_BUSY || writing) return; try { const ch = await pull(); ch.forEach(c => subs[c] && subs[c].cb(snapOf(c))); } catch (e) {} }, 6000);
   }
   return {
     collection: c => ({ onSnapshot: (cb, err) => { subs[c] = { cb, err }; setTimeout(start, 0); } }),
@@ -1681,7 +1687,7 @@ function objCalc(o) {
   const calcMonthly = monthHours * rate;
   const base = o.pauschale > 0 ? o.pauschale : calcMonthly;
   const wash = o.wasch && o.waschPreis > 0 ? +o.waschPreis : 0;      // Tücherservice, monatlich
-  const slv = {}, slm = {}; SLX.forEach(x => { slv[x[0]] = slTotal(o, x[0]); slm[x[0]] = { mode: slMode(o, x[0]), m2: o[x[0] + 'M2'] > 0 ? +o[x[0] + 'M2'] : 0, ep: slEP(o, x[0]), unit: slUnitOf({ unit: o[x[0] + 'Unit'], ut: o[x[0] + 'UT'] }) }; }); const { fenster, glas, teppich } = slv; const sx = (o.sx || []).map(x => ({ n: (x.n || '').trim(), p: slTotalX(x), mode: x.mode === 'm2' ? 'm2' : 'pauschal', m2: x.m2 > 0 ? +x.m2 : 0, ep: x.ep > 0 ? +x.ep : 0, unit: slUnitOf(x) })).filter(x => x.n && x.p > 0).slice(0, SX_MAX);  // Fensterreinigung pauschal pro Ausführung (nicht im Monatsbetrag)
+  const slv = {}, slm = {}; SLX.forEach(x => { slv[x[0]] = slTotal(o, x[0]); slm[x[0]] = { mode: slMode(o, x[0]), m2: o[x[0] + 'M2'] > 0 ? +o[x[0] + 'M2'] : 0, ep: slEP(o, x[0]), unit: slUnitOf({ unit: o[x[0] + 'Unit'], ut: o[x[0] + 'UT'] }) }; }); const { fenster, glas, teppich } = slv; const sx = (o.sx || []).map(x => ({ n: (x.n || '').trim(), p: slTotalX(x), mode: x.mode === 'm2' ? 'm2' : 'pauschal', m2: x.m2 > 0 ? +x.m2 : 0, ep: x.ep > 0 ? +x.ep : 0, unit: slUnitOf(x) })).filter(x => x.n && x.p > 0);  // Fensterreinigung pauschal pro Ausführung (nicht im Monatsbetrag)
   const monthly = base + wash;
   const mode = o.pauschale > 0 ? 'pauschale' : einsatz ? 'einsatz' : 'flaeche';
   return { proTag, tage, hours, area, bad, noArea, rate, wk, per, nWeek, perClean, calcPerClean, einsatz, mode, monthHoursWeekly, monthHoursPer, monthHours, wf: WF(), calcMonthly, base, wash, fenster, glas, teppich, slm, sx, monthly, annual: monthly * 12, perWeek: wk };
@@ -2059,7 +2065,7 @@ function renderBes() {
         <div id="waschWrap" ${o.wasch ? '' : 'hidden'}>${fieldHtml('bWasch','Waschservice pro Monat (CHF, exkl. MwSt.)',o.waschPreis ?? '',`data-o="waschPreis" data-num="1" inputmode="decimal" placeholder="z. B. 40.00" ${dis}`)}</div>
         <div class="slbox"><div class="small muted" style="margin-bottom:6px">Grundreinigungen / Sonderleistungen: pro Leistung Pauschal oder nach m², Abrechnung pro Ausführung, pro Monat oder anders. «Nicht offerieren» blendet die Leistung in der Offerte aus.</div>${SLX.map(([k, n1]) => slEdHtml(o, k, dis, n1)).join('')}
         ${(o.sx || []).map((x, i) => slEdHtml(o, 'sx' + i, dis, '')).join('')}
-        ${dis || (o.sx || []).length >= SX_MAX ? '' : `<button type="button" class="chip" data-act="sxAdd" style="border-style:dashed;margin-top:4px">+ Andere Leistung (z. B. Entsorgungsservice)</button>`}</div>
+        ${dis ? '' : `<button type="button" class="chip" data-act="sxAdd" style="border-style:dashed;margin-top:4px">+ Andere Leistung (z. B. Entsorgungsservice)</button>`}</div>
       </div></div>
 
       <div class="card fsec acc ${secOpen('refs', SM.refs.st) ? 'open' : ''}" id="sec-refs"><button type="button" class="acc-h" data-act="secT" data-k="refs" aria-expanded="${secOpen('refs', SM.refs.st)}"><span><span class="acc-t">Referenzen</span><span class="acc-s">${SM.refs.status}</span></span>${secIcon(SM.refs.st)}</button><div class="acc-b">
@@ -2068,8 +2074,8 @@ function renderBes() {
 
       <div class="card fsec acc ${secOpen('zusatz', SM.zusatz.st) ? 'open' : ''}" id="sec-zusatz"><button type="button" class="acc-h" data-act="secT" data-k="zusatz" aria-expanded="${secOpen('zusatz', SM.zusatz.st)}"><span><span class="acc-t">Fotos und Notizen</span><span class="acc-s">${SM.zusatz.status}</span></span>${secIcon(SM.zusatz.st)}</button><div class="acc-b"><p class="hint">Interne Angaben für Innendienst und Einsatzplanung. Sie erscheinen nicht in der Offerte.</p>
         <div class="field"><label for="bDiv">Diverses</label><textarea id="bDiv" data-o="diverses" placeholder="Zutritt, Schlüssel, Besonderheiten" ${dis}>${esc(o.diverses)}</textarea></div>
-        <div class="field"><label>Bilderdokumentation</label><label class="btn btn-s upl" style="justify-self:start">${ico('i-cam')}Fotos hinzufügen<input type="file" accept="image/*" multiple data-file="photos" ${dis}></label>${o.photos.length ? `<p class="small muted" style="margin:6px 0 0">Ein Foto kann als Titelbild der Offerte dienen.</p><div class="thumbs tb">${o.photos.map((p, i) => `<div class="tbi ${o.titel === p ? 'sel' : ''}"><img src="${med(p)}" alt="Objektfoto">${dis ? (o.titel === p ? '<span class="tbb on">★ Titelbild</span>' : '') : `<button type="button" class="tbb ${o.titel === p ? 'on' : ''}" data-act="titelSet" data-i="${i}">${o.titel === p ? '★ Titelbild' : 'Als Titelbild'}</button>`}</div>`).join('')}</div>` : ''}</div>
-        <div class="field"><label>Skizze / Grundriss</label><label class="btn btn-s upl" style="justify-self:start">${ico('i-up')}Datei hochladen<input type="file" accept="image/*,application/pdf" data-file="skizze" ${dis}></label>${o.skizze.length ? `<div class="thumbs">${o.skizze.map(p => med(p).startsWith('data:image') ? `<img src="${med(p)}" alt="Skizze">` : `<span class="badge b-info">PDF</span>`).join('')}</div>` : ''}</div>
+        <div class="field"><label>Bilderdokumentation</label><label class="btn btn-s upl" style="justify-self:start">${ico('i-cam')}Fotos hinzufügen<input type="file" accept="image/*" multiple data-file="photos" ${dis}></label>${o.photos.length ? `<p class="small muted" style="margin:6px 0 0">Ein Foto kann als Titelbild der Offerte dienen.</p><div class="thumbs tb">${o.photos.map((p, i) => `<div class="tbi ${o.titel === p ? 'sel' : ''}"><div class="tbw"><img src="${med(p)}" alt="Objektfoto">${dis ? '' : `<button type="button" class="tbx" data-act="mediaDel" data-arr="photos" data-i="${i}" aria-label="Foto entfernen" title="Foto entfernen">×</button>`}</div>${dis ? (o.titel === p ? '<span class="tbb on">★ Titelbild</span>' : '') : `<button type="button" class="tbb ${o.titel === p ? 'on' : ''}" data-act="titelSet" data-i="${i}">${o.titel === p ? '★ Titelbild' : 'Als Titelbild'}</button>`}</div>`).join('')}</div>` : ''}</div>
+        <div class="field"><label>Skizze / Grundriss</label><label class="btn btn-s upl" style="justify-self:start">${ico('i-up')}Datei hochladen<input type="file" accept="image/*,application/pdf" data-file="skizze" ${dis}></label>${o.skizze.length ? `<div class="thumbs">${o.skizze.map((p, i) => `<div class="tbw">${med(p).startsWith('data:image') ? `<img src="${med(p)}" alt="Skizze">` : `<span class="badge b-info">PDF</span>`}${dis ? '' : `<button type="button" class="tbx" data-act="mediaDel" data-arr="skizze" data-i="${i}" aria-label="Datei entfernen" title="Datei entfernen">×</button>`}</div>`).join('')}</div>` : ''}</div>
       </div></div>
 
       <div id="formErr"></div>
@@ -2893,6 +2899,17 @@ function startBes(o) {
   o.status = 'erfassung'; logO(o, `Besichtigung gestartet${o.verkaeufer ? ' durch ' + o.verkaeufer : ''}`); UI.cur = o.id; UI.floor = 'Alle'; save();
   go('bes'); toast('Besichtigung gestartet. Raum für Raum erfassen.', 'check');
 }
+function askYN(title, text, yes, onYes, no = 'Nein') {
+  const old = document.getElementById('ynDlg'); if (old) old.remove();
+  const d = document.createElement('div'); d.id = 'ynDlg';
+  d.style.cssText = 'position:fixed;inset:0;z-index:3000;background:rgba(14,40,46,.5);display:grid;place-items:center;padding:16px';
+  d.innerHTML = `<div role="alertdialog" aria-modal="true" aria-labelledby="ynT" style="background:#fff;border-radius:16px;max-width:440px;width:100%;padding:22px 22px 18px;box-shadow:0 20px 60px rgba(0,0,0,.25)"><h2 id="ynT" style="margin:0 0 6px;font-size:19px">${esc(title)}</h2><p class="small" style="margin:0 0 16px;color:var(--cs-muted,#4a5a60)">${esc(text)}</p><div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" class="btn btn-s" id="ynNo">${esc(no)}</button><button type="button" class="btn btn-p" id="ynYes">${esc(yes)}</button></div></div>`;
+  document.body.appendChild(d);
+  const close = () => { d.remove(); document.removeEventListener('keydown', kd); }, kd = e => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', kd);
+  d.querySelector('#ynNo').onclick = close; d.addEventListener('click', e => { if (e.target === d) close(); });
+  d.querySelector('#ynYes').onclick = () => { close(); onYes(); }; d.querySelector('#ynNo').focus();
+}
 const ACT = {
   go: el => go(el.dataset.v),
   newBes: () => planBes(),
@@ -2945,7 +2962,17 @@ const ACT = {
   floor: el => { UI.floor = el.dataset.f; renderBes(); },
   floorNew: () => { UI.floorNew = true; renderBes(); const i = $('#fNewIn'); i && i.focus({ preventScroll: true }); },
   floorAdd: () => { const o = curObj(), i = $('#fNewIn'), f = addFloor(o, i && i.value); UI.floorNew = false; if (f) { UI.floor = f; save(); } renderBes(); },
-  sxAdd: () => { const o = curObj(); o.sx = o.sx || []; if (o.sx.length >= SX_MAX) return; o.sx.push({ n: '', mode: 'pauschal', p: null, unit: 'aus' }); save(); renderBes(); const i = $('#sxn' + (o.sx.length - 1)); i && i.focus({ preventScroll: true }); },
+  mediaDel: el => {
+    const o = curObj(), arr = el.dataset.arr === 'skizze' ? 'skizze' : 'photos', i = +el.dataset.i, k = o[arr][i]; if (!k) return;
+    askYN(arr === 'skizze' ? 'Datei entfernen?' : 'Foto entfernen?', 'Die Datei wird aus dieser Offerte entfernt.', 'Ja, entfernen', async () => {
+      o[arr].splice(i, 1); if (o.titel === k) o.titel = null;
+      const blob = JSON.stringify(Object.assign({}, S, { media: null }));
+      save(); renderBes();
+      if (!blob.includes('"' + k + '"') || !JSON.stringify(Object.assign({}, S, { media: null })).includes('"' + k + '"')) { delete S.media[k]; await delDocs(['media/' + k]); }
+      toast('Entfernt', 'check');
+    });
+  },
+  sxAdd: () => { const o = curObj(); o.sx = o.sx || []; o.sx.push({ n: '', mode: 'pauschal', p: null, unit: 'aus' }); save(); renderBes(); const i = $('#sxn' + (o.sx.length - 1)); i && i.focus({ preventScroll: true }); },
   sxDel: el => { const o = curObj(); o.sx.splice(+el.dataset.i, 1); save(); renderBes(); refreshBesLive(); },
   titelSet: el => { const o = curObj(); if (!o) return; const k = o.photos[+el.dataset.i]; o.titel = o.titel === k ? null : k; save(); renderBes(); toast(o.titel ? 'Titelbild gewählt' : 'Titelbild entfernt', 'info'); },
   roomUp: el => moveRoom(el.dataset.id, -1),
@@ -3086,7 +3113,12 @@ const ACT = {
     if (!o.revising) { REV[o.id] = JSON.parse(JSON.stringify({ ...o, log: undefined })); o.revising = true; logO(o, `Anpassung gestartet (Revision ${(o.rev || 0) + 1})`); save(); }
     UI.cur = o.id; closePanel(true); go('bes'); },
   revCancel: el => { const o = objOf(el.dataset.id), snap = REV[o.id]; if (!snap) return; const log = o.log; Object.keys(o).forEach(k => delete o[k]); Object.assign(o, snap, { log }); delete o.revising; delete REV[o.id]; logO(o, 'Anpassung verworfen'); save(); toast('Änderungen verworfen', 'info'); UI.docTab = 'pdf'; renderDoc(); },
-  sendRev: async el => {
+  sendRev: el => {
+    const o = objOf(el.dataset.id), cu = custOf(o);
+    if (!cu.email) { toast('Beim Kunden fehlt die E-Mail-Adresse.', 'warning'); return; }
+    askYN('Angepasste Offerte wirklich senden?', `Die angepasste Offerte wird jetzt per E-Mail an ${cu.email} gesendet.`, 'Ja, senden', () => ACT.sendRevGo(el));
+  },
+  sendRevGo: async el => {
     const o = objOf(el.dataset.id), cu = custOf(o), c = objCalc(o);
     if (!cu.email) { toast('Beim Kunden fehlt die E-Mail-Adresse.', 'warning'); return; }
     if (!(c.monthly > 0) || c.bad || !o.rooms.length) { toast('Offerte ist unvollständig. Bitte zuerst anpassen.', 'warning'); return; }
@@ -3101,7 +3133,12 @@ const ACT = {
     if (o.status === 'gewonnen' && o.ordner && o.ordner.url) startOrdner(o, false, true);
     if (UI.view === 'doc') renderDoc(); if (UI.panel) renderPanel(true); render();
   },
-  confirmSend: async el => {
+  confirmSend: el => {
+    const o = objOf(el.dataset.id), cu = custOf(o);
+    if (!cu.email) { toast('Beim Kunden fehlt die E-Mail-Adresse.', 'warning'); return; }
+    askYN('Offerte wirklich senden?', `Die Offerte wird jetzt per E-Mail an ${cu.email} gesendet.`, 'Ja, senden', () => ACT.confirmSendGo(el));
+  },
+  confirmSendGo: async el => {
     const o = objOf(el.dataset.id), cu = custOf(o), c = objCalc(o);
     if (!cu.email) { toast('Beim Kunden fehlt die E-Mail-Adresse.', 'warning'); return; }
     if (!(c.monthly > 0) || c.bad || !o.rooms.length) { toast('Offerte ist unvollständig. Bitte zuerst Besichtigung ergänzen.', 'warning'); return; }
@@ -3223,23 +3260,62 @@ document.addEventListener('change', e => { if (e.target && e.target.id === 'plog
 ['dragenter','dragover'].forEach(ev => document.addEventListener(ev, e => { const z = e.target.closest && e.target.closest('#ldrop'); if (!z) return; e.preventDefault(); z.classList.add('over'); }));
 document.addEventListener('dragleave', e => { const z = e.target.closest && e.target.closest('#ldrop'); if (z) z.classList.remove('over'); });
 document.addEventListener('drop', e => { const z = e.target.closest && e.target.closest('#ldrop'); if (!z) return; e.preventDefault(); z.classList.remove('over'); planLogoFile(e.dataTransfer.files[0]); });
+/* Dateien verkleinern: jedes Bild wird so komprimiert, dass es klar unter dem Server-Limit (4.5 MB pro Anfrage) bleibt */
+const MEDIA_MAX = 650000;   // Zeichen der Data-URL pro Datei
+function shrinkCanvas(cv, png) {
+  let q = 0.78, side = Math.max(cv.width, cv.height), out = '';
+  for (let i = 0; i < 8; i++) {
+    out = cv.toDataURL('image/jpeg', q); if (out.length <= MEDIA_MAX) return out;
+    if (q > 0.5) q -= 0.12; else { side = Math.round(side * 0.8); const s = side / Math.max(cv.width, cv.height), c2 = document.createElement('canvas'); c2.width = Math.max(1, Math.round(cv.width * s)); c2.height = Math.max(1, Math.round(cv.height * s)); const x = c2.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c2.width, c2.height); x.drawImage(cv, 0, 0, c2.width, c2.height); cv = c2; }
+  }
+  return out;
+}
+function imgToData(f, maxSide, keepPng) {
+  return new Promise(res => {
+    const img = new Image(), url = URL.createObjectURL(f);
+    img.onload = () => { URL.revokeObjectURL(url); const s = Math.min(1, maxSide / Math.max(img.width, img.height)); const cv = document.createElement('canvas'); cv.width = Math.max(1, Math.round(img.width * s)); cv.height = Math.max(1, Math.round(img.height * s));
+      const x = cv.getContext('2d'); if (!keepPng) { x.fillStyle = '#fff'; x.fillRect(0, 0, cv.width, cv.height); } x.drawImage(img, 0, 0, cv.width, cv.height);
+      if (keepPng) { const png = cv.toDataURL('image/png'); if (png.length <= MEDIA_MAX) return res([png]); }
+      res([shrinkCanvas(cv)]); };
+    img.onerror = () => { URL.revokeObjectURL(url); res([]); }; img.src = url;
+  });
+}
+async function pdfToData(f) {
+  if (!window.pdfjsLib) return [];
+  const pdf = await window.pdfjsLib.getDocument({ data: new Uint8Array(await f.arrayBuffer()), isEvalSupported: false }).promise, out = [];
+  for (let i = 1; i <= Math.min(pdf.numPages, 6); i++) {
+    const page = await pdf.getPage(i), v0 = page.getViewport({ scale: 1 }), vp = page.getViewport({ scale: Math.min(3, 1800 / Math.max(v0.width, v0.height)) });
+    const cv = document.createElement('canvas'); cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
+    const x = cv.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, cv.width, cv.height); await page.render({ canvasContext: x, viewport: vp }).promise; out.push(shrinkCanvas(cv));
+  }
+  return out;
+}
+function dropMedia(k) {
+  delete S.media[k];
+  S.objects.concat(S.archive || []).forEach(o => { if (!o) return; if (o.photos) o.photos = o.photos.filter(x => x !== k); if (o.skizze) o.skizze = o.skizze.filter(x => x !== k); if (o.titel === k) o.titel = null; (o.rooms || []).forEach(r => { if (r.photos) r.photos = r.photos.filter(x => x !== k); }); });
+}
 function handleFile(t) {
   const files = [...t.files]; if (!files.length) return;
-  const o = curObj();
-  Promise.all(files.map(f => new Promise(res => {
-    if (!f.type.startsWith('image/')) { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(f); return; }
-    const img = new Image(), url = URL.createObjectURL(f);
-    img.onload = () => { const s = Math.min(1, 1100 / Math.max(img.width, img.height)); const cv = document.createElement('canvas'); cv.width = img.width * s; cv.height = img.height * s; cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height); URL.revokeObjectURL(url); res(t.dataset.file === 'logo' ? cv.toDataURL('image/png') : cv.toDataURL('image/jpeg', .72)); };
-    img.onerror = () => res(null); img.src = url;
-  }))).then(list => {
-    list = list.filter(Boolean); const k = t.dataset.file;
+  const k = t.dataset.file, oId = (curObj() || {}).id; let bad = 0;
+  Promise.all(files.map(async f => {
+    const ext = (f.name.split('.').pop() || '').toLowerCase(), isPdf = f.type === 'application/pdf' || ext === 'pdf', isImg = f.type.startsWith('image/') || ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'bmp'].includes(ext);
+    try {
+      if (isImg) { const r = await imgToData(f, k === 'skizze' ? 1800 : 1400, k === 'logo'); if (!r.length) bad++; return r; }
+      if (isPdf && k === 'skizze') { const r = await pdfToData(f); if (!r.length) bad++; return r; }
+    } catch (e) {}
+    bad++; return [];
+  })).then(lists => {
+    const list = lists.flat().filter(Boolean);
+    if (bad) toast(list.length ? `${bad} Datei${bad > 1 ? 'en' : ''} konnte${bad > 1 ? 'n' : ''} nicht verarbeitet werden` : 'Datei konnte nicht verarbeitet werden (erlaubt: Fotos, bei Grundrissen auch PDF)', 'warning');
+    if (!list.length) return;
+    const o = (curObj() && curObj().id === oId) ? curObj() : (S.objects.find(x => x.id === oId) || curObj());   // Objekt erst jetzt holen: es kann zwischenzeitlich durch eine Synchronisierung ersetzt worden sein
     const keys = list.map(d => mediaPut(d));
     if (k === 'card') custOf(o).card = keys[0];
     if (k === 'logo') { const cu = (UI.panel && UI.panel.type === 'kun') ? S.customers.find(c => c.id === UI.panel.id) : custOf(o); if (cu) { cu.logo = keys[0]; cu.logoAuto = false; } save(); renderPanel(true); toast('Logo gespeichert', 'upload'); return; }
     if (k === 'photos') o.photos.push(...keys);
     if (k === 'skizze') o.skizze.push(...keys);
     if (k === 'room') { const x = curRoom(); if (x) x[1].photos.push(...keys); renderPanel(true); }
-    save(); if (k !== 'room') renderBes(); toast(list.length > 1 ? `${list.length} Dateien gespeichert` : 'Datei gespeichert', 'upload');
+    save(); if (k !== 'room') renderBes(); if (!bad) toast(list.length > 1 ? `${list.length} Dateien gespeichert` : 'Datei gespeichert', 'upload');
   });
 }
 
@@ -3464,6 +3540,9 @@ async function buildOfferPdf(o, lang = 'de') {
   /* Zeilenhöhen: lange Bezeichnungen / Einheiten werden sauber umbrochen, die Zeile wächst mit */
   SLR.forEach(r => { r.nl = wrapV(String(r.name || ''), 148, 9).slice(0, 3); r.sub = r.mode === 'm2' && r.m2 > 0; r.ul = r.mode === 'pauschal' ? wrapV(ULBL(r.unit), 94, 8.5).slice(0, 3) : [];
     const k = Math.max(r.nl.length, r.ul.length); r.h = k === 1 && !(r.sub && false) ? 22.32 : Math.round((13.2 + (k - 1) * 11 + (r.sub ? 10 : 0) + 8) * 100) / 100; if (k === 1 && r.sub) r.h = 22.32; });
+  /* Passen nicht alle Zeilen auf die Seite, geht der Rest auf eine Fortsetzungsseite (keine Obergrenze für Zusatzleistungen) */
+  const SLMAX = 3 * 22.32 + Math.max(0, 100 - SH); let SLOV = [];
+  if (!R) { let acc = 0, n = 0; for (const r of SLR) { if (n > 0 && acc + r.h > SLMAX) break; acc += r.h; n++; } SLOV = SLR.splice(n); }
   const SLH = SLR.reduce((a, r) => a + r.h, 0), SL = R ? 0 : SLH - 3 * 22.32;
   if (SH || SL) {
     /* Bereich ab Abschnitt 2 als Vorlagen-Ausschnitt um eine Zeile nach unten setzen (Link «Preisliste» wandert mit) */
@@ -3504,25 +3583,36 @@ async function buildOfferPdf(o, lang = 'de') {
     txt(p11, en ? 'Billing cycle' : 'Verrechnungsrhythmus', 71.7, ty + 13.4, { bold: true, color: C.navy }); txt(p11, en ? 'Monthly, at the start of each month' : 'Monatlich, jeweils anfangs Monat', 231.7, ty + 13.4);
   }
   /* Abschnitt 2 (Grundreinigungen / Sonderleistungen): Zeilen mit Pauschalpreis ersetzen die m²-Zeile */
-  if (!R) {
-    const nT = SLR.length, ln = rgb(0.851, 0.851, 0.851), GR = rgb(0.45, 0.45, 0.45);
-    let top = 329.81 + SH;
-    SLR.forEach((r, i) => {
+  const ln = rgb(0.851, 0.851, 0.851), GR = rgb(0.45, 0.45, 0.45);
+  const drawSL = (pg, rows, top) => rows.forEach((r, i) => {
       const bot = top + r.h, multi = r.h > 22.4, by = top + (multi ? 13.2 : 14.79);
-      p11.drawRectangle({ x: 65.9, y: H - (bot - 0.2), width: 474.1, height: bot - top - 0.4, color: i % 2 ? rgb(0.949, 0.949, 0.949) : C.white, borderWidth: 0 });
-      p11.drawLine({ start: { x: 65.4, y: H - bot }, end: { x: 540, y: H - bot }, thickness: 0.48, color: ln });
-      [65.17, 225.17, 330.19, 435.22, 540.24].forEach(xx => p11.drawLine({ start: { x: xx, y: H - (top - 0.2) }, end: { x: xx, y: H - bot }, thickness: 0.48, color: ln }));
+      pg.drawRectangle({ x: 65.9, y: H - (bot - 0.2), width: 474.1, height: bot - top - 0.4, color: i % 2 ? rgb(0.949, 0.949, 0.949) : C.white, borderWidth: 0 });
+      pg.drawLine({ start: { x: 65.4, y: H - bot }, end: { x: 540, y: H - bot }, thickness: 0.48, color: ln });
+      [65.17, 225.17, 330.19, 435.22, 540.24].forEach(xx => pg.drawLine({ start: { x: xx, y: H - (top - 0.2) }, end: { x: xx, y: H - bot }, thickness: 0.48, color: ln }));
       const n1 = r.sub && !multi ? by - 4.8 : by;
-      r.nl.forEach((l, j) => txt(p11, l, 71.7, n1 + j * 11));
-      if (r.sub) txt(p11, fit(ULBL(r.unit), 148, fH, 7), 71.7, multi ? by + (r.nl.length - 1) * 11 + 10 : by + 4.6, { size: 7, color: GR });
-      if (r.mode === 'auf') { txt(p11, en ? 'On request' : 'Auf Anfrage', 231.7, by); }
-      else if (r.mode === 'pauschal') { txt(p11, en ? 'Flat rate' : 'Pauschal', 231.7, by); r.ul.forEach((l, j) => txt(p11, l, 336.7, by + j * 10.5, { size: 8.5 })); txt(p11, `CHF ${pdfNum(r.tot)}`, 441.7, by); }
-      else if (r.m2 > 0) { txt(p11, `${pdfNum(r.m2, Number.isInteger(r.m2) ? 0 : 1)} m2`, 231.7, by); txt(p11, `CHF ${pdfNum(r.ep)} / m2`, 336.7, by); txt(p11, `CHF ${pdfNum(r.tot)}`, 441.7, by); }
-      else { txt(p11, 'm2', 231.7, by); txt(p11, `CHF ${pdfNum(r.ep)} / m2`, 336.7, by); txt(p11, 'CHF', 441.7, by); }
+      r.nl.forEach((l, j) => txt(pg, l, 71.7, n1 + j * 11));
+      if (r.sub) txt(pg, fit(ULBL(r.unit), 148, fH, 7), 71.7, multi ? by + (r.nl.length - 1) * 11 + 10 : by + 4.6, { size: 7, color: GR });
+      if (r.mode === 'auf') { txt(pg, en ? 'On request' : 'Auf Anfrage', 231.7, by); }
+      else if (r.mode === 'pauschal') { txt(pg, en ? 'Flat rate' : 'Pauschal', 231.7, by); r.ul.forEach((l, j) => txt(pg, l, 336.7, by + j * 10.5, { size: 8.5 })); txt(pg, `CHF ${pdfNum(r.tot)}`, 441.7, by); }
+      else if (r.m2 > 0) { txt(pg, `${pdfNum(r.m2, Number.isInteger(r.m2) ? 0 : 1)} m2`, 231.7, by); txt(pg, `CHF ${pdfNum(r.ep)} / m2`, 336.7, by); txt(pg, `CHF ${pdfNum(r.tot)}`, 441.7, by); }
+      else { txt(pg, 'm2', 231.7, by); txt(pg, `CHF ${pdfNum(r.ep)} / m2`, 336.7, by); txt(pg, 'CHF', 441.7, by); }
       top = bot;
     });
-  }
+  if (!R) drawSL(p11, SLR, 329.81 + SH);
   out.addPage(p11);
+  if (SLOV.length) {
+    const [hdr] = await out.embedPages([tpl.getPage(6)], [{ left: 0, bottom: H - 329.8, right: 546, top: H - 306 }]);
+    const pages = []; let cur = [], acc = 0;
+    SLOV.forEach(r => { if (cur.length && acc + r.h > 560) { pages.push(cur); cur = []; acc = 0; } cur.push(r); acc += r.h; }); if (cur.length) pages.push(cur);
+    for (const rows of pages) {
+      const [pc] = await out.copyPages(tpl, [13]);
+      white(pc, 56, 110, 549, 762);
+      txt(pc, en ? '2. Basic cleanings / special services (continued)' : '2. Grundreinigungen / Sonderleistungen (Fortsetzung)', 64.9, 140, { bold: true, size: 12.5, color: C.navy });
+      pc.drawPage(hdr, { x: 0, y: H - 184 });
+      drawSL(pc, rows, 184);
+      out.addPage(pc);
+    }
+  }
   const refs = (o.refs || []).filter(r => r && r.k).slice(0, 2);
   for (let i = 7; i < 16; i++) {
     if (i === 13 && refs.length) {
@@ -3714,9 +3804,12 @@ async function drawSheets(ctx, which) {
 
   /* Leistungsverzeichnis: zwei Spalten, Blöcke pro Reinigungsgruppe */
   const blocks = {};
-  o.rooms.filter(r => r.gruppe && r.dispo !== 'E').forEach(r => { const ts = roomTasks(r); const sig = r.gruppe + '|' + ts.map(x => x.t.id + ':' + x.code + (x.t.ov ? '~' + x.t.name : '')).join(','); if (!blocks[sig]) blocks[sig] = { g: r.gruppe, ts, rooms: [] }; blocks[sig].rooms.push(r); });
+  const rn = r => roomName(lang, r.bez) + (r.nr ? ' ' + r.nr : '');
+  o.rooms.filter(r => r.gruppe && r.dispo !== 'E').forEach(r => { const g = blocks[r.gruppe] || (blocks[r.gruppe] = { g: r.gruppe, rooms: [], tm: new Map() }); g.rooms.push(r);
+    roomTasks(r).forEach(x => { const k = x.t.id + ':' + x.code + (x.t.ov ? '~' + x.t.name : ''); if (!g.tm.has(k)) g.tm.set(k, { e: x, rs: [] }); g.tm.get(k).rs.push(r); }); });
   const list = Object.values(blocks).sort((a, b) => a.g.localeCompare(b.g));
-  const cnt = {}; list.forEach(b => cnt[b.g] = (cnt[b.g] || 0) + 1);
+  list.forEach(b => { b.ts = [...b.tm.values()].map(v => ({ ...v.e, sub: v.rs.length < b.rooms.length ? v.rs.map(rn) : null }));
+    const co = []; b.ts.forEach(x => { if (!co.includes(x.t.cat)) co.push(x.t.cat); }); b.ts = b.ts.map((x, i) => ({ x, i })).sort((a, c) => co.indexOf(a.x.t.cat) - co.indexOf(c.x.t.cat) || a.i - c.i).map(z => z.x); });
   const COLS = [{ x0: G.x0, x1: 297.8 }, { x0: 297.8, x1: G.x1 }];
   const lvHead = p => { COLS.forEach(cl => { t8(p, U('colA'), cl.x0 + 3.9, 223, { color: C.hdr }); t8(p, U('colB'), cl.x1 - 5.3, 223, { color: C.hdr, align: 'right' }); });
     p.drawLine({ start: { x: 297.8, y: H - G.top }, end: { x: 297.8, y: H - G.foot }, thickness: 0.6, color: C.black }); };
@@ -3729,22 +3822,22 @@ async function drawSheets(ctx, which) {
     lv.drawRectangle({ x: cl.x0 + 0.3, y: H - (ly + 19.6), width: cl.x1 - cl.x0 - 0.6, height: 19.6, color: C.bar, borderWidth: 0 });
     t8(lv, b.g, cl.x0 + 3.9, ly + 13, { bold: true, size: 10 }); t8(lv, fit(TR.group(lang, b.g) + (cont ? ' (' + U('cont') + ')' : ''), cl.x1 - cl.x0 - 48, fHB, 10), cl.x0 + 38, ly + 13, { bold: true, size: 10 });
     ly += 19.6; lv.drawLine({ start: { x: cl.x0, y: H - ly }, end: { x: cl.x1, y: H - ly }, thickness: 1, color: C.black }); ly += 11; };
-  const lines = b => { const out = []; let last = ''; b.ts.forEach(x => { if (x.t.cat !== last) { out.push({ cat: x.t.cat }); last = x.t.cat; } out.push({ e: x }); });
-    if (cnt[b.g] > 1 || b.rooms.some(r => r.custom)) out.push({ who: U('for') + ': ' + b.rooms.map(r => roomName(lang, r.bez) + (r.nr ? ' ' + r.nr : '')).join(', ') }); return out; };
-  const hOf = ls => ls.reduce((a, l) => a + (l.cat ? 16 : l.who ? 14 : G.lh), 0) + 30.6 + 6;
+  const lines = b => { const out = []; let last = ''; b.ts.forEach(x => { if (x.t.cat !== last) { out.push({ cat: x.t.cat }); last = x.t.cat; } const nm = TR.task(lang, x.t), br = x.sub ? '(' + x.sub.join(', ') + ')' : ''; if (br && fH.widthOfTextAtSize(nm + ' ' + br, 8) <= 150) out.push({ e: x, inl: nm + ' ' + br }); else out.push({ e: x, sub: br ? wrapV(br, 150, 7, fH).slice(0, 3) : null }); }); return out; };
+  const lh = l => l.cat ? 16 : G.lh + (l.sub ? l.sub.length * 8 : 0);
+  const hOf = ls => ls.reduce((a, l) => a + lh(l), 0) + 30.6 + 6;
   for (const b of (which.lv ? list : [])) {
     const ls = lines(b), need = hOf(ls);
     if (ly > G.head + 0.5 && ly + need > G.foot - 4 && G.foot - ly < 110) await nextCol();   // Block passt nicht mehr: bei wenig Restplatz in die nächste Spalte, sonst teilen
     bar(b, false);
     let first = true;
     for (const l of ls) {
-      const h = l.cat ? 16 : l.who ? 14 : G.lh;
+      const h = lh(l);
       if (ly + h > G.foot - 4) { await nextCol(); bar(b, true); first = true; }
       const cl = COLS[col];
       if (l.cat) { if (!first) ly += 4.5; t8(lv, fit(TR.cat(lang, l.cat), cl.x1 - cl.x0 - 10, fHB, 8), cl.x0 + 3.9, ly + 5, { bold: true }); ly += h; }
-      else if (l.who) { ly += 3; wrapV(l.who, cl.x1 - cl.x0 - 10, 7, fH).slice(0, 2).forEach(w => { t8(lv, w, cl.x0 + 3.9, ly + 4, { size: 7, color: C.hdr }); ly += 9; }); ly += 2; }
-      else { const f = freqCols(l.e.code); check(lv, cl.x0 + 4.5, ly + 7); t8(lv, fit(TR.task(lang, l.e.t), 150, fH, 8), cl.x0 + 15.7, ly + 7);
-        t8(lv, l.e.code, cl.x0 + 176.7, ly + 7); t8(lv, f[0], cl.x0 + 218, ly + 7, { align: 'right' }); t8(lv, f[1], cl.x0 + 237, ly + 7, { align: 'right' }); t8(lv, f[2], cl.x0 + 255, ly + 7, { align: 'right' }); ly += h; }
+      else { const f = freqCols(l.e.code); check(lv, cl.x0 + 4.5, ly + 7); t8(lv, fit(l.inl || TR.task(lang, l.e.t), 150, fH, 8), cl.x0 + 15.7, ly + 7);
+        t8(lv, l.e.code, cl.x0 + 176.7, ly + 7); t8(lv, f[0], cl.x0 + 218, ly + 7, { align: 'right' }); t8(lv, f[1], cl.x0 + 237, ly + 7, { align: 'right' }); t8(lv, f[2], cl.x0 + 255, ly + 7, { align: 'right' });
+        if (l.sub) l.sub.forEach((w, i) => t8(lv, w, cl.x0 + 15.7, ly + 7 + 8 * (i + 1) + 0.5, { size: 7, color: C.hdr })); ly += h; }
       first = false;
     }
     ly += 6;
