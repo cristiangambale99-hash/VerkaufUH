@@ -33,7 +33,7 @@ module.exports = async (req, res) => {
       };
       if (run) {
         const done = Math.min(o.nf || 0, 2), nfd = o.nfDates || [];
-        const due0 = addD(o.sent, g[0]), n1 = nfd[0] || due0, due1 = addD(n1, g[1]), n2 = nfd[1] || due1, close = addD(n2, g[2]);
+        const sh = Array.isArray(o.nfShift) ? o.nfShift : [], due0 = addD(o.sent, g[0] + (+sh[0] || 0)), n1 = nfd[0] || due0, due1 = addD(n1, g[1] + (+sh[1] || 0)), n2 = nfd[1] || due1, close = addD(n2, g[2]);
         if (done < 2) {
           if ((done === 0 ? due0 : due1) <= T && await send('nf' + (done + 1), close)) { o.nf = done + 1; o.nfDates = [...nfd, T]; log(`${o.nf}. Nachfassung automatisch gesendet an ${cu.email}`); }
         } else if (close <= T) {
