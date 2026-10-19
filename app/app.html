@@ -278,7 +278,7 @@ body{-webkit-tap-highlight-color:transparent}
 .tk .hh{font-size:12px;color:var(--cs-fg-2);width:54px;text-align:right;font-variant-numeric:tabular-nums}
 .thumbs{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .thumbs img{width:76px;height:76px;object-fit:cover;border-radius:8px;border:1px solid var(--cs-line)}
-.tbw{position:relative;display:inline-block}
+.tbw{position:relative;display:inline-block}.nfsh{color:#a35a00;font-weight:600}
 .vakgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}.vakc{display:flex;flex-direction:column;gap:12px;text-align:left;padding:16px 18px;cursor:pointer;font:inherit;color:inherit;transition:border-color .15s,box-shadow .15s}.vakc:hover,.vakc[aria-selected="true"]{border-color:var(--cs-teal,#0e7c80);box-shadow:0 4px 18px rgba(14,124,128,.12)}
 .vakc .vh{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.vakc .vh{flex-wrap:wrap}.vakc .vh>div{min-width:0;flex:1 1 180px}.vakc .vh b{display:block;font-size:15.5px;text-transform:none;letter-spacing:0;color:var(--cs-fg,#16323a);font-weight:700}.vakc .vh small{display:block;color:var(--cs-fg-2);font-size:12.5px;text-transform:none;letter-spacing:0;font-weight:400;margin-top:2px}.vakc .badge{white-space:nowrap}.vakc .vm{display:flex;flex-direction:column;gap:5px;font-size:13px}.vakc .vm>span{display:flex;gap:7px;align-items:flex-start}.vakc .vm>span>svg{margin-top:2px}.vakc .vm svg{color:var(--cs-teal,#0e7c80);flex:none}
 .vakc .vf{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--cs-line);padding-top:10px;min-height:42px}.vakc .go{display:flex;align-items:center;gap:2px;color:var(--cs-teal,#0e7c80);font-weight:700;font-size:13px}
@@ -1745,7 +1745,7 @@ function mailNf(o, k) {
 const nfGaps = () => { const g = String(S.settings.nachStufen || '7T, 14T, 5T').split(/[,;]/).map(x => x.trim()).filter(x => !/M$/i.test(x)).map(x => parseInt(x, 10)).filter(x => x > 0); return [g[0] || 7, g[1] || 14, g[2] || 5]; };
 const nfStages = () => { const g = nfGaps(); return [{ d: g[0], l: g[0] + ' Tage nach Versand' }, { d: g[1], l: g[1] + ' Tage nach der 1. Nachfassung' }]; };
 const addDaysTo = (iso, n) => { const d = parseDay(iso); d.setDate(d.getDate() + n); return isoDay(d); };
-function nfDue(o, i) { const g = nfGaps(); if (i === 0) return addDaysTo(o.sent, g[0]); const prev = (o.nfDates || [])[i - 1] || nfDue(o, i - 1); return addDaysTo(prev, g[1]); }
+function nfDue(o, i) { const g = nfGaps(), sh = +((o.nfShift || [])[i]) || 0; if (i === 0) return addDaysTo(o.sent, g[0] + sh); const prev = (o.nfDates || [])[i - 1] || nfDue(o, i - 1); return addDaysTo(prev, g[1] + sh); }
 function nfCloseDue(o) { if (!o || !o.sent) return null; const g = nfGaps(), prev = (o.nfDates || [])[1] || nfDue(o, 1); return addDaysTo(prev, g[2]); }
 const nfDueDay = (sent, st) => addDaysTo(sent, st.d);
 function nfInfo(o) {
@@ -1763,20 +1763,49 @@ function autoInaktiv() {
 }
 function reInfo(o) { if (!o || o.status !== 'verloren' || !o.auto || !o.verlorenSeit) return null; const d = parseDay(o.verlorenSeit); d.setMonth(d.getMonth() + 6); const due = isoDay(d), left = Math.round((d - TODAY) / 864e5); return { due, left, over: left <= 0, done: !!o.reMail }; }
 function mailPrevHtml(o, k) { const m = mailNf(o, k); return `<details class="mailprev" style="margin:6px 0"><summary>${ico('i-send', 16)}Mail ansehen</summary><div class="mp-h"><span class="muted small">An</span> ${esc(m.an || 'E-Mail fehlt')}<br><span class="muted small">Betreff</span> <b>${esc(m.betreff)}</b></div><div class="mp-b">${esc(m.text)}</div></details>`; }
+function nfDelayDlg(o) {
+  const info = nfInfo(o); if (!info || info.fin) return;
+  const old = document.getElementById('nfdDlg'); if (old) old.remove();
+  const d = document.createElement('div'); d.id = 'nfdDlg';
+  d.style.cssText = 'position:fixed;inset:0;z-index:3000;background:rgba(14,40,46,.5);display:grid;place-items:center;padding:16px';
+  const name = (custOf(o) || {}).firma || o.firma || '';
+  d.innerHTML = `<div role="dialog" aria-modal="true" aria-labelledby="nfdT" style="background:#fff;border-radius:16px;max-width:460px;width:100%;padding:22px 22px 18px;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+    <h2 id="nfdT" style="margin:0 0 4px;font-size:19px">${info.done + 1}. Nachfassung verschieben</h2>
+    <p class="small muted" style="margin:0 0 14px">${esc(name)} · bisher fällig am <b>${fmtDay(info.due)}</b>. Zum Beispiel, wenn der Kunde noch Zeit für die interne Besprechung braucht.</p>
+    <div class="field"><label>Um wie viele Tage?</label><div class="chips" style="margin-bottom:8px">${[3, 7, 14, 21, 30].map(n => `<button type="button" class="chip" data-nfd="${n}">${n} Tage</button>`).join('')}</div>
+    <input id="nfdN" type="number" min="1" max="180" inputmode="numeric" placeholder="Anzahl Tage" style="max-width:160px"></div>
+    <div class="field" style="margin-top:10px"><label for="nfdR">Grund (optional, erscheint im Verlauf)</label><input id="nfdR" placeholder="z. B. Kunde bespricht intern bis Ende Monat"></div>
+    <p class="small" id="nfdNew" style="margin:10px 0 0;min-height:20px;color:var(--cs-teal,#0e7c80);font-weight:600"></p>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button type="button" class="btn btn-s" id="nfdNo">Abbrechen</button><button type="button" class="btn btn-p" id="nfdYes" disabled>Verschieben</button></div></div>`;
+  document.body.appendChild(d);
+  const inp = d.querySelector('#nfdN'), yes = d.querySelector('#nfdYes'), out = d.querySelector('#nfdNew');
+  const upd = () => { const n = parseInt(inp.value, 10); const ok = n > 0 && n <= 180; yes.disabled = !ok; out.textContent = ok ? `Neu fällig am ${fmtDay(addDaysTo(info.due, n))}` : ''; d.querySelectorAll('[data-nfd]').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.nfd === n))); };
+  d.querySelectorAll('[data-nfd]').forEach(b => b.onclick = () => { inp.value = b.dataset.nfd; upd(); });
+  inp.oninput = upd;
+  const close = () => d.remove();
+  d.querySelector('#nfdNo').onclick = close; d.addEventListener('click', e => { if (e.target === d) close(); });
+  yes.onclick = () => { const n = parseInt(inp.value, 10); if (!(n > 0)) return; const r = d.querySelector('#nfdR').value.trim();
+    o.nfShift = Array.isArray(o.nfShift) ? o.nfShift.slice() : []; o.nfShift[info.done] = (+o.nfShift[info.done] || 0) + n;
+    logO(o, `${info.done + 1}. Nachfassung um ${n} Tage verschoben (neu ${fmtDay(nfDue(o, info.done))})${r ? ': ' + r : ''}`);
+    save(); close(); toast(`Nachfassung verschoben auf ${fmtDay(nfDue(o, info.done))}`, 'check'); if (UI.panel) renderPanel(true); render(); };
+  inp.focus();
+}
 function nfListHtml(o) {
   const re = reInfo(o);
   if (re) return `<div class="sec-t">Nachfassung</div><div class="small muted">Ohne Rückmeldung automatisch auf inaktiv gesetzt (${fmtDay(o.verlorenSeit)}).</div><ul class="nfl"><li><span>Erneute Anfrage nach 6 Monaten</span>${re.done ? '<span class="badge b-ok">gesendet</span>' : re.over ? '<span class="badge b-warn">fällig</span>' : `<span class="muted small">${fmtDay(re.due)}</span>`}</li></ul>${o.rooms ? mailPrevHtml(o, 're6') : ''}${re.over && !re.done ? `<button class="btn btn-p btn-sm" data-act="reDone" data-id="${o.live === false || !o.rooms ? o.nr : o.id}">${ico('i-send')}Erneute Anfrage gesendet</button>` : ''}`;
   if (!o || !(o.status === 'versendet' || (o.status === 'gewonnen' && o.revOpen && !o.inaktiv)) || !o.sent) return '';
   const st = nfStages(), info = nfInfo(o), done = Math.min(o.nf || 0, st.length), cd = nfCloseDue(o);
   return `<div class="sec-t">${o.status === 'gewonnen' ? 'Nachfassung zur angepassten Offerte' : 'Nachfassung'}</div><ul class="nfl">${st.map((x, i) => { const due = nfDue(o, i), st2 = i < done ? '<span class="badge b-ok">erledigt</span>' : (i === done && info && info.over) ? '<span class="badge b-warn">fällig</span>' : `<span class="muted small">${fmtDay(due)}</span>`;
-    return `<li><span>${i + 1}. Nachfassung · ${x.l}</span>${st2}</li>`; }).join('')}<li><span>Automatisch inaktiv · ${nfGaps()[2]} Tage nach der 2. Nachfassung</span><span class="muted small">${fmtDay(cd)}</span></li></ul>
+    const sh = +((o.nfShift || [])[i]) || 0;
+    return `<li><span>${i + 1}. Nachfassung · ${x.l}${sh ? `<br><small class="nfsh">Um ${sh} Tag${sh === 1 ? '' : 'e'} verschoben</small>` : ''}</span>${st2}</li>`; }).join('')}<li><span>Automatisch inaktiv · ${nfGaps()[2]} Tage nach der 2. Nachfassung</span><span class="muted small">${fmtDay(cd)}</span></li></ul>
   <div class="small muted" style="margin-top:6px">${o.status === 'gewonnen' ? 'Der Kunde bleibt aktiv, bis die angepasste Offerte bestätigt wird. Ohne Rückmeldung gelten die bisherigen Konditionen weiter.' : 'Mit «Gewonnen (aktiv)» oder «Abgesagt» endet der Prozess sofort. Ohne Rückmeldung wird der Kunde automatisch inaktiv, nach 6 Monaten folgt eine erneute Anfrage.'}</div>${o.status === 'gewonnen' ? `<button class="btn btn-s btn-sm" style="margin-top:6px" data-act="revOk" data-id="${o.id}">Angepasste Offerte angenommen</button>` : ''}
   ${!o.rooms ? '' : info && !info.fin ? mailPrevHtml(o, info.done === 0 ? 'nf1' : 'nf2') : info && info.fin ? mailPrevHtml(o, 'nf2') : ''}
+  ${info && !info.fin ? `<button class="btn btn-s btn-sm" style="margin-top:6px;margin-right:6px" data-act="nfDelay" data-id="${o.live === false || !o.rooms ? o.nr : o.id}">${ico('i-cal', 16)}${info.done + 1}. Nachfassung verschieben</button>` : ''}
   ${info && info.over ? `<button class="btn btn-p btn-sm" style="margin-top:6px" data-act="nfDone" data-id="${o.live === false || !o.rooms ? o.nr : o.id}">${ico('i-send')}${BE_ON ? done + 1 + '. Nachfassung jetzt senden' : done + 1 + '. Nachfassung gesendet'}</button>` : ''}`;
 }
 function allOffers() {
   const live = S.objects.filter(o => o.status !== 'geplant' && o.status !== 'abgesagt').map(o => { const c = objCalc(o); const cu = custOf(o);
-    return { live:true, id:o.id, nr:o.nr || o.objNr || 'Entwurf', firma:cu.firma, objekt:o.name, objNr:o.objNr, monthly:c.monthly, hours:c.hours, status:o.status, inaktiv:o.inaktiv, inaktivSeit:o.inaktivSeit, rev:o.rev, revising:o.revising, nf:o.nf, nfDates:o.nfDates, auto:o.auto, verlorenSeit:o.verlorenSeit, reMail:o.reMail, revOpen:o.revOpen, verkaeufer:o.verkaeufer, created:o.created || o.besDatum, sent:o.sent, besDatum:o.besDatum, besZeit:o.besZeit }; });
+    return { live:true, id:o.id, nr:o.nr || o.objNr || 'Entwurf', firma:cu.firma, objekt:o.name, objNr:o.objNr, monthly:c.monthly, hours:c.hours, status:o.status, inaktiv:o.inaktiv, inaktivSeit:o.inaktivSeit, rev:o.rev, revising:o.revising, nf:o.nf, nfDates:o.nfDates, nfShift:o.nfShift, auto:o.auto, verlorenSeit:o.verlorenSeit, reMail:o.reMail, revOpen:o.revOpen, verkaeufer:o.verkaeufer, created:o.created || o.besDatum, sent:o.sent, besDatum:o.besDatum, besZeit:o.besZeit }; });
   const arch = S.archive.map(a => ({ ...a, live:false, id:a.nr, besDatum:a.created }));
   return [...live, ...arch].sort((a, b) => (b.created || '').localeCompare(a.created || ''));
 }
@@ -3303,6 +3332,7 @@ const ACT = {
     if (UI.view === 'doc') renderDoc(); if (UI.panel) renderPanel(true); render();
   },
   setStatus: el => { const o = objOf(UI.panel.id); setStatus(o, el.dataset.v); renderPanel(true); render(); markSelected(); },
+  nfDelay: el => { const id = el.dataset.id, o = objOf(id) || S.archive.find(x => x.nr === id); if (o) nfDelayDlg(o); },
   nfDone: async el => { const id = el.dataset.id, o = objOf(id) || S.archive.find(x => x.nr === id); if (!o) return; const n = nfInfo(o); if (!n || n.fin) return; if (BE_ON) { const m = mailNf(o, n.done === 0 ? 'nf1' : 'nf2'); if (!(await beSendPlain(el, o, m, n.done === 0 ? 'nf1' : 'nf2'))) return; } o.nf = (o.nf || 0) + 1; (o.nfDates = o.nfDates || []).push(isoDay(TODAY)); if (o.rooms) logO(o, `${o.nf}. Nachfassung erledigt`); save(); toast(`${o.nf}. Nachfassung erledigt`, 'sent'); renderPanel(true); render(); markSelected(); },
   reDone: async el => { const id = el.dataset.id, o = objOf(id) || S.archive.find(x => x.nr === id); if (!o) return; if (BE_ON) { if (!(await beSendPlain(el, o, mailNf(o, 're6'), 're6'))) return; } o.reMail = true; if (o.rooms) logO(o, 'Erneute Anfrage nach 6 Monaten gesendet'); save(); toast('Erneute Anfrage gesendet', 'sent'); renderPanel(true); render(); },
   revOk: el => { const o = objOf(el.dataset.id); if (!o) return; o.revOpen = false; logO(o, 'Angepasste Offerte vom Kunden angenommen'); save(); toast('Angepasste Offerte angenommen', 'sparkle'); renderPanel(true); render(); },
