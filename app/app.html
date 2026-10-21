@@ -2164,7 +2164,7 @@ function roomListHtml(o, grouped) {
   return `<div class="rlist">${floors.map(f => `<div class="floor-h">${esc(f)} · ${grouped[f].length} ${grouped[f].length === 1 ? 'Raum' : 'Räume'} · ${(grouped[f].some(r => r.flaeche > 0) ? fmtN(grouped[f].reduce((a, r) => a + (r.flaeche || 0), 0), 1) + ' m²' : 'ohne Flächen')}</div>` +
     grouped[f].map(r => { const iss = roomIssues(r), rc = roomCalc(r); const g = GROUP[r.gruppe];
       const ix = grouped[f].indexOf(r), mv = (o.status === 'erfassung' || o.revising || o.lvEditing) ? `<div class="mv"><button type="button" data-act="roomUp" data-id="${r.id}" aria-label="Raum nach oben" ${ix === 0 ? 'disabled' : ''}>▲</button><button type="button" data-act="roomDown" data-id="${r.id}" aria-label="Raum nach unten" ${ix === grouped[f].length - 1 ? 'disabled' : ''}>▼</button></div>` : '';
-      return `<div class="rwrap"><button type="button" class="rrow ${UI.flashRoom === r.id ? 'flash' : ''}" data-act="openRoom" data-id="${r.id}"><div class="tx"><b>${esc(r.bez || 'Ohne Bezeichnung')}${r.nr ? ' ' + esc(r.nr) : ''}</b><small>${r.dispo === 'E' ? 'Eigenreinigung durch Kunde' : g ? g.code + ' ' + esc(g.name) : 'Keine Reinigungsgruppe'} · ${esc(r.boden || '–')} ${r.dispo === 'E' ? '' : ' · ' + esc(DISPO_BY[r.dispo]?.label || r.dispo)}${r.custom ? ' · angepasst' : ''}</small></div>
+      return `<div class="rwrap"><button type="button" class="rrow ${UI.flashRoom === r.id ? 'flash' : ''}" data-act="openRoom" data-id="${r.id}"><div class="tx"><b>${esc(r.bez || 'Ohne Bezeichnung')}${r.nr ? ' ' + esc(r.nr) : ''}</b><small>${r.dispo === 'E' ? 'Eigenreinigung durch Kunde' : g ? g.code + ' ' + esc(rGName(r)) : 'Keine Reinigungsgruppe'} · ${esc(r.boden || '–')} ${r.dispo === 'E' ? '' : ' · ' + esc(DISPO_BY[r.dispo]?.label || r.dispo)}${r.custom ? ' · angepasst' : ''}</small></div>
       ${iss.length ? `<span class="badge b-warn">${esc(iss[0])}</span>` : (r.flaeche > 0 ? `<span class="h">${fmtN(rc.hours, 1)} h/J</span><span class="m2">${fmtN(r.flaeche, 1)} m²</span>` : `<span class="m2 muted">ohne Fläche</span>`)}<svg style="width:18px;height:18px;color:var(--cs-fg-2);flex:0 0 auto"><use href="#i-chev"/></svg></button>${mv}</div>`; }).join('')).join('')}</div>`;
 }
 function moveRoom(id, d) {
@@ -2297,7 +2297,7 @@ function roomPanelHtml(o, r) {
   });
   const std = defaultDispo(o);
   const BODEN_TOP = ['Keramik','Parkett','Vinyl','Textil','Laminat','Linoleum','PVC','Naturstein (G)','Beton','Andere'];
-  return `<div class="panel-h"><div><div class="eyebrow">${esc(r.floor)} · ${r.gruppe ? r.gruppe + ' ' + esc(GROUP[r.gruppe]?.name || '') : 'Gruppe wählen'}</div><h2 id="panelTitle">${esc(r.bez || 'Neuer Raum')}${r.nr ? ' ' + esc(r.nr) : ''}</h2>
+  return `<div class="panel-h"><div><div class="eyebrow">${esc(r.floor)} · ${r.gruppe ? r.gruppe + ' ' + esc(rGName(r)) : 'Gruppe wählen'}</div><h2 id="panelTitle">${esc(r.bez || 'Neuer Raum')}${r.nr ? ' ' + esc(r.nr) : ''}</h2>
       <div style="margin-top:6px">${iss.length ? `<span class="badge b-warn">${esc(iss.join(' · '))}</span>` : '<span class="badge b-ok">Vollständig</span>'}${r.custom ? ' <span class="badge b-info">Leistungen angepasst</span>' : ''}</div></div>
       <button class="icon-btn" data-act="closePanel" aria-label="Schliessen"><svg><use href="#i-x"/></svg></button></div>
     <div class="panel-b" data-keep="room">
@@ -2311,7 +2311,9 @@ function roomPanelHtml(o, r) {
         ${r.flaeche > 0 ? `<span class="small muted">${fmtN(rc.execMin, 0)} Min. pro Reinigung · ${fmtN(rc.hours / 12, 2)} h pro Monat</span>` : ''}</div>
       ${o.multi && o.geb && o.geb.length > 1 ? `<div class="field"><label for="rGeb">Gebäude</label><select id="rGeb" data-rs="geb" ${dis}>${o.geb.map((g, i) => `<option value="${g.id}" ${g.id === r.geb ? 'selected' : ''}>${gebLet(i)} · ${esc(gebName(o, g, i))}${g.a ? ' (' + esc(g.a) + ')' : ''}</option>`).join('')}</select></div>` : ''}
       <div class="frow"><div class="field"><label for="rFloor">Stockwerk</label><select id="rFloor" data-rs="floor" ${dis}>${floorsOf(o).map(f => `<option ${f === r.floor ? 'selected' : ''}>${esc(f)}</option>`).join('')}<option value="__neu">Anderes Stockwerk …</option></select><input id="rFloorNew" placeholder="z. B. 6. OG, Dachgeschoss" maxlength="24" hidden ${dis}></div>
-        ${r.dispo === 'E' ? `<div class="field"><label>Reinigungsgruppe <span class="muted small">nicht nötig bei Eigenreinigung</span></label><div style="border:1px solid var(--cs-line);border-radius:8px;padding:11px 12px;background:#f1f5f6;color:#8a9a9e">– nicht erforderlich –</div></div></div>` : `<div class="field"><label for="rGrp">Reinigungsgruppe <span class="req">*</span></label><select id="rGrp" data-rs="gruppe" ${dis || (r.dispo === 'E' ? 'disabled' : '')}><option value="">${r.dispo === 'E' ? '– nicht erforderlich –' : '– wählen –'}</option>${GROUPS.map(g => `<option value="${g.code}" ${g.code === r.gruppe ? 'selected' : ''}>${g.code} ${esc(g.name)}</option>`).join('')}</select></div></div>`}
+        ${r.dispo === 'E' ? `<div class="field"><label>Reinigungsgruppe <span class="muted small">nicht nötig bei Eigenreinigung</span></label><div style="border:1px solid var(--cs-line);border-radius:8px;padding:11px 12px;background:#f1f5f6;color:#8a9a9e">– nicht erforderlich –</div></div></div>` : `<div class="field"><label for="rGrp">Reinigungsgruppe <span class="req">*</span></label><select id="rGrp" data-rs="gruppe" ${dis || (r.dispo === 'E' ? 'disabled' : '')}><option value="">${r.dispo === 'E' ? '– nicht erforderlich –' : '– wählen –'}</option>${GROUPS.map(g => `<option value="${g.code}" ${g.code === r.gruppe ? 'selected' : ''}>${g.code} ${esc(g.name)}</option>`).join('')}</select></div></div>
+        ${r.gruppe ? `<div class="field gnfield"><label for="rGName">Bezeichnung der Gruppe in dieser Offerte <span class="small muted">(optional)</span></label><input id="rGName" data-rgn="1" value="${esc(r.gName || '')}" placeholder="${esc(GROUP[r.gruppe]?.name || '')}" maxlength="60" ${dis}>
+          <span class="small muted">${r.gName ? `Leistungen wie ${esc(r.gruppe)} ${esc(GROUP[r.gruppe]?.name || '')}. Im Raumbuch und Leistungsverzeichnis steht «${esc(r.gName)}».` : 'Leer lassen = Name der Reinigungsgruppe. Die Leistungen bleiben gleich.'}</span></div>` : ''}`}
       <div class="chips" style="margin:2px 0 10px">
         <label class="chip upl" style="cursor:pointer">${ico('i-cam', 16)} Foto${r.photos.length ? ' (' + r.photos.length + ')' : ''}<input type="file" accept="image/*" capture="environment" data-file="room" ${dis} style="display:none"></label>
         <button type="button" class="chip" data-act="toggleNote" aria-pressed="${!!(UI.showNote || r.notiz)}">${ico('i-doc', 16)} Notiz${r.notiz ? ' ✓' : ''}</button>
@@ -2390,15 +2392,15 @@ function docRaumbuch(o) {
   return `<div class="sheet">${sheetHead(o, 'Raumbuch')}<div class="tablewrap"><table><thead><tr><th>Bezeichnung</th><th>Nr</th><th>Bodenbelag</th><th>Dispo</th><th style="text-align:right">Fläche</th><th>Reinigungsgruppe</th><th style="text-align:right">Std./Jahr</th></tr></thead><tbody>
     <tr class="grp"><td colspan="6">${esc(o.name || 'Objekt')}</td><td class="num" style="text-align:right">${fmtN(c.hours, 2)}</td></tr>
     ${floors.map(f => { const rs = o.rooms.filter(r => r.floor === f); const h = rs.reduce((a, r) => a + roomCalc(r).hours, 0);
-      return `<tr class="grp"><td colspan="6">${esc(f)}</td><td class="num" style="text-align:right">${fmtN(h, 2)}</td></tr>` + rs.map(r => `<tr><td>${esc(r.bez)}</td><td>${esc(r.nr)}</td><td>${esc(r.boden)}</td><td>${esc(r.dispo)}</td><td class="num" style="text-align:right">${r.flaeche > 0 ? fmtN(r.flaeche, 2) : '<span class="badge b-warn">fehlt</span>'}</td><td>${r.gruppe ? r.gruppe + ' ' + esc(GROUP[r.gruppe].name) : '–'}</td><td class="num" style="text-align:right">${fmtN(roomCalc(r).hours, 2)}</td></tr>`).join(''); }).join('')}
+      return `<tr class="grp"><td colspan="6">${esc(f)}</td><td class="num" style="text-align:right">${fmtN(h, 2)}</td></tr>` + rs.map(r => `<tr><td>${esc(r.bez)}</td><td>${esc(r.nr)}</td><td>${esc(r.boden)}</td><td>${esc(r.dispo)}</td><td class="num" style="text-align:right">${r.flaeche > 0 ? fmtN(r.flaeche, 2) : '<span class="badge b-warn">fehlt</span>'}</td><td>${r.gruppe ? r.gruppe + ' ' + esc(rGName(r)) : '–'}</td><td class="num" style="text-align:right">${fmtN(roomCalc(r).hours, 2)}</td></tr>`).join(''); }).join('')}
     <tr class="tot"><td colspan="4">Total</td><td class="num" style="text-align:right">${fmtN(c.area, 2)}</td><td></td><td class="num" style="text-align:right">${fmtN(c.hours, 2)}</td></tr>
   </tbody></table></div><p class="foot-n">Clean Service Scaramuzzo AG · ${fmtDay(isoDay(TODAY))} · Leistungswerte gemäss Stammdaten (Beispielwerte)</p></div>`;
 }
 function docLV(o) {
   const blocks = {};
   o.rooms.filter(r => r.gruppe).forEach(r => {
-    const ts = roomTasks(r); const sig = r.gruppe + '|' + ts.map(x => x.t.id + ':' + x.code + (x.t.ov ? '~' + x.t.name : '')).join(',');
-    if (!blocks[sig]) blocks[sig] = { g: r.gruppe, ts, rooms: [] };
+    const ts = roomTasks(r); const sig = r.gruppe + '#' + rGName(r) + '|' + ts.map(x => x.t.id + ':' + x.code + (x.t.ov ? '~' + x.t.name : '')).join(',');
+    if (!blocks[sig]) blocks[sig] = { g: r.gruppe, nm: rGName(r), ts, rooms: [] };
     blocks[sig].rooms.push(r);
   });
   const list = Object.values(blocks).sort((a, b) => a.g.localeCompare(b.g));
@@ -2406,7 +2408,7 @@ function docLV(o) {
   return `<div class="sheet">${sheetHead(o, 'Leistungsverzeichnis')}${list.length ? `<div class="lvgrid">${list.map(b => {
     let last = '', body = '';
     b.ts.forEach(x => { if (x.t.cat !== last) { body += `<div class="k">${esc(x.t.cat)}</div>`; last = x.t.cat; } const f = freqCols(x.code); body += `<div class="e"><span>✓ ${esc(x.t.name)}</span><span>${esc(x.code)}</span><span>${f[0]}</span><span>${f[1]}</span><span>${f[2]}</span></div>`; });
-    return `<div class="lvb"><h3><span>${b.g} ${esc(GROUP[b.g].name)}</span></h3><div class="e hd"><span>Kategorie, Eintrag</span><span>Code</span><span>Wo</span><span>Mt</span><span>J</span></div>${body}
+    return `<div class="lvb"><h3><span>${b.g} ${esc(b.nm || GROUP[b.g].name)}</span></h3><div class="e hd"><span>Kategorie, Eintrag</span><span>Code</span><span>Wo</span><span>Mt</span><span>J</span></div>${body}
       ${cnt[b.g] > 1 || b.rooms.some(r => r.custom) ? `<div class="who">Gilt für: ${b.rooms.map(r => esc(r.bez + (r.nr ? ' ' + r.nr : ''))).join(', ')}</div>` : ''}</div>`; }).join('')}</div>` : '<p class="muted">Noch keine Räume mit Reinigungsgruppe.</p>'}</div>`;
 }
 function docLegende(o) {
@@ -2937,6 +2939,7 @@ function grpPanelHtml(code) {
    Navigation, Panel, Schublade
    ========================================================= */
 const RENDER = { vak: renderVak, ver: renderVer, dash: renderDash, bes: renderBes, obj: renderObj, doc: renderDoc, off: renderOff, kun: renderKun, set: renderSet };
+const rGName = r => (r && String(r.gName || '').trim()) || (r && GROUP[r.gruppe] ? GROUP[r.gruppe].name : '');
 function applyGroupNames() { const gn = (S && S.settings && S.settings.groupNames) || {}; Object.keys(GROUP).forEach(c => { const g = GROUP[c]; if (g.orig == null) g.orig = g.name; g.name = (gn[c] || '').trim() || g.orig; }); }
 function render() { if (!READY) return; applyGroupNames(); RENDER[UI.view](); }
 function go(v, keepPanel) {
@@ -3410,6 +3413,7 @@ document.addEventListener('input', e => {
   if (t.dataset.grv && UI.gr && t.tagName === 'INPUT') { const [pi, ri, k] = t.dataset.grv.split(':'); const r = UI.gr.pages[+pi].result[+ri]; if (k === 'flaeche') { r.flaeche = num(t.value); if (r.flaeche > 0 && r.quelle === 'fehlt') r.quelle = 'geschätzt'; } else r[k] = t.value; return; }
   if (t.dataset.lb) { const L = num($('#rL').value), B = num($('#rB').value); if (L > 0 && B > 0) { const x = curRoom(); if (x) { x[1].flaeche = Math.round(L * B * 10) / 10; $('#rM2').value = x[1].flaeche; save(); refreshRoomCalc(); refreshBesLive(); } } return; }
   if (t.dataset.vm != null && t.dataset.vm !== '') { const o = curObj(); if (!o) return; const v = o.vars[+t.dataset.vm]; v.m = num(t.value); const e = document.getElementById('vp' + (+t.dataset.vm + 1)); if (e) e.textContent = v.m > 0 && v.tage.length ? `≈ CHF ${fmtN(v.m / (v.tage.length * WF()), 2)} pro Reinigung · ${chf(v.m * 12)} pro Jahr` : 'Reinigungstage und Preis eingeben'; save(); return; }
+  if (t.dataset.rgn) { const x = curRoom(); if (!x) return; x[1].gName = t.value.replace(/\s+/g, ' ').slice(0, 60); if (!x[1].gName.trim()) delete x[1].gName; save(); refreshBesLive(); const rl = $('#roomList'), o = curObj(); if (rl && o) { try { renderBes(); } catch (e) {} } return; }
   if (t.dataset.gname) { const c = t.dataset.gname, v = t.value.trim().slice(0, 60); S.settings.groupNames = S.settings.groupNames || {}; if (v && v !== GROUP[c].orig) S.settings.groupNames[c] = v; else delete S.settings.groupNames[c]; applyGroupNames(); const h = $('#panelTitle'); if (h) h.textContent = c + ' ' + GROUP[c].name; save(); return; }
   if (t.dataset.rh) { const o = curObj(); if (!o || !o.rh) return; const [i, k] = t.dataset.rh.split('|'), x = o.rh[+i]; if (!x) return; x[k] = k === 'h' ? (num(t.value) > 0 ? num(t.value) : null) : t.value; const m = document.getElementById('rhm' + i); if (m) m.textContent = x.h > 0 ? rhFactTxt(x.f) + ' = ' + fmtN(x.h * rhFactor(x.f), 2) + ' h' : ''; save(); refreshBesLive(); const sm = $('#rhSum'); if (sm) sm.innerHTML = rhSumTxt(o); return; }
   if (t.dataset.sxn != null) { if (t.tagName === 'TEXTAREA') { t.style.height = 'auto'; t.style.height = t.scrollHeight + 2 + 'px'; } const o = curObj(); if (!o || !o.sx) return; o.sx[+t.dataset.sxn].n = t.value; save(); refreshBesLive(); return; }
@@ -4002,6 +4006,7 @@ async function exportPdf(o, btn, lang = 'de') {
 
 /* Generierte Seiten auf dem Briefpapier: Raumbuch, Leistungsverzeichnis, Legende (mehrsprachig) */
 async function drawSheets(ctx, which) {
+  const gnOwn2 = r => String((r && r.gName) || '').trim();
   const { out, copy, fH, fHB, C, H, o, cu, c, nr, today, sellerShort, firma, objAdr, lang } = ctx;
   const U = k => TR.ui(lang, k);
   const fit = (s, w, font, size) => { s = String(s); if (font.widthOfTextAtSize(s, size) <= w) return s; while (s.length && font.widthOfTextAtSize(s + '…', size) > w) s = s.slice(0, -1); return s + '…'; };
@@ -4051,7 +4056,7 @@ async function drawSheets(ctx, which) {
       if (y > G.foot - 6) { await rbPage(); t8(p, TR.floor(lang, f) + ' (' + U('cont') + ')', 32.7, y, { bold: true, size: 10 }); y += 15.5; }
       t8(p, fit(roomName(lang, r.bez), 118, fH, 8), 32.7, y); t8(p, r.nr || '', 157, y); t8(p, fit(bodenCodeL(lang, r.boden), 66, fH, 8), 200, y); t8(p, r.dispo || '', 271, y);
       if (r.flaeche > 0) t8(p, Number(r.flaeche).toFixed(2), 307.6, y);
-      t8(p, fit(r.dispo === 'E' ? ({ de: 'Eigenreinigung (Kunde)', en: 'Self-cleaning (client)', it: 'Pulizia propria' }[lang] || 'Eigenreinigung (Kunde)') : `${r.gruppe || ''} ${TR.group(lang, r.gruppe)}`, 100, fH, 8), 349, y); if (perRoom) t8(p, roomCalc(r).hours.toFixed(2), 500, y, { align: 'right' });
+      t8(p, fit(r.dispo === 'E' ? ({ de: 'Eigenreinigung (Kunde)', en: 'Self-cleaning (client)', it: 'Pulizia propria' }[lang] || 'Eigenreinigung (Kunde)') : `${r.gruppe || ''} ${gnOwn2(r) || TR.group(lang, r.gruppe)}`, 100, fH, 8), 349, y); if (perRoom) t8(p, roomCalc(r).hours.toFixed(2), 500, y, { align: 'right' });
       y += G.lh;
     }
     y += 7.5;
@@ -4062,9 +4067,10 @@ async function drawSheets(ctx, which) {
   /* Leistungsverzeichnis: zwei Spalten, Blöcke pro Reinigungsgruppe */
   const blocks = {};
   const rn = r => roomName(lang, r.bez) + (r.nr ? ' ' + r.nr : '');
-  o.rooms.filter(r => r.gruppe && r.dispo !== 'E').forEach(r => { const g = blocks[r.gruppe] || (blocks[r.gruppe] = { g: r.gruppe, rooms: [], tm: new Map() }); g.rooms.push(r);
+  const gnOwn = r => String(r.gName || '').trim();
+  o.rooms.filter(r => r.gruppe && r.dispo !== 'E').forEach(r => { const bk = r.gruppe + '#' + gnOwn(r); const g = blocks[bk] || (blocks[bk] = { g: r.gruppe, nm: gnOwn(r), rooms: [], tm: new Map() }); g.rooms.push(r);
     roomTasks(r).forEach(x => { const k = x.t.id + ':' + x.code + (x.t.ov ? '~' + x.t.name : ''); if (!g.tm.has(k)) g.tm.set(k, { e: x, rs: [] }); g.tm.get(k).rs.push(r); }); });
-  const list = Object.values(blocks).sort((a, b) => a.g.localeCompare(b.g));
+  const list = Object.values(blocks).sort((a, b) => a.g.localeCompare(b.g) || (a.nm || '').localeCompare(b.nm || ''));
   list.forEach(b => { b.ts = [...b.tm.values()].map(v => ({ ...v.e, sub: v.rs.length < b.rooms.length ? v.rs.map(rn) : null }));
     const co = []; b.ts.forEach(x => { if (!co.includes(x.t.cat)) co.push(x.t.cat); }); b.ts = b.ts.map((x, i) => ({ x, i })).sort((a, c) => co.indexOf(a.x.t.cat) - co.indexOf(c.x.t.cat) || a.i - c.i).map(z => z.x); });
   const COLS = [{ x0: G.x0, x1: 297.8 }, { x0: 297.8, x1: G.x1 }];
@@ -4077,14 +4083,14 @@ async function drawSheets(ctx, which) {
   const bar = (b, cont) => { const cl = COLS[col];
     if (ly > G.head + 0.5) lv.drawLine({ start: { x: cl.x0, y: H - ly }, end: { x: cl.x1, y: H - ly }, thickness: 0.6, color: C.black });
     lv.drawRectangle({ x: cl.x0 + 0.3, y: H - (ly + 19.6), width: cl.x1 - cl.x0 - 0.6, height: 19.6, color: C.bar, borderWidth: 0 });
-    t8(lv, b.label ? '' : b.g, cl.x0 + 3.9, ly + 13, { bold: true, size: 10 }); t8(lv, fit(b.label || TR.group(lang, b.g) + (cont ? ' (' + U('cont') + ')' : ''), cl.x1 - cl.x0 - 48, fHB, 10), b.label ? cl.x0 + 3.9 : cl.x0 + 38, ly + 13, { bold: true, size: 10 });
+    t8(lv, b.label ? '' : b.g, cl.x0 + 3.9, ly + 13, { bold: true, size: 10 }); t8(lv, fit(b.label || (b.nm || TR.group(lang, b.g)) + (cont ? ' (' + U('cont') + ')' : ''), cl.x1 - cl.x0 - 48, fHB, 10), b.label ? cl.x0 + 3.9 : cl.x0 + 38, ly + 13, { bold: true, size: 10 });
     ly += 19.6; lv.drawLine({ start: { x: cl.x0, y: H - ly }, end: { x: cl.x1, y: H - ly }, thickness: 1, color: C.black }); ly += 11; };
   const lines = b => { const out = []; let last = ''; b.ts.forEach(x => { if (x.t.cat !== last) { out.push({ cat: x.t.cat }); last = x.t.cat; } const nm = TR.task(lang, x.t), br = x.sub ? '(' + x.sub.join(', ') + ')' : ''; if (br && fH.widthOfTextAtSize(nm + ' ' + br, 8) <= 150) out.push({ e: x, inl: nm + ' ' + br }); else out.push({ e: x, sub: br ? wrapV(br, 150, 7, fH).slice(0, 3) : null }); }); return out; };
   const lh = l => l.cat ? 16 : G.lh + (l.sub ? l.sub.length * 8 : 0);
   const hOf = ls => ls.reduce((a, l) => a + lh(l), 0) + 30.6 + 6;
   for (const b of (which.lv ? list : [])) {
     const ls = lines(b), need = hOf(ls);
-    if (ly > G.head + 0.5 && ly + need > G.foot - 4 && G.foot - ly < 110) await nextCol();   // Block passt nicht mehr: bei wenig Restplatz in die nächste Spalte, sonst teilen
+    if (ly > G.head + 0.5 && ly + need > G.foot - 4 && (need <= G.foot - 4 - G.head || G.foot - ly < 110)) await nextCol();   // Block passt nicht mehr: ganz in die nächste Spalte (nur sehr lange Blöcke werden geteilt)
     bar(b, false);
     let first = true;
     for (const l of ls) {
@@ -4110,7 +4116,7 @@ async function drawSheets(ctx, which) {
   const bods = [...new Set(o.rooms.map(r => r.boden).filter(Boolean))];
   let gy = 264;
   const sec = (title, rows) => { t8(lg, title, 32.7, gy, { bold: true, size: 11 }); gy += 14; rows.forEach(([a, b2, c2]) => { t8(lg, a, 32.7, gy); t8(lg, b2, 115, gy); if (c2) t8(lg, c2, 284, gy); gy += 14; }); gy += 16; };
-  sec(U('ug'), used.map(g => [g, TR.group(lang, g), '']));
+  { const seenG = new Set(), rowsG = []; o.rooms.filter(r => r.dispo !== 'E' && r.gruppe).sort((a, b) => a.gruppe.localeCompare(b.gruppe)).forEach(r => { const nm = String(r.gName || '').trim() || TR.group(lang, r.gruppe), k = r.gruppe + '#' + nm; if (seenG.has(k)) return; seenG.add(k); rowsG.push([r.gruppe, nm, '']); }); sec(U('ug'), rowsG); }
   sec(U('ud'), DISPO.filter(d => codes.has(d.code)).map(d => [d.code, TR.dispo(lang, d), d.code === 'B' ? U('need') : d.code === 'E' ? ({ de: 'durch Kunde', en: 'by client', it: 'cliente' }[lang] || 'durch Kunde') : d.perYear + ' ' + U('py')]));
   sec(U('ub'), bods.map(b => [bodenCodeL(lang, b), TR.boden(lang, b), '']));
   }
