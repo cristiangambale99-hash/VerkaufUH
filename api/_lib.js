@@ -25,6 +25,47 @@ function sigHtml(S, iso, lang) {
   return `<div style="font-family:Verdana,Arial,sans-serif;font-size:14px;line-height:1.5;color:#555;margin-top:22px"><div style="color:#4fb3a5">${esc(n)}</div>${esc(f)}<br>${lang === 'en' ? 'Direct' : 'Direkt'} ${esc(d)}<br>---------------------------------<br><div style="color:#4fb3a5">Clean Service Scaramuzzo AG</div>Industriestrasse 5<br>8307 Effretikon<br>0844 355 355<div style="margin-top:14px"><img src="${iso}" alt="ISO 9001, 14001, 45001" width="172" height="52" style="display:block;border:0"></div></div>`;
 }
 function sigText(S, lang) { return `\n\n${S.mailSigName || 'Diogo Pereira'}\n${lang === 'en' ? (S.mailSigRolleEn || (!S.mailSigRolle || S.mailSigRolle === 'Sachbearbeiter Innendienst' ? 'Office Administration' : S.mailSigRolle)) : (S.mailSigRolle || 'Sachbearbeiter Innendienst')}\n${lang === 'en' ? 'Direct' : 'Direkt'} ${S.mailSigDirekt || '052 557 02 12'}\n\nClean Service Scaramuzzo AG\nIndustriestrasse 5\n8307 Effretikon\n0844 355 355`; }
+
+/* ---------- Versand über Microsoft 365 (Graph): Mails gehen über das echte Postfach (gleiche Server wie Outlook) ---------- */
+const MS_ON = () => !!(E.MS_TENANT_ID && E.MS_CLIENT_ID && E.MS_CLIENT_SECRET);
+let msTok = null;
+async function msToken() {
+  if (msTok && msTok.exp > Date.now() + 60000) return msTok.t;
+  const r = await fetch('https://login.microsoftonline.com/' + encodeURIComponent(E.MS_TENANT_ID) + '/oauth2/v2.0/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ client_id: E.MS_CLIENT_ID, client_secret: E.MS_CLIENT_SECRET, scope: 'https://graph.microsoft.com/.default', grant_type: 'client_credentials' }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || !j.access_token) throw new Error('Microsoft-Anmeldung fehlgeschlagen: ' + (j.error_description || j.error || r.status));
+  msTok = { t: j.access_token, exp: Date.now() + (j.expires_in || 3000) * 1000 }; return msTok.t;
+}
+const addrOf = s => { const m = /<([^>]+)>/.exec(String(s || '')); return (m ? m[1] : String(s || '')).trim(); };
+async function msSend({ from, to, bcc, replyTo, subject, html, attachments }) {
+  const tok = await msToken(), G = 'https://graph.microsoft.com/v1.0/users/' + encodeURIComponent(addrOf(from));
+  const H = { Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' };
+  const rec = a => ({ emailAddress: { address: a } });
+  const small = [], big = [];
+  (attachments || []).forEach(a => { const size = Math.floor(String(a.content).length * 3 / 4); (size > 2500000 ? big : small).push(Object.assign({}, a, { size })); });
+  const fa = a => ({ '@odata.type': '#microsoft.graph.fileAttachment', name: a.filename, contentType: a.content_type || (/\.pdf$/i.test(a.filename) ? 'application/pdf' : 'application/octet-stream'), contentBytes: a.content, isInline: !!a.content_id, contentId: a.content_id || undefined });
+  const msg = { subject, body: { contentType: 'HTML', content: html }, toRecipients: to.map(rec), bccRecipients: (bcc || []).map(rec), replyTo: replyTo ? [rec(addrOf(replyTo))] : [], attachments: small.map(fa) };
+  if (!big.length) {
+    const r = await fetch(G + '/sendMail', { method: 'POST', headers: H, body: JSON.stringify({ message: msg, saveToSentItems: true }) });
+    if (!r.ok) throw new Error('Microsoft-Versand: ' + r.status + ' ' + (await r.text()).slice(0, 200));
+    return 'ms-' + Date.now();
+  }
+  /* grosse Anhänge: Entwurf anlegen, Datei in Teilen hochladen, dann senden */
+  const d = await fetch(G + '/messages', { method: 'POST', headers: H, body: JSON.stringify(msg) }); const dj = await d.json().catch(() => ({}));
+  if (!d.ok || !dj.id) throw new Error('Microsoft-Entwurf: ' + d.status + ' ' + JSON.stringify(dj).slice(0, 200));
+  for (const a of big) {
+    const u = await fetch(G + '/messages/' + dj.id + '/attachments/createUploadSession', { method: 'POST', headers: H, body: JSON.stringify({ AttachmentItem: { attachmentType: 'file', name: a.filename, size: a.size, contentType: 'application/pdf' } }) });
+    const uj = await u.json().catch(() => ({})); if (!u.ok || !uj.uploadUrl) throw new Error('Microsoft-Upload: ' + u.status);
+    const buf = Buffer.from(a.content, 'base64'), CH = 3 * 1024 * 1024;
+    for (let i = 0; i < buf.length; i += CH) { const part = buf.subarray(i, Math.min(i + CH, buf.length));
+      const pr = await fetch(uj.uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'application/octet-stream', 'Content-Length': String(part.length), 'Content-Range': `bytes ${i}-${i + part.length - 1}/${buf.length}` }, body: part });
+      if (!pr.ok) throw new Error('Microsoft-Upload Teil: ' + pr.status); }
+  }
+  const sr = await fetch(G + '/messages/' + dj.id + '/send', { method: 'POST', headers: H });
+  if (!sr.ok) throw new Error('Microsoft-Senden: ' + sr.status + ' ' + (await sr.text()).slice(0, 200));
+  return 'ms-' + dj.id.slice(-12);
+}
 async function sendMail({ to, subject, text, attachments, kind, objectId, S, lang }) {
   S = S || await settings();
   const base = E.PUBLIC_URL || 'https://offertplattform-uh.vercel.app';
@@ -32,7 +73,7 @@ async function sendMail({ to, subject, text, attachments, kind, objectId, S, lan
   const lnk = p => esc(p).replace(MDL, (m, t, u) => `<a href="${u}" style="color:#1f6f8b;text-decoration:underline">${t}</a>`).replace(/\n/g, '<br>');
   let iso = base + '/asset/iso.png', inl = null;
   try { const a = await assetBytes('iso.png'); if (a) { inl = { filename: 'iso.png', content: a.b64, content_type: 'image/png', content_id: 'iso-zertifikate' }; iso = 'cid:iso-zertifikate'; } } catch (e) {}
-  const html = `<div style="font-family:Verdana,Arial,sans-serif;font-size:14px;line-height:1.6;color:#222">${String(text).split(/\n{2,}/).map(p => `<p style="margin:0 0 14px">${lnk(p)}</p>`).join('')}${sigHtml(S, iso, lang)}</div>`;
+  const html = `<!doctype html><html lang="${lang === 'en' ? 'en' : 'de'}"><head><meta charset="utf-8"><title>${esc(subject)}</title></head><body><div style="font-family:Verdana,Arial,sans-serif;font-size:14px;line-height:1.6;color:#222">${String(text).split(/\n{2,}/).map(p => `<p style="margin:0 0 14px">${lnk(p)}</p>`).join('')}${sigHtml(S, iso, lang)}</div></body></html>`;
   const plain = String(text).replace(MDL, '$1: $2');
   const k = String(kind || ''), copy = /^cal/.test(k) ? S.bccBes !== 'nein' : /^(nf\d|re6)/.test(k) ? S.bccNach !== 'nein' : true;
   const payload = { from: E.MAIL_FROM, to: [to], reply_to: E.MAIL_REPLY_TO, subject, html, text: plain + sigText(S, lang) };
@@ -40,6 +81,13 @@ async function sendMail({ to, subject, text, attachments, kind, objectId, S, lan
   const att = (attachments && attachments.length ? attachments.slice() : []); if (inl) att.push(inl);
   if (att.length) payload.attachments = att;
   let id = null, status = 'ok', err = null;
+  /* Bevorzugt Microsoft 365 (landet zuverlässig im Posteingang). Klappt das nicht, geht die Mail wie bisher über Resend raus. */
+  if (MS_ON()) {
+    try { id = await msSend({ from: E.MAIL_FROM, to: payload.to, bcc: payload.bcc, replyTo: E.MAIL_REPLY_TO, subject, html, attachments: att });
+      try { await rpc('api_mail_log', { p_kind: kind || '', p_object: objectId || '', p_to: to, p_subject: subject, p_resend: id, p_status: 'ok', p_error: 'via Microsoft 365' }); } catch (e) {}
+      return id;
+    } catch (e) { err = String(e.message || e); try { await rpc('api_mail_log', { p_kind: kind || '', p_object: objectId || '', p_to: to, p_subject: subject, p_resend: null, p_status: 'ms-fehler', p_error: err.slice(0, 300) }); } catch (e2) {} err = null; }
+  }
   try {
     const r = await fetch((E.RESEND_URL || 'https://api.resend.com') + '/emails', { method: 'POST', headers: { Authorization: 'Bearer ' + E.RESEND_API_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     const j = await r.json().catch(() => ({})); if (!r.ok) { status = 'fehler'; err = j.message || ('HTTP ' + r.status); } else id = j.id;
