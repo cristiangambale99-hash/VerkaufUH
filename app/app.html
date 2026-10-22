@@ -1181,6 +1181,42 @@ async function beSendPlain(btn, o, m, kind) {
   catch (e) { toast('Mail konnte nicht gesendet werden: ' + (e.message || e), 'error'); return false; }
   finally { BE_BUSY--; if (btn) btn.disabled = false; }
 }
+/* Dispogenerator: Leistungsverzeichnis jedes gewonnenen Objekts in die Ablage des Dispogenerators
+   (Supabase-Projekt Dispoplanner, Tabelle dispo_checklisten, Abteilung UH). Der Dispogenerator zeigt das
+   Objekt beim Einlesen mit «LV vorhanden» an und hängt das Verzeichnis an den Auftragsrapport.
+   Neu geschrieben wird nur, wenn sich Raumbuch, Leistungen oder Adresse geändert haben. */
+const DISPO_SB_URL = 'https://fsxqqemnzutnhqxjmugf.supabase.co';
+const DISPO_SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzeHFxZW1uenV0bmhxeGptdWdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE5NTg4MjcsImV4cCI6MjEwNzUzNDgyN30.Niil4uZUmnm8VV6nVKYfBRM9Blsk-IGeuuRo8VxPOYo';
+async function dispoSb(pfad, opt = {}) {
+  const r = await fetch(DISPO_SB_URL + '/rest/v1/' + pfad, Object.assign({}, opt, { headers: Object.assign({ apikey: DISPO_SB_KEY, Authorization: 'Bearer ' + DISPO_SB_KEY, 'Content-Type': 'application/json' }, opt.headers || {}) }));
+  if (!r.ok) throw new Error('Dispo-Ablage ' + r.status);
+  const t = await r.text(); return t ? JSON.parse(t) : null;
+}
+function dispoHash(x) { const s = JSON.stringify(x); let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36) + '-' + s.length; }
+const dispoLvHash = o => dispoHash({ rooms: o.rooms, lvRev: o.lvRev || 0, adr: o.adresse || '', name: o.name || '', firma: custOf(o).firma || '' });
+const dispoLvOk = o => o && o.status === 'gewonnen' && !o.inaktiv && o.rooms && o.rooms.length;
+async function dispoPushLv(o, bytes) {
+  const cu = custOf(o), adr = String(o.adresse || '').trim(), i = adr.lastIndexOf(',');
+  const b64 = typeof b64OfBytes === 'function' ? b64OfBytes(bytes) : btoa(Array.from(bytes, c => String.fromCharCode(c)).join(''));
+  await dispoSb('dispo_checklisten?on_conflict=dept,id', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify({ dept: 'uh', id: 'verkauf:' + o.id, quelle: 'verkauf', src_hash: dispoLvHash(o), customer: cu.firma || '', street: i > 0 ? adr.slice(0, i).trim() : adr, plz_ort: i > 0 ? adr.slice(i + 1).trim() : '',
+      fname: 'Leistungsverzeichnis ' + (o.nr || '') + ' ' + (cu.firma || '') + '.pdf', pages: (await window.PDFLib.PDFDocument.load(bytes)).getPageCount(),
+      text_idx: [cu.firma, o.name, adr, o.nr].filter(Boolean).join(' '), data: b64, saved_at: new Date().toISOString() }) });
+}
+let DISPO_SYNC = false;
+async function dispoSyncLv() {
+  if (DISPO_SYNC || !BE_ON || DEMO) return; DISPO_SYNC = true; let n = 0;
+  try {
+    const have = {}; ((await dispoSb('dispo_checklisten?dept=eq.uh&quelle=eq.verkauf&select=id,src_hash')) || []).forEach(r => { have[r.id] = r.src_hash; });
+    for (const o of S.objects.filter(dispoLvOk)) {
+      if (have['verkauf:' + o.id] === dispoLvHash(o)) continue;
+      try { const doc = await buildLvPdf(o, 'de'); await dispoPushLv(o, await doc.save({ useObjectStreams: true })); n++; }
+      catch (e) { console.warn('Dispo-Sync', o.nr, e); }
+    }
+  } catch (e) { console.warn('Dispo-Sync', e); }
+  finally { DISPO_SYNC = false; }
+  if (n) console.info('Dispo-Sync: ' + n + ' Leistungsverzeichnis(se) übertragen');
+}
 /* Objektordner und QR-Code: entsteht automatisch bei «Gewonnen» (Leistungsverzeichnis, feste Unterlagen, Online-Seite, QR-Code in qrfy) */
 const ORD_BUSY = {};
 async function ordUploadLv(o) {
@@ -1189,6 +1225,7 @@ async function ordUploadLv(o) {
     const r = await beApi('/api/ordner', { method: 'POST', body: JSON.stringify({ nr: o.nr, firma: custOf(o).firma, hilfe: S.settings.ordnerHilfe !== 'nein', idx: i, total: tot, b64: b64OfBytes(bytes.subarray(i * CH, (i + 1) * CH)) }) });
     j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'Übertragung des Leistungsverzeichnisses fehlgeschlagen');
   }
+  if (dispoLvOk(o)) dispoPushLv(o, bytes).catch(e => console.warn('Dispo-Ablage', e));
   return j;
 }
 async function startOrdner(o, withQr = true, quiet = false) {
@@ -1566,6 +1603,7 @@ function start() {
   initSample();
   if (!objOf(UI.cur)) UI.cur = null;
   go('bes');
+  setTimeout(() => { dispoSyncLv(); }, 5000);
 }
 function renderLoading() {
   const el = $('[data-view="dash"]');
