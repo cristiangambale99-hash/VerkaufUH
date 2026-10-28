@@ -5,6 +5,14 @@
       "destination": "/api/page"
     },
     {
+      "source": "/a/:id/:f",
+      "destination": "/api/ordner?a=:id&f=:f"
+    },
+    {
+      "source": "/a/:id",
+      "destination": "/api/ordner?a=:id"
+    },
+    {
       "source": "/asset/:n",
       "destination": "/api/asset?n=:n"
     },
