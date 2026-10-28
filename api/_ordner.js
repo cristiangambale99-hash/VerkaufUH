@@ -39,4 +39,4 @@ async function getMeta(nr) { try { const a = await assetBytes('ordner-meta-' + n
 function staticDir() { for (const d of [path.join(process.cwd(), 'public', 'ordner'), path.join(__dirname, '..', 'public', 'ordner')]) if (fs.existsSync(d)) return d; return null; }
 function readStatic(rel) { const d = staticDir(); if (!d) throw new Error('Ordner-PDFs nicht gefunden'); return fs.readFileSync(path.join(d, rel)); }
 const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-module.exports = { chapters, SDB, base, tok, idOf, urlOf, parseId, safeNr, putAsset, getMeta, readStatic, esc };
+module.exports = { staticDir, chapters, SDB, base, tok, idOf, urlOf, parseId, safeNr, putAsset, getMeta, readStatic, esc };

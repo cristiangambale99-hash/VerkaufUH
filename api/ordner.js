@@ -33,8 +33,10 @@ async function merged(nr, meta) {
 module.exports = async (req, res) => {
   try {
     if (req.method === 'POST') {
-      if (!guard(req, res)) return;
       const b = await body(req);
+      if (b.an === 'slots' || b.an === 'book') return require('./_annahme').pub(b, req, res);   // Kundenseite «Offerte annehmen» (ohne Anmeldung, mit Link-Schlüssel)
+      if (!guard(req, res)) return;
+      if (b.an) return require('./_annahme').priv(b, res);
       if (b.qrfy) return require('./_qrfy')(b, res);
       if (b.bk) return require('./_beekeeper')(b, res);
       if (b.sp) return require('./_stellen')(b, res);
@@ -49,6 +51,7 @@ module.exports = async (req, res) => {
       }
       return res.status(200).json({ ok: true });
     }
+    if (req.query.a) return require('./_annahme').page(req, res);
     const id = String(req.query.id || ''), nr = O.parseId(id); if (!nr) return res.status(404).send('Nicht gefunden');
     const meta = await O.getMeta(nr); if (!meta) return res.status(404).send('Objektordner nicht gefunden');
     const f = String(req.query.f || '');
