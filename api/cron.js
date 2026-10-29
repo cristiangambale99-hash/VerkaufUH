@@ -61,6 +61,8 @@ module.exports = async (req, res) => {
     for (const r of rows.filter(r => r.col === 'objects' && !r.deleted)) {
       const o = JSON.parse(JSON.stringify(r.data)), cu = custs[o.customerId] || {}; let changed = false;
       const log = m => { (o.log = o.log || []).push([T, m]); changed = true; };
+      /* Auftragserteilung erhalten → Aktiv am Vertragsbeginn */
+      if (o.status === 'gewonnen' && o.aktiv === false && !o.inaktiv) { const ab = o.aktivAb || (o.start && o.start.datum) || ''; if (ab && ab <= T) { o.aktiv = true; log('Aktiv seit Vertragsbeginn ' + ab.split('-').reverse().join('.')); out.push({ nr: o.nr, aktiv: ab }); } }
       const run = o.inaktiv ? false : (o.status === 'versendet' || (o.status === 'gewonnen' && o.revOpen)) && o.sent;
       const send = async (k, closeDue) => {
         const m = mail(S, o, cu, k, closeDue);

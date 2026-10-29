@@ -139,7 +139,10 @@ async function auftragPdf(s, r, c) {
    hinterlegt) erteilt der Kunde den Auftrag trotzdem online, die Startbesprechung vereinbart der Objektleiter danach telefonisch. */
 const isHotel = s => s && s.kind === 'hotel';
 const LS = s => (s && s.leistung) || 'Unterhaltsreinigung';
-const noCal = s => isHotel(s) && (!MS_ON() || !(s.cfg && s.cfg.cal));
+const noCal = s => isHotel(s) ? (!MS_ON() || !(s.cfg && s.cfg.cal)) : !(s.cfg && s.cfg.kick === true);
+/* Unterhaltsreinigung ohne Online-Terminwahl (Standard): der Kunde erteilt den Auftrag, die Administration meldet sich für einen Besprechungstermin vor Ort */
+const isAdm = s => !isHotel(s) && noCal(s);
+const ADM_TXT = 'Unsere Administration meldet sich für einen Besprechungstermin vor Ort bei Ihnen';
 const chfTxt = n => (Math.round((+n || 0) * 20) / 20).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, "'");
 
 /* ---------- Öffentliche Aktionen (Kundenseite) ---------- */
@@ -178,7 +181,8 @@ async function pub(b, req, res) {
       const busy = await busyList(c.cal, a - c.puffer * 60000 - 3600000, e2 + c.puffer * 60000 + 3600000);
       if (overlaps(busy, a - c.puffer * 60000, e2 + c.puffer * 60000)) return res.status(409).json({ error: en ? 'This time has just been taken. Please choose another one.' : 'Dieser Termin wurde soeben vergeben. Bitte wählen Sie einen anderen.', taken: true });
       }
-      const sTxt = NC ? c.calName + ' vereinbart den Termin telefonisch' : slotTxt(s, date, t, c.dauer), nowP = zParts(Date.now());
+      const ADM = isAdm(s);
+      const sTxt = NC ? (ADM ? (en ? 'Our administration will contact you to arrange an on-site meeting' : ADM_TXT) : c.calName + ' vereinbart den Termin telefonisch') : slotTxt(s, date, t, c.dauer), nowP = zParts(Date.now());
       const atTxt = `${String(nowP.d).padStart(2, '0')}.${String(nowP.m).padStart(2, '0')}.${nowP.y}, ${hhmm(nowP.h * 60 + nowP.mi)}${en ? '' : ' Uhr'}`;
       const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
       const ref = crypto.createHash('sha256').update([nr, s.rev || 0, name, email, date, t, sig.length, Date.now()].join('|')).digest('hex').slice(0, 12).toUpperCase();
@@ -199,7 +203,8 @@ async function pub(b, req, res) {
       r.eventId = ev.id || '';
       }
       /* 2. Unterschriebene Auftragserteilung ablegen */
-      const pdf = await auftragPdf(s, r, c);
+      const offerPdf = ADM || !isHotel(s) ? await assetBytes('ann-pdf-' + nr).then(a => a ? a.buf : null).catch(() => null) : null;
+      const pdf = isHotel(s) ? await auftragPdf(s, r, c) : await require('./_vertrag').vertragPdf(s, r, offerPdf, { host: O.base().replace(/^https?:\/\//, ''), nextTxt: ADM ? undefined : `Die Startbesprechung mit unserem ${c.calRolle} ${c.calName} findet am ${sTxt} statt. Fragen beantworten wir gerne unter 0844 355 355 oder unterhalt@clean-service.ch.` });
       await O.putAsset('ann-auf-' + nr, 'application/pdf', pdf);
       await putJson('ann-res-' + nr, r);
       const pub = Object.assign({}, r); delete pub.sig; pub.pdf = urlOf(nr) + '/auftrag'; pub.cal = c.cal; pub.calName = c.calName;
@@ -210,23 +215,23 @@ async function pub(b, req, res) {
         const o = s.objId ? await rpc('api_doc_get', { p_path: 'objects/' + s.objId }) : null;
         if (o && o.id) {
           const d0 = todayZ(); o.log = o.log || [];
-          if (o.status !== 'gewonnen') { o.status = 'gewonnen'; o.log.push([d0, 'Gewonnen (aktiv), Nachfassung beendet']); }
-          o.annahme = pub; o.revOpen = false;
-          o.log.push([d0, `Offerte online angenommen von ${name}${funktion ? ' (' + funktion + ')' : ''}, Vertragsbeginn per ${vbT}, Startbesprechung ${sTxt} mit ${c.calName}`]);
+          if (o.status !== 'gewonnen') { o.status = 'gewonnen'; o.log.push([d0, 'Auftragserteilung erhalten, Nachfassung beendet']); }
+          o.annahme = pub; o.revOpen = false; o.aktiv = false; o.aktivAb = vb + '-01'; o.auftragAm = d0;
+          o.log.push([d0, `Reinigungsvertrag online unterzeichnet von ${name}${funktion ? ' (' + funktion + ')' : ''}, Vertragsbeginn per ${vbT}${ADM ? '' : ', Startbesprechung ' + sTxt + ' mit ' + c.calName}`]);
           await rpc('api_doc_put', { p_path: 'objects/' + o.id, p_data: o });
         }
       } catch (e) {}
       /* 4. Bestätigung an den Kunden, Meldung an unterhalt@ und den Objektleiter */
-      const att = [{ filename: (en ? 'Order_confirmation_' : 'Auftragserteilung_') + nr + '.pdf', content: pdf.toString('base64') }];
+      const att = [{ filename: (isHotel(s) ? (en ? 'Order_confirmation_' : 'Auftragserteilung_') : (en ? 'Cleaning_contract_' : 'Reinigungsvertrag_')) + nr + '.pdf', content: pdf.toString('base64') }];
       const to = [email]; if (s.email && s.email.toLowerCase() !== email.toLowerCase() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.email)) to.push(s.email);
       const ort = [s.objekt, s.adresse].filter(Boolean).join(', ');
       const kText = en
         ? `${s.gruss || 'Dear Sir or Madam'}\n\nThank you very much for your order. We are looking forward to working with you. The maintenance cleaning starts on ${vbT}.\n\nYour kick-off meeting with our ${c.calRolle === 'Objektleiter' ? 'property manager' : c.calRolle} ${c.calName} will take place on ${sTxt}${ort ? ' at ' + ort : ''}. You will receive the invitation for your calendar in a separate e-mail.\n\nPlease find attached your signed order confirmation (reference ${ref}).\n\nKind regards`
-        : `${s.gruss || 'Sehr geehrte Damen und Herren'}\n\nHerzlichen Dank für Ihren Auftrag. Wir freuen uns auf die Zusammenarbeit. ${isHotel(s) ? 'Der ' + LS(s) + ' startet' : 'Die Unterhaltsreinigung beginnt'} per ${vbT}.\n\n${NC ? `Unser ${c.calRolle} ${c.calName} meldet sich in den nächsten Tagen telefonisch bei Ihnen, um den Termin für die Startbesprechung zu vereinbaren.` : `Die Startbesprechung mit unserem ${c.calRolle} ${c.calName} findet am ${sTxt}${ort ? ' statt, vor Ort an der ' + ort : ' statt'}. Die Einladung für Ihren Kalender erhalten Sie in einer separaten E-Mail.`}\n\nIm Anhang finden Sie Ihre unterschriebene Auftragserteilung (Referenz ${ref}).\n\nFreundliche Grüsse`;
-      let kOk = true; try { await sendMail({ to, subject: (en ? 'Order confirmation and kick-off meeting · ' : NC ? 'Auftragsbestätigung · ' : 'Auftragsbestätigung und Startbesprechung · ') + nr, text: kText, kind: 'annahme', objectId: s.objId, attachments: att, lang: en ? 'en' : 'de', replyTo: isHotel(s) ? HOTEL_RT : undefined }); } catch (e) { kOk = false; }
+        : `${s.gruss || 'Sehr geehrte Damen und Herren'}\n\nHerzlichen Dank für Ihren Auftrag. Wir freuen uns auf die Zusammenarbeit. ${isHotel(s) ? 'Der ' + LS(s) + ' startet' : 'Die Unterhaltsreinigung beginnt'} per ${vbT}.\n\n${ADM ? 'Unsere Administration meldet sich in den nächsten Tagen bei Ihnen für einen Besprechungstermin vor Ort.' : NC ? `Unser ${c.calRolle} ${c.calName} meldet sich in den nächsten Tagen telefonisch bei Ihnen, um den Termin für die Startbesprechung zu vereinbaren.` : `Die Startbesprechung mit unserem ${c.calRolle} ${c.calName} findet am ${sTxt}${ort ? ' statt, vor Ort an der ' + ort : ' statt'}. Die Einladung für Ihren Kalender erhalten Sie in einer separaten E-Mail.`}\n\n${isHotel(s) ? `Im Anhang finden Sie Ihre unterschriebene Auftragserteilung (Referenz ${ref}).` : `Im Anhang finden Sie Ihren Reinigungsvertrag: die Offerte mit allen Beilagen und die von beiden Seiten unterzeichnete Vertragsseite (Referenz ${ref}).`}\n\nFreundliche Grüsse`;
+      let kOk = true; try { await sendMail({ to, subject: (isHotel(s) ? (en ? 'Order confirmation and kick-off meeting · ' : NC ? 'Auftragsbestätigung · ' : 'Auftragsbestätigung und Startbesprechung · ') : (en ? 'Your order / cleaning contract · ' : 'Ihr Auftrag / Reinigungsvertrag · ')) + nr, text: kText, kind: 'annahme', objectId: s.objId, attachments: att, lang: en ? 'en' : 'de', replyTo: isHotel(s) ? HOTEL_RT : undefined }); } catch (e) { kOk = false; }
       const intern = (isHotel(s) ? ['hotelservice@clean-service.ch', ...String(c.cc || '').split(/[,;\s]+/), c.cal] : [E.MAIL_REPLY_TO ? String(E.MAIL_REPLY_TO).replace(/^.*<([^>]+)>.*$/, '$1') : 'unterhalt@clean-service.ch', c.cal]).filter(x => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x || '')).filter((x, i, a) => x && a.indexOf(x) === i);
-      const iText = `Guten Tag\n\nDie Offerte ${nr}${s.rev ? ' (Rev. ' + s.rev + ')' : ''} für ${s.firma || ''}${ort ? ', ' + ort : ''} wurde soeben online angenommen.\n\nUnterschrieben von: ${name}${funktion ? ', ' + funktion : ''} (${email})\nGewünschter Vertragsbeginn: per ${vbT}\n${isHotel(s) ? 'Preise: ' + (s.preis || 'gemäss Offerte') : `Monatlicher Pauschalbetrag: CHF ${chfTxt(betrag)} exkl. MwSt.${variante ? ' (' + variante + ')' : ''}`}\n${NC ? `Startbesprechung: Bitte den Termin telefonisch mit dem Kunden vereinbaren (${c.calName}).` : `Startbesprechung: ${sTxt} mit ${c.calName}. Der Termin steht im Kalender, der Kunde hat die Einladung erhalten.`}\n\n${isHotel(s) ? 'Die Hotelofferte steht im Verkaufstool automatisch auf «Gewonnen». Die unterschriebene Auftragserteilung ist angehängt.' : 'Die Offerte steht in der Offertplattform auf «Gewonnen». Bitte dort Reinigungsstart und Einführung festlegen, damit Stellenportal und Gruppenchat starten.'}${kOk ? '' : '\n\nAchtung: Die Bestätigung an den Kunden konnte nicht gesendet werden. Bitte die angehängte Auftragserteilung manuell zustellen.'}\n\nFreundliche Grüsse`;
-      try { await sendMail({ to: intern, subject: isHotel(s) ? `Auftrag gewonnen: Offerte ${nr} · ${s.firma || ''}` : `Offerte ${nr} online angenommen: ${s.firma || ''}`, text: iText, kind: 'annahme-intern', objectId: s.objId, attachments: att, lang: 'de', nocopy: true }); } catch (e) {}
+      const iText = `Guten Tag\n\nDie Offerte ${nr}${s.rev ? ' (Rev. ' + s.rev + ')' : ''} für ${s.firma || ''}${ort ? ', ' + ort : ''} wurde soeben online angenommen.${isHotel(s) ? '' : ' Der Reinigungsvertrag (Offerte mit Vertragsseite, beide Unterschriften) ist angehängt und beim Kunden. Status im Verkaufstool: Auftragserteilung erhalten, Aktiv ab Vertragsbeginn.'}\n\nUnterschrieben von: ${name}${funktion ? ', ' + funktion : ''} (${email})\nGewünschter Vertragsbeginn: per ${vbT}\n${isHotel(s) ? 'Preise: ' + (s.preis || 'gemäss Offerte') : `Monatlicher Pauschalbetrag: CHF ${chfTxt(betrag)} exkl. MwSt.${variante ? ' (' + variante + ')' : ''}`}\n${NC ? `Startbesprechung: Bitte den Termin telefonisch mit dem Kunden vereinbaren (${c.calName}).` : `Startbesprechung: ${sTxt} mit ${c.calName}. Der Termin steht im Kalender, der Kunde hat die Einladung erhalten.`}\n\n${isHotel(s) ? 'Die Hotelofferte steht im Verkaufstool automatisch auf «Gewonnen». Die unterschriebene Auftragserteilung ist angehängt.' : 'Die Offerte steht in der Offertplattform auf «Gewonnen». Bitte dort Reinigungsstart und Einführung festlegen, damit Stellenportal und Gruppenchat starten.'}${kOk ? '' : '\n\nAchtung: Die Bestätigung an den Kunden konnte nicht gesendet werden. Bitte die angehängte Auftragserteilung manuell zustellen.'}\n\nFreundliche Grüsse`;
+      try { await sendMail({ to: intern, subject: isHotel(s) ? `Auftrag gewonnen: Offerte ${nr} · ${s.firma || ''}` : `Auftragserteilung erhalten: Offerte ${nr} · ${s.firma || ''}`, text: iText, kind: 'annahme-intern', objectId: s.objId, attachments: att, lang: 'de', nocopy: true }); } catch (e) {}
       return res.status(200).json({ ok: true, slotTxt: sTxt, ref, vbTxt: vbT, name: name + (funktion ? ', ' + funktion : '') });
     }
     res.status(400).json({ error: 'Aktion unbekannt' });
@@ -376,7 +381,9 @@ async function page(req, res) {
     pdf: 'Offerte ansehen (PDF)', cp: 'Ihr Ansprechpartner', okH: 'Vielen Dank für Ihren Auftrag', okM: 'Ihr Auftrag wurde erfolgreich erteilt. Die Bestätigung und die Kalendereinladung sind unterwegs in Ihr Postfach.', signed: 'Unterzeichnet von', ref: 'Referenz', okPdf: 'Auftragserteilung herunterladen (PDF)',
     gone: 'Der gewählte Termin wurde soeben vergeben. Bitte wählen Sie einen anderen.', pick: 'Bitte wählen Sie einen Termin für die Startbesprechung.', pickM: 'Bitte wählen Sie den gewünschten Vertragsbeginn.', eName: 'Bitte geben Sie Vor- und Nachname an.', eMail: 'Bitte geben Sie eine gültige E-Mail-Adresse an.', eSig: 'Bitte unterschreiben Sie im Unterschriftsfeld.', eAgb: 'Bitte bestätigen Sie, dass Sie die Offerte akzeptieren.', eb: 'Offerte annehmen'
   };
-  const NC = noCal(s);
+  const NC = noCal(s), ADM = isAdm(s);
+  if (ADM) Object.assign(T, en ? { kick: 'On-site meeting', mail: 'E-mail for the confirmation', okM: 'Your order has been placed successfully. Your cleaning contract is on its way to your inbox. Our administration will contact you to arrange an on-site meeting.', okPdf: 'Download cleaning contract (PDF)', legal: 'You will receive your cleaning contract (PDF) by e-mail immediately. Your details are used solely to process the order.', sigNote: 'Your signature is recorded in the cleaning contract with date, time and reference.' }
+    : { kick: 'Besprechungstermin', mail: 'E-Mail für die Bestätigung', okM: 'Ihr Auftrag wurde erfolgreich erteilt. Ihr Reinigungsvertrag ist unterwegs in Ihr Postfach. Unsere Administration meldet sich für einen Besprechungstermin vor Ort bei Ihnen.', okPdf: 'Reinigungsvertrag herunterladen (PDF)', legal: 'Sie erhalten umgehend Ihren Reinigungsvertrag (PDF) per E-Mail: die Offerte mit allen Beilagen und die unterzeichnete Vertragsseite. Ihre Angaben werden ausschliesslich zur Auftragsabwicklung verwendet.', sigNote: 'Ihre Unterschrift wird mit Datum, Uhrzeit und Referenz im Reinigungsvertrag festgehalten.' });
   if (isHotel(s) && !en) Object.assign(T, { startL: 'Der ' + LS(s) + ' startet am Ersten des gewählten Monats.', kickL: NC ? `Unser ${c.calRolle} ${c.calName} meldet sich nach Ihrer Auftragserteilung telefonisch, um die Startbesprechung vor Ort zu vereinbaren. Wir besprechen Abläufe, Zutritt, Wäsche und Ansprechpersonen.` : `${c.dauer === 60 ? '1 Stunde' : c.dauer + ' Minuten'} vor Ort mit unserem ${c.calRolle} ${c.calName}. Wir besprechen Abläufe, Zutritt, Wäsche und Ansprechpersonen.`, mon: 'Preise', excl: 'pro Einsatz, exkl. MwSt., monatliche Verrechnung nach Einsätzen', scopeV: 'gemäss Offerte und Leistungsverzeichnis' }, NC ? { mail: 'E-Mail für die Bestätigung', legal: 'Sie erhalten umgehend eine Bestätigung mit der unterzeichneten Auftragserteilung (PDF) per E-Mail. Ihre Angaben werden ausschliesslich zur Auftragsabwicklung verwendet.', okM: 'Ihr Auftrag wurde erfolgreich erteilt. Die Bestätigung ist unterwegs in Ihr Postfach, unser Objektleiter meldet sich für die Startbesprechung.' } : {});
   res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.setHeader('Cache-Control', 'no-store');
   const vars = Array.isArray(s.vars) && s.vars.length > 1 ? s.vars : [];
@@ -389,13 +396,14 @@ async function page(req, res) {
     <div class="ft">${hasPdf ? `<a href="${base}/offerte" target="_blank" rel="noopener">${T.pdf}</a>` : ''}${kp.name ? `<div class="cp"><small>${T.cp}</small><b>${esc(kp.name)}</b>${kp.rolle ? '<br>' + esc(kp.rolle) : ''}${kp.kontakt ? '<br>' + esc(kp.kontakt) : ''}</div>` : `<div class="cp"><small>${T.cp}</small><b>Clean Service Scaramuzzo AG</b><br>0844 355 355</div>`}</div></aside>`;
   if (done) return res.status(200).send(shell(T.eb, top(s, en) + hero(s, en) + `<div class="wrap"><div class="layout"><div class="steps">${doneHtml(T, done, base, s)}</div>${side}</div></div>` + FOOT, en ? 'en' : 'de'));
   const off = !MS_ON() && !NC, months = startMonths();
-  const st1 = `<section class="step" aria-labelledby="h1s"><p class="sn">${T.s} 1 ${T.of} 3</p><h2 id="h1s">${T.startH}</h2><p class="lead">${T.startL}</p>
+  const NS = ADM ? 2 : 3;
+  const st1 = `<section class="step" aria-labelledby="h1s"><p class="sn">${T.s} 1 ${T.of} ${NS}</p><h2 id="h1s">${T.startH}</h2><p class="lead">${T.startL}</p>
     <div class="months" role="radiogroup" aria-label="${T.startH}">${months.map(m => { const [y, mo] = m.split('-').map(Number); return `<label class="mo"><input type="radio" name="vb" value="${m}"><small>${T.per} 1.</small><b>${L[en ? 'en' : 'de'].mon[mo - 1]}</b><small>${y}</small></label>`; }).join('')}</div><div class="err" id="e0"></div></section>`;
-  const st2 = `<section class="step" aria-labelledby="h2s"><p class="sn">${T.s} 2 ${T.of} 3</p><h2 id="h2s">${T.kickH}</h2><p class="lead">${esc(T.kickL)}</p>
+  const st2 = ADM ? '' : `<section class="step" aria-labelledby="h2s"><p class="sn">${T.s} 2 ${T.of} 3</p><h2 id="h2s">${T.kickH}</h2><p class="lead">${esc(T.kickL)}</p>
     ${NC ? `<div class="chosen">${ICO.cal}<div><b>${esc(c.calName)}, ${esc(c.calRolle)}</b><br><span>meldet sich nach der Auftragserteilung telefonisch bei Ihnen</span></div></div><div class="err" id="e1"></div></section>` : `<div class="src"><i></i>${esc(T.src)}</div>
     <div class="calh"><b id="rg">${T.loading}</b><div class="navb"><button class="ib" id="pw" type="button" disabled aria-label="${T.prevW}">${ICO.l}</button><button class="ib" id="nw" type="button" disabled aria-label="${T.nextW}">${ICO.r}</button></div></div>
     <div class="grid" id="grid" aria-live="polite"></div><div class="chosen" id="ch" hidden></div><div class="err" id="e1"></div></section>`}`;
-  const st3 = `<section class="step" aria-labelledby="h3s"><p class="sn">${T.s} 3 ${T.of} 3</p><h2 id="h3s">${T.ordH}</h2><p class="lead">${esc(T.ordL)}</p>
+  const st3 = `<section class="step" aria-labelledby="h3s"><p class="sn">${T.s} ${NS} ${T.of} ${NS}</p><h2 id="h3s">${T.ordH}</h2><p class="lead">${esc(T.ordL)}</p>
     <div class="fr"><div class="f" style="margin-top:0"><label for="nm">${T.name}</label><input id="nm" autocomplete="name" value="${esc(s.kontakt || '')}"></div><div class="f" style="margin-top:0"><label for="fns">${T.fn}</label><select id="fns"><option value="">${T.fnPick}</option>${T.fnList.map(x => `<option>${esc(x)}</option>`).join('')}<option value="__x">${T.fnOther}</option></select><input id="fn" autocomplete="organization-title" placeholder="${T.fnOtherPh}" hidden style="margin-top:8px"></div></div>
     <div class="f"><label for="em">${T.mail}</label><input id="em" type="email" autocomplete="email" value="${esc(s.email || '')}"></div>
     <div class="f"><div class="padh"><span class="lab">${T.sig}</span><button class="lnk" type="button" id="sgc">${T.clr}</button></div>
@@ -457,7 +465,7 @@ function sigData(){paint();const k=cv.width/W_().width,d=cx.getImageData(0,0,cv.
  if(x1<0){x0=0;y0=0;x1=cv.width-1;y1=cv.height-1;}const pad=12*k;x0=Math.max(0,x0-pad);y0=Math.max(0,y0-pad);x1=Math.min(cv.width,x1+pad);y1=Math.min(cv.height,y1+pad);const sw=x1-x0,sh=y1-y0,sc=Math.min(1,600/sw);
  const o=document.createElement('canvas');o.width=Math.round(sw*sc);o.height=Math.round(sh*sc);const c=o.getContext('2d');c.fillStyle='#fff';c.fillRect(0,0,o.width,o.height);c.drawImage(cv,x0,y0,sw,sh,0,0,o.width,o.height);return o.toDataURL('image/png');}
 const bad=(id,msg,el)=>{$(id).textContent=msg;(el||$(id)).scrollIntoView({behavior:'smooth',block:'center'});};
-$('#go').onclick=async()=>{if(busy)return;['#e0','#e1','#e2'].forEach(x=>$(x).textContent='');
+$('#go').onclick=async()=>{if(busy)return;['#e0','#e1','#e2'].forEach(x=>{const el=$(x);if(el)el.textContent='';});
  const vb=document.querySelector('input[name=vb]:checked');if(!vb)return bad('#e0',T.pickM,$('.months'));
  if(!NOCAL&&!SEL)return bad('#e1',T.pick,$('#grid'));
  const fs_=$('#fns').value,name=$('#nm').value.trim(),fn=fs_==='__x'?$('#fn').value.trim():fs_,em=$('#em').value.trim();
