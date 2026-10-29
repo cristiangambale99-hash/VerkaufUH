@@ -59,9 +59,10 @@ function uhOfferHtml(d) {
 let BROWSER = null;
 async function browser() {
   if (BROWSER && BROWSER.connected) return BROWSER;
-  const puppeteer = require('puppeteer-core');
+  /* Beide Pakete sind ES-Module: per import() laden, require() wird auf Vercel abgelehnt */
+  const pm = await import('puppeteer-core'), puppeteer = pm.default || pm;
   let exe = process.env.CHROME_PATH || '', args = ['--no-sandbox', '--font-render-hinting=none'];
-  if (!exe) { const chromium = require('@sparticuz/chromium').default || require('@sparticuz/chromium'); chromium.setGraphicsMode = false; exe = await chromium.executablePath(); args = chromium.args.concat(['--font-render-hinting=none']); }
+  if (!exe) { const cm = await import('@sparticuz/chromium'), chromium = cm.default || cm; chromium.setGraphicsMode = false; exe = await chromium.executablePath(); args = chromium.args.concat(['--font-render-hinting=none']); }
   BROWSER = await puppeteer.launch({ executablePath: exe, args, headless: true, defaultViewport: { width: 1240, height: 1754 } });
   return BROWSER;
 }
