@@ -3891,7 +3891,7 @@ async function uhPdfCall(o, stash) {
   return stash ? r.json() : new Uint8Array(await r.arrayBuffer());
 }
 async function buildOfferPdf(o, lang = 'de') {
-  if (uhNew(o, lang)) { try { return await window.PDFLib.PDFDocument.load(await uhPdfCall(o)); } catch (e) { console.error('Neues Layout', e); toast('Neues Layout gerade nicht verfügbar, Offerte im bisherigen Layout erstellt', 'warning'); } }
+  if (uhNew(o, lang)) { try { return await window.PDFLib.PDFDocument.load(await uhPdfCall(o)); } catch (e) { console.error('Neues Layout', e); toast('Neues Layout nicht verfügbar (' + String(e && e.message || e).slice(0, 140) + '). Offerte im bisherigen Layout erstellt.', 'warning'); } }
   return buildOfferPdfAlt(o, lang);
 }
 async function buildOfferPdfAlt(o, lang = 'de') {
