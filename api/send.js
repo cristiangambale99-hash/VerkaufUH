@@ -1,4 +1,4 @@
-const { rpc, guard, body, sendMail, assetBytes } = require('./_lib');
+const { rpc, guard, body, sendMail, assetBytes, HOTEL_RT } = require('./_lib');
 module.exports = async (req, res) => {
   if (req.method !== 'POST' || !guard(req, res)) return;
   const { to, subject, text, kind, objectId, filename, stash, lang, annahme } = await body(req);
@@ -7,7 +7,7 @@ module.exports = async (req, res) => {
     let attachments;
     if (stash) { if (!/^tmp-[\w\-]+$/.test(stash)) return res.status(400).json({ error: 'stash' }); const a = await assetBytes(stash); if (!a) return res.status(400).json({ error: 'Anhang nicht gefunden' }); attachments = [{ filename: filename || 'Offerte.pdf', content: a.b64 }];
       if (annahme && /^[\w\-]+$/.test(annahme)) { try { await require('./_ordner').putAsset('ann-pdf-' + annahme, 'application/pdf', a.buf); } catch (e) {} } }
-    const id = await sendMail({ to, subject, text, kind, objectId, attachments, lang: lang === 'en' ? 'en' : 'de' });
+    const id = await sendMail({ to, subject, text, kind, objectId, attachments, lang: lang === 'en' ? 'en' : 'de', replyTo: kind === 'hotel' ? HOTEL_RT : undefined });
     if (stash) { try { await rpc('api_asset_del', { p_name: stash }); } catch (e) {} }
     res.status(200).json({ ok: true, id });
   } catch (e) { res.status(502).json({ error: String(e.message) }); }

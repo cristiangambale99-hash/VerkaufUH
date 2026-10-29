@@ -1,4 +1,4 @@
-const { rpc, sendMail, settings, E } = require('./_lib');
+const { rpc, sendMail, settings, E, HOTEL_RT } = require('./_lib');
 const { MAIL_NF_EN } = require('./_en');
 const TZ = 'Europe/Zurich';
 const today = () => new Intl.DateTimeFormat('sv-SE', { timeZone: TZ }).format(new Date());
@@ -12,6 +12,44 @@ function mail(S, o, cu, k, closeDue) {
   const b = S[pre + k + '_b'] || (en && MAIL_NF_EN[k] && MAIL_NF_EN[k].b), t = S[pre + k + '_t'] || (en && MAIL_NF_EN[k] && MAIL_NF_EN[k].t); if (!b || !t) return null;
   const fill = s => s.replace(/\{objekt\}/g, o.name || (en ? 'your property' : 'Ihr Objekt')).replace(/\{frist\}/g, dmy(closeDue));
   return { subject: fill(b), text: fill(t).replace(/^(Sehr geehrte|Dear)[^\n]*/, salutation(cu, en ? 'en' : 'de')) };
+}
+/* ---------- Nachfassung Hotelofferten (gleicher Rhythmus wie Unterhaltsreinigung) ---------- */
+const HNF = {
+  nf1: { b: 'Ihre Offerte für den Hotelservice: Gerne beantworten wir offene Fragen', t: "{gruss}\n\nVor einer Woche haben wir Ihnen unsere Offerte {nr} für den Hotelservice{objekt} zugestellt. Gerne möchten wir uns erkundigen, ob Sie die Unterlagen in Ruhe prüfen konnten und ob sich daraus Fragen ergeben haben.\n\nMöchten Sie Zimmertypen, Leistungen oder den Umfang des Public Area Cleaning anpassen, überarbeiten wir die Offerte unkompliziert für Sie. Gerne besprechen wir die Details auch in einem kurzen Telefonat oder direkt bei Ihnen vor Ort.\n\n{btn}Wir freuen uns auf Ihre Rückmeldung und darauf, Ihre Gäste gemeinsam mit Ihnen zu begeistern.\n\nFreundliche Grüsse" },
+  nf2: { b: 'Rückfrage zu unserer Offerte {nr} für den Hotelservice', t: "{gruss}\n\nVor drei Wochen haben wir Ihnen unsere Offerte {nr} für den Hotelservice{objekt} unterbreitet. Damit wir den Start sauber planen und das Team rechtzeitig für Sie einteilen können, bitten wir Sie um eine kurze Rückmeldung, ob Sie weiterhin an einer Zusammenarbeit interessiert sind.\n\nHaben sich Ihre Anforderungen verändert, überarbeiten wir die Offerte gerne und stimmen die Leistungen auf Ihren aktuellen Bedarf ab. Ein kurzer Anruf oder eine Antwort auf diese Mail genügt.\n\n{btn}Hören wir bis am {frist} nichts von Ihnen, gehen wir davon aus, dass das Thema im Moment nicht ansteht, und schliessen die Offerte vorläufig. Sie können jederzeit auf uns zukommen.\n\nFreundliche Grüsse" },
+  re6: { b: 'Hotelservice{objektB}: Wir sind weiterhin für Sie da', t: "{gruss}\n\nVor einem halben Jahr haben wir Ihnen eine Offerte für den Hotelservice{objekt} erstellt. Da sich Belegung, Zimmerangebot und Anforderungen im Laufe der Zeit häufig verändern, möchten wir uns kurz bei Ihnen melden.\n\nSollte das Thema für Sie wieder aktuell sein, erstellen wir Ihnen gerne eine überarbeitete Offerte mit Ihren heutigen Zimmertypen und Bereichen. Eine unverbindliche Besichtigung vor Ort ist jederzeit möglich.\n\nWir freuen uns, wenn wir Sie mit unserem Hotelservice unterstützen dürfen.\n\nFreundliche Grüsse" }
+};
+const hGruss = h => { const n = String(h.kontakt || '').trim().split(/\s+/).pop() || ''; if (h.anrede === 'h' && n) return `Sehr geehrter Herr ${n}`; if (h.anrede === 'f' && n) return `Sehr geehrte Frau ${n}`; return 'Sehr geehrte Damen und Herren'; };
+function hMail(h, k, closeDue) {
+  const m = HNF[k], ob = h.objekt ? ' (' + h.objekt + ')' : '', btn = h.annUrl && k !== 're6' ? `Haben Sie sich bereits entschieden? Die Auftragserteilung retournieren Sie in zwei Minuten online:\n\n[[BTN:Auftragserteilung online retournieren|${h.annUrl}|Dauer ca. 2 Minuten · Unterzeichnung direkt am Bildschirm]]\n\n` : '';
+  const f = s => s.replace(/\{gruss\}/g, hGruss(h)).replace(/\{nr\}/g, h.nr || '').replace(/\{objektB\}/g, h.objekt ? ' ' + h.objekt : '').replace(/\{objekt\}/g, ob).replace(/\{frist\}/g, dmy(closeDue)).replace(/\{btn\}/g, btn);
+  return { subject: f(m.b), text: f(m.t) };
+}
+async function hotelNf(rows, g, T, dry, out) {
+  const nfs = Object.fromEntries(rows.filter(r => r.col === 'hotelnf' && !r.deleted).map(r => [r.id, r.data]));
+  for (const r of rows.filter(r => r.col === 'hotel' && !r.deleted)) {
+    const h = JSON.parse(JSON.stringify(r.data || {})); if (!h.id) continue;
+    const st = JSON.parse(JSON.stringify(nfs[h.id] || { id: h.id, nf: 0, nfDates: [], log: [] })); let ch = false, hch = false;
+    const lg = m => { (st.log = st.log || []).push([T, m]); ch = true; };
+    const sent = String(h.sent || '').slice(0, 10), to = String(h.email || '').trim();
+    const send = async (k, closeDue) => {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) { out.push({ nr: h.nr, k, skip: 'keine E-Mail' }); return false; }
+      if (dry) { out.push({ nr: h.nr, k, dry: true, an: to }); return false; }
+      const m = hMail(h, k, closeDue);
+      try { await sendMail({ to, subject: m.subject, text: m.text, kind: k, objectId: h.id, lang: 'de', replyTo: HOTEL_RT }); out.push({ nr: h.nr, k, gesendet: to }); return true; }
+      catch (e) { out.push({ nr: h.nr, k, fehler: e.message }); return false; }
+    };
+    if (h.status === 'versendet' && /^\d{4}-\d\d-\d\d$/.test(sent) && !h.nfOff) {
+      const done = Math.min(st.nf || 0, 2), nfd = st.nfDates || [];
+      const due0 = addD(sent, g[0]), n1 = nfd[0] || due0, due1 = addD(n1, g[1]), n2 = nfd[1] || due1, close = addD(n2, g[2]);
+      if (done < 2) { if ((done === 0 ? due0 : due1) <= T && await send('nf' + (done + 1), close)) { st.nf = done + 1; st.nfDates = [...nfd, T]; lg(`${st.nf}. Nachfassung gesendet an ${to}`); } }
+      else if (close <= T && !dry) { h.status = 'abgelehnt'; h.auto = true; h.upd = Date.now(); hch = true; st.closed = close; lg('Keine Rückmeldung: Offerte automatisch geschlossen'); }
+    } else if (h.status === 'abgelehnt' && h.auto && st.closed && !st.re6 && !h.nfOff && addM(st.closed, 6) <= T) {
+      if (await send('re6', null)) { st.re6 = T; lg(`Erneute Anfrage nach 6 Monaten gesendet an ${to}`); }
+    }
+    if (hch) await rpc('api_doc_put', { p_path: 'hotel/' + h.id, p_data: h });
+    if (ch && !dry) await rpc('api_doc_put', { p_path: 'hotelnf/' + h.id, p_data: st });
+  }
 }
 module.exports = async (req, res) => {
   if ((req.headers.authorization || '') !== 'Bearer ' + E.CRON_SECRET) return res.status(401).end();
@@ -45,6 +83,7 @@ module.exports = async (req, res) => {
       }
       if (changed && !dry) await rpc('api_doc_put', { p_path: 'objects/' + o.id, p_data: o });
     }
+    try { await hotelNf(rows, g, T, dry, out); } catch (e) { out.push({ hotel: 'fehler', e: String(e.message || e) }); }
     try { await rpc('api_asset_cleanup', {}); } catch (e) {}
     res.status(200).json({ datum: T, dry, ergebnis: out });
   } catch (e) { res.status(500).json({ error: String(e.message), out }); }
