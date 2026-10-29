@@ -4,6 +4,12 @@
 const { guard, body, rpc } = require('./_lib');
 const R = require('./_render');
 module.exports = async (req, res) => {
+  /* Kurztest ohne Kundendaten: /api/pdf?diag=1 rendert eine leere Seite und meldet Erfolg oder Fehler */
+  if (req.method === 'GET' && req.query && req.query.diag) {
+    const t = Date.now();
+    try { const { pdf } = await R.render(R.shell('<div class="doc"><p>Test</p></div>')); return res.status(200).json({ ok: true, bytes: pdf.length, ms: Date.now() - t, node: process.version }); }
+    catch (e) { console.error('pdf diag', e); return res.status(200).json({ ok: false, error: String(e && e.message || e).slice(0, 800), node: process.version, ms: Date.now() - t }); }
+  }
   if (req.method !== 'POST' || !guard(req, res)) return;
   const b = await body(req), d = b.d;
   if (!d || typeof d !== 'object' || !Array.isArray(d.rb) || !Array.isArray(d.lv)) return res.status(400).json({ error: 'Daten fehlen' });
@@ -19,5 +25,5 @@ module.exports = async (req, res) => {
     }
     res.setHeader('Content-Type', 'application/pdf'); res.setHeader('Cache-Control', 'no-store');
     res.status(200).send(pdf);
-  } catch (e) { res.status(500).json({ error: 'PDF konnte nicht erstellt werden: ' + String(e.message || e).slice(0, 300) }); }
+  } catch (e) { console.error('pdf', e); res.status(500).json({ error: 'PDF konnte nicht erstellt werden: ' + String(e.message || e).slice(0, 300) }); }
 };
