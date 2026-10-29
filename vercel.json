@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/api/pdf",
+      "destination": "/api/stash?x=pdf"
+    },
+    {
       "source": "/",
       "destination": "/api/page"
     },
@@ -38,16 +42,14 @@
     },
     "api/ordner.js": {
       "maxDuration": 60,
-      "memory": 2048,
       "includeFiles": "{public/ordner/**,api/_assets/**,node_modules/@sparticuz/chromium/bin/**}"
     },
     "api/aushang.js": {
       "maxDuration": 30,
       "includeFiles": "api/_tpl/**"
     },
-    "api/pdf.js": {
+    "api/stash.js": {
       "maxDuration": 60,
-      "memory": 2048,
       "includeFiles": "{api/_assets/**,node_modules/@sparticuz/chromium/bin/**}"
     },
     "api/*.js": {
