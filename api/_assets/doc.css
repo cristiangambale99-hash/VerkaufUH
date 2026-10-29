@@ -1,0 +1,163 @@
+.doc * { box-sizing: border-box; }
+.doc, .doc { margin: 0px; padding: 0px; }
+.doc { font-family: Verdana, "DejaVu Sans", sans-serif; font-size: 8.6pt; line-height: 1.55; color: rgb(60, 60, 59); print-color-adjust: exact; }
+.doc .pg { width: 210mm; height: 297mm; position: relative; overflow: hidden; break-after: page; background: rgb(255, 255, 255); }
+.doc .pg:last-child { break-after: auto; }
+.doc .in { position: absolute; inset: 42mm 28mm 41mm 25mm; }
+.doc .pg.lh { background: transparent; }
+.doc .hd { position: absolute; left: 25mm; right: 116mm; top: 14mm; display: flex; justify-content: space-between; align-items: flex-start; }
+.doc .hd img { height: 15mm; }
+.doc .hd .m { font-size: 7pt; color: rgb(118, 118, 118); line-height: 1.5; padding-top: 3mm; }
+.doc .hd .m b { color: rgb(60, 60, 59); font-weight: bold; }
+.doc .vt { position: absolute; right: 10mm; bottom: 31mm; writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; font-family: Figtree, sans-serif; font-size: 7.2pt; color: rgb(43, 182, 183); letter-spacing: 0.02em; }
+.doc .ft { position: absolute; left: 20mm; right: 28mm; bottom: 10mm; display: flex; justify-content: space-between; align-items: flex-end; }
+.doc .ft img { height: 11mm; }
+.doc .ft .a { font-family: Figtree, sans-serif; font-size: 7pt; line-height: 1.45; color: rgb(118, 118, 118); text-align: right; }
+.doc .ft .a span { color: rgb(43, 182, 183); }
+.doc .ft .p { font-size: 7pt; color: rgb(154, 154, 154); }
+.doc .eb { font-family: Figtree, sans-serif; font-weight: 600; font-size: 7.6pt; letter-spacing: 0.16em; text-transform: uppercase; color: rgb(27, 131, 132); margin: 0px 0px 2.5mm; }
+.doc h1 { font-family: Figtree, sans-serif; font-weight: 300; font-size: 22pt; line-height: 1.12; letter-spacing: 0.07em; text-transform: uppercase; color: rgb(27, 131, 132); margin: 0px 0px 7mm; }
+.doc h2 { font-family: Figtree, sans-serif; font-weight: 600; font-size: 12.5pt; color: rgb(60, 60, 59); margin: 0px 0px 2.5mm; letter-spacing: 0.005em; }
+.doc h3 { font-family: Figtree, sans-serif; font-weight: 600; font-size: 9.5pt; color: rgb(60, 60, 59); margin: 0px 0px 1.5mm; }
+.doc p { margin: 0px 0px 3mm; }
+.doc .lead { font-size: 9pt; color: rgb(60, 60, 59); max-width: 150mm; }
+.doc .note { font-size: 7.4pt; color: rgb(118, 118, 118); line-height: 1.5; }
+.doc table { width: 100%; border-collapse: collapse; }
+.doc th { font-family: Figtree, sans-serif; font-weight: 600; font-size: 7.6pt; color: rgb(27, 131, 132); text-align: left; padding: 2.6mm 2.4mm; border-bottom: 1.2pt solid rgb(27, 131, 132); vertical-align: bottom; line-height: 1.25; }
+.doc td { padding: 2.4mm; border-bottom: 0.6pt solid rgb(217, 230, 232); vertical-align: top; }
+.doc .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.doc th.num { white-space: normal; }
+.doc .pr { table-layout: fixed; }
+.doc .pr td { padding: 3.4mm 2mm; font-size: 8.8pt; }
+.doc .pr th { padding: 2.6mm 2mm; }
+.doc .pr td:first-child { font-weight: bold; white-space: nowrap; }
+.doc .pr tr:nth-child(2n) td { background: rgb(246, 250, 251); }
+.doc .box { background: rgb(241, 247, 248); border-left: 2.4pt solid rgb(27, 131, 132); padding: 4mm 5mm; margin: 5mm 0px; }
+.doc .sec { margin-top: 9mm; }
+.doc .lv th.c, .doc .lv td.c { text-align: center; width: 24mm; }
+.doc .lv td { padding: 0.42mm 2mm; font-size: 6.8pt; line-height: 1.25; }
+.doc .lv td.g { font-family: Figtree, sans-serif; font-weight: 600; font-size: 7.6pt; color: rgb(27, 131, 132); letter-spacing: 0.12em; text-transform: uppercase; padding-top: 1.8mm; border-bottom: 0.6pt solid rgb(191, 217, 220); }
+.doc .tag { display: inline-block; font-family: Figtree, sans-serif; font-weight: 600; font-size: 6.6pt; letter-spacing: 0.06em; color: rgb(27, 131, 132); }
+.doc .dash { color: rgb(201, 213, 215); }
+.doc .hw td { font-size: 7.6pt; padding: 1.6mm 1.4mm; line-height: 1.35; }
+.doc .hw th { font-size: 7pt; padding: 2mm 1.2mm; }
+.doc .hw td.mo, .doc .hw th.mo { text-align: center; width: 6.6mm; padding-left: 0px; padding-right: 0px; }
+.doc .dot { display: inline-block; width: 2.4mm; height: 2.4mm; border-radius: 50%; background: rgb(43, 182, 183); }
+.doc .wk { font-family: Figtree, sans-serif; font-weight: 600; font-size: 6.8pt; color: rgb(27, 131, 132); }
+.doc .agb { column-count: 2; column-gap: 9mm; font-size: 7.3pt; line-height: 1.5; }
+.doc .agb h3 { font-size: 8.2pt; margin: 0px 0px 1.2mm; break-after: avoid; }
+.doc .agb .s { break-inside: avoid; margin-bottom: 3.4mm; }
+.doc .agb p { margin: 0px 0px 1.3mm; }
+.doc .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm 9mm; }
+.doc .grid .it { border-top: 0.8pt solid rgb(191, 217, 220); padding-top: 3mm; }
+.doc .grid .n { font-family: Figtree, sans-serif; font-weight: 300; font-size: 18pt; color: rgb(43, 182, 183); line-height: 1; margin-bottom: 2mm; }
+.doc .refs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5mm; }
+.doc .refs div { background: rgb(246, 250, 251); padding: 4mm; font-size: 8pt; line-height: 1.5; }
+.doc .refs b { font-family: Figtree, sans-serif; font-weight: 600; font-size: 9pt; display: block; margin-bottom: 1mm; }
+.doc .sig { display: grid; grid-template-columns: 1fr 1fr; gap: 8mm 12mm; margin-top: 6mm; }
+.doc .sig .l { border-bottom: 0.8pt solid rgb(60, 60, 59); height: 13mm; }
+.doc .sig small { display: block; font-size: 7pt; color: rgb(118, 118, 118); margin-top: 1.2mm; }
+.doc .ic { width: 9mm; height: 9mm; border-radius: 50%; background: rgb(238, 247, 248); display: grid; place-items: center; margin-bottom: 2.5mm; }
+.doc .ic svg { width: 4.8mm; height: 4.8mm; stroke: rgb(27, 131, 132); fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.doc .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0px; border-top: 1pt solid rgb(27, 131, 132); border-bottom: 0.6pt solid rgb(217, 230, 232); }
+.doc .kpi { padding: 4.5mm 4mm 4.5mm 0px; border-right: 0.6pt solid rgb(217, 230, 232); }
+.doc .kpi:nth-child(3n) { border-right: 0px; }
+.doc .kpi:nth-child(n+4) { border-top: 0.6pt solid rgb(217, 230, 232); }
+.doc .kpi:not(:nth-child(3n+1)) { padding-left: 4mm; }
+.doc .kpi b { display: block; font-family: Figtree, sans-serif; font-weight: 300; font-size: 19pt; line-height: 1.05; color: rgb(27, 131, 132); letter-spacing: 0.01em; }
+.doc .kpi span { display: block; font-size: 7.6pt; line-height: 1.4; margin-top: 1.5mm; }
+.doc .toc { display: grid; grid-template-columns: 1fr 1fr; gap: 0px 10mm; margin-top: 3mm; }
+.doc .toc div { display: flex; justify-content: space-between; gap: 4mm; padding: 1.7mm 0px; border-bottom: 0.6pt solid rgb(217, 230, 232); font-size: 8.2pt; }
+.doc .toc span { color: rgb(154, 154, 154); font-variant-numeric: tabular-nums; }
+.doc .pillars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6mm; }
+.doc .pillar { border-top: 2pt solid rgb(43, 182, 183); padding-top: 3.5mm; }
+.doc .pillar h3 { font-size: 10pt; margin-bottom: 1.5mm; }
+.doc .quote { font-family: Figtree, sans-serif; font-weight: 300; font-size: 15pt; line-height: 1.35; color: rgb(27, 131, 132); border-left: 2.4pt solid rgb(43, 182, 183); padding: 1mm 0px 1mm 6mm; margin: 0px 0px 8mm; max-width: 150mm; }
+.doc .svc { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+.doc .sv { border: 0.8pt solid rgb(217, 230, 232); border-radius: 2.5mm; padding: 4mm 4.5mm; }
+.doc .sv h3 { display: flex; justify-content: space-between; align-items: baseline; gap: 3mm; }
+.doc .sv h3 small { font-family: Verdana, "DejaVu Sans", sans-serif; font-weight: normal; font-size: 7pt; color: rgb(118, 118, 118); white-space: nowrap; }
+.doc .sv p { margin: 0px; font-size: 7.9pt; line-height: 1.5; }
+.doc .sv.hl { background: rgb(241, 247, 248); border-color: rgb(241, 247, 248); }
+.doc .flowx { display: flex; align-items: stretch; gap: 0px; margin-top: 4mm; }
+.doc .fx { flex: 1 1 0%; position: relative; padding: 4mm 3mm 3.5mm; background: rgb(246, 250, 251); margin-right: 3mm; border-radius: 2mm; }
+.doc .fx:last-child { margin-right: 0px; background: rgb(27, 131, 132); color: rgb(255, 255, 255); }
+.doc .fx:last-child b, .doc .fx:last-child small { color: rgb(255, 255, 255); }
+.doc .fx small { display: block; font-family: Figtree, sans-serif; font-weight: 600; font-size: 7pt; letter-spacing: 0.12em; color: rgb(27, 131, 132); margin-bottom: 1.2mm; }
+.doc .fx b { display: block; font-family: Figtree, sans-serif; font-weight: 600; font-size: 8.8pt; color: rgb(60, 60, 59); line-height: 1.25; margin-bottom: 1mm; }
+.doc .fx span { display: block; font-size: 7.1pt; line-height: 1.4; }
+.doc .fx:not(:last-child)::after { content: ""; position: absolute; right: -3mm; top: 50%; width: 3mm; height: 0.8pt; background: rgb(43, 182, 183); }
+.doc .org { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm 8mm; }
+.doc .org .it h3 { display: flex; align-items: center; gap: 2.5mm; }
+.doc .org .it h3 .ic { margin: 0px; width: 7.5mm; height: 7.5mm; }
+.doc .org .it p { margin: 0px; font-size: 8pt; }
+.doc .tl { position: relative; margin-top: 4mm; }
+.doc .tl::before { content: ""; position: absolute; left: 4mm; top: 3mm; bottom: 3mm; width: 0.8pt; background: rgb(191, 217, 220); }
+.doc .tli { position: relative; display: grid; grid-template-columns: 8mm 30mm 1fr; gap: 4mm; padding: 0px 0px 6mm; }
+.doc .tli .d { width: 8mm; height: 8mm; border-radius: 50%; background: rgb(255, 255, 255); border: 1.2pt solid rgb(27, 131, 132); display: grid; place-items: center; font-family: Figtree, sans-serif; font-weight: 600; font-size: 8pt; color: rgb(27, 131, 132); position: relative; z-index: 1; }
+.doc .tli .w { font-family: Figtree, sans-serif; font-weight: 600; font-size: 7.6pt; letter-spacing: 0.1em; text-transform: uppercase; color: rgb(27, 131, 132); padding-top: 1.8mm; }
+.doc .tli h3 { margin: 1.2mm 0px 1mm; }
+.doc .tli p { margin: 0px; font-size: 8pt; }
+.doc .ex { display: grid; grid-template-columns: 1fr auto; gap: 1.6mm 6mm; font-size: 8.4pt; }
+.doc .ex .t { border-top: 1pt solid rgb(27, 131, 132); padding-top: 2mm; font-weight: bold; }
+.doc .ex .num { text-align: right; }
+.doc .kpi small { display: block; font-family: Figtree, sans-serif; font-weight: 600; font-size: 6.4pt; letter-spacing: 0.14em; text-transform: uppercase; color: rgb(118, 118, 118); margin-bottom: 1mm; }
+.doc .kf { display: grid; grid-template-columns: 1fr 1fr; gap: 0px 8mm; }
+.doc .kf > div { padding: 3.2mm 0px; border-top: 0.6pt solid rgb(220, 235, 238); display: grid; grid-template-columns: 1fr; gap: 0.4mm; }
+.doc .kf small { display: flex; justify-content: space-between; font-family: Figtree, sans-serif; font-weight: 600; font-size: 6.6pt; letter-spacing: 0.13em; text-transform: uppercase; color: rgb(118, 118, 118); }
+.doc .kf small i { font-style: normal; letter-spacing: 0.04em; text-transform: none; font-weight: 400; color: rgb(154, 166, 167); }
+.doc .kf b { font-family: Figtree, sans-serif; font-weight: 600; font-size: 12.5pt; color: rgb(27, 131, 132); line-height: 1.2; }
+.doc .kf span { font-size: 7.3pt; color: rgb(60, 60, 59); line-height: 1.4; }
+.doc .agb2 { column-count: 2; column-gap: 8mm; }
+.doc .pb + .pb { margin-top: 5mm; }
+.doc .strip { display: grid; gap: 3mm; margin: 0px 0px 6mm; }
+.doc .strip img { width: 100%; height: 36mm; object-fit: cover; border-radius: 2mm; display: block; }
+.doc .strip small { display: block; font-size: 6.6pt; color: rgb(118, 118, 118); margin-top: 1mm; }
+.doc .pr.cp td { padding: 1.45mm 2mm; font-size: 8pt; line-height: 1.35; }
+.doc .pr.cp th { padding: 1.6mm 2mm; line-height: 1.25; }
+.doc .pb .note { font-size: 6.9pt; margin-top: 1.5mm !important; }
+.doc .pr.cp td:first-child { white-space: normal; }
+.doc .lvm.pa th.c { width: 19mm; white-space: normal; }
+.doc .pb h2 { margin: 0px 0px 2.5mm; }
+.doc a { color: rgb(27, 131, 132); text-decoration: underline 0.4pt; text-underline-offset: 0.6mm; overflow-wrap: anywhere; }
+.doc .nw td:first-child { white-space: normal; }
+.doc .sig { gap: 5mm 12mm; margin-top: 4mm; }
+.doc .sig .l { height: 10mm; }
+.doc .nw td { vertical-align: top; }
+.doc .nw td small { display: block; font-weight: normal; color: rgb(118, 118, 118); font-size: 7pt; margin-top: 0.4mm; }
+.doc .agbl { display: flex; justify-content: space-between; align-items: flex-end; gap: 6mm; margin-top: 5mm; padding: 4mm 0px 0px; border-top: 0.8pt solid rgb(27, 131, 132); }
+.doc .agbl small { display: block; font-family: Figtree, sans-serif; font-weight: 600; font-size: 6.8pt; letter-spacing: 0.12em; text-transform: uppercase; color: rgb(118, 118, 118); margin-bottom: 1mm; }
+.doc .agbl a { font-family: Figtree, sans-serif; font-weight: 600; font-size: 10pt; }
+.doc .agbl span { font-size: 7.4pt; color: rgb(118, 118, 118); flex: 0 0 auto; }
+.doc .agb2 .ag { display: grid; grid-template-columns: 7mm 1fr; gap: 0px; padding: 2.6mm 0px 1.6mm; border-top: 0.6pt solid rgb(220, 235, 238); break-inside: avoid; }
+.doc .agb2 .agn { font-family: Figtree, sans-serif; font-weight: 300; font-size: 13pt; line-height: 1; color: rgb(43, 182, 183); }
+.doc .agb2 h3 { font-family: Figtree, sans-serif; font-weight: 600; font-size: 9pt; color: rgb(27, 131, 132); margin: 0px 0px 1.4mm; }
+.doc .agb2 p { margin: 0px 0px 1.2mm; font-size: 6.9pt; line-height: 1.45; }
+.doc .agb2 p b { display: inline-block; min-width: 6mm; font-family: Figtree, sans-serif; font-weight: 600; color: rgb(27, 131, 132); }
+.doc .lvm { width: 100%; border-collapse: collapse; font-size: 7.3pt; }
+.doc .lvm th { padding: 0px 0px 2mm; border-bottom: 0px; vertical-align: top; }
+.doc .lvm th.c { width: 26mm; white-space: nowrap; text-align: center; font-family: Figtree, sans-serif; font-weight: 600; font-size: 7.4pt; color: rgb(27, 131, 132); line-height: 1.25; }
+.doc .lvm th small { display: block; white-space: normal; margin-top: 0.4mm; font-weight: 400; font-size: 6.2pt; color: rgb(118, 118, 118); }
+.doc .lvm td { padding: 0.5mm 2mm 0.5mm 0px; border-bottom: 0.4pt solid rgb(227, 238, 240); line-height: 1.3; vertical-align: middle; }
+.doc .lvm td.c { text-align: center; padding: 0.5mm 0px; }
+.doc .lvm td.g { font-family: Figtree, sans-serif; font-weight: 600; font-size: 7.4pt; letter-spacing: 0.12em; text-transform: uppercase; color: rgb(27, 131, 132); padding: 2mm 0px 0.7mm; border-bottom: 0.8pt solid rgb(27, 131, 132); }
+.doc .lvm .ck { display: inline-block; width: 3mm; height: 3mm; border-radius: 50%; background: rgb(43, 182, 183); position: relative; vertical-align: middle; }
+.doc .lvm .ck::after { content: ""; position: absolute; left: 1.05mm; top: 0.5mm; width: 0.65mm; height: 1.35mm; border-style: solid; border-color: rgb(255, 255, 255); border-image: none; border-width: 0px 0.35mm 0.35mm 0px; transform: rotate(45deg); }
+.doc .lvm .no { color: rgb(198, 211, 213); }
+.doc .lvs { margin: 0px 0px 5mm; }
+.doc .lvs-h { display: flex; align-items: baseline; gap: 4mm; flex-wrap: wrap; border-bottom: 1pt solid rgb(27, 131, 132); padding-bottom: 1.6mm; margin-bottom: 3mm; }
+.doc .lvs-h b { font-family: Figtree, sans-serif; font-weight: 600; font-size: 11.5pt; color: rgb(27, 131, 132); letter-spacing: 0.01em; }
+.doc .lvs-h b i { font-style: normal; font-weight: 400; font-size: 8pt; color: rgb(118, 118, 118); }
+.doc .lvs-h span { font-size: 7.4pt; color: rgb(118, 118, 118); }
+.doc .lvs-n { font-size: 7.2pt; color: rgb(60, 60, 59); background: rgb(246, 250, 251); padding: 1.6mm 2.4mm; margin: -1mm 0px 3mm; }
+.doc .lvs-c { columns: 2; column-gap: 9mm; }
+.doc .lvg { margin: 0px 0px 3mm; }
+.doc .lvg h4 { break-after: avoid; }
+.doc .lvi { break-inside: avoid; }
+.doc .lvg h4 { font-family: Figtree, sans-serif; font-weight: 600; font-size: 6.9pt; letter-spacing: 0.13em; text-transform: uppercase; color: rgb(60, 60, 59); margin: 0px 0px 1.4mm; padding-bottom: 0.8mm; border-bottom: 0.5pt solid rgb(220, 235, 238); }
+.doc .lvi { display: grid; grid-template-columns: 3.4mm 1fr; font-size: 7.5pt; line-height: 1.38; margin: 0px 0px 1.1mm; }
+.doc .lvi i { width: 1.3mm; height: 2.3mm; border-style: solid; border-color: rgb(43, 182, 183); border-image: none; border-width: 0px 0.45mm 0.45mm 0px; transform: rotate(45deg); margin: 0.35mm 0px 0px 0.7mm; }
+.doc .lvi small { display: block; color: rgb(27, 131, 132); font-size: 6.6pt; margin-top: 0.2mm; }
+/*print*/
+.doc [contenteditable]:hover { outline: rgb(43, 182, 183) dashed 1px; outline-offset: 2px; }
+.doc [contenteditable]:focus { outline: rgb(27, 131, 132) solid 1.5px; outline-offset: 2px; background: rgb(251, 254, 254); }
