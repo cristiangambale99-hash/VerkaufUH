@@ -56,9 +56,14 @@ function uhOfferHtml(d) {
   return shell('<div class="doc" id="root"></div>', `window.D=${safeJson(d)};window.A=${safeJson(a)};document.fonts.ready.then(()=>{try{${client}}catch(e){window.__err=String(e&&e.stack||e);window.__done=true;}});`);
 }
 
-let BROWSER = null;
+let BROWSER = null, LAUNCHING = null;
 async function browser() {
   if (BROWSER && BROWSER.connected) return BROWSER;
+  if (LAUNCHING) return LAUNCHING;   /* zwei Aufrufe gleichzeitig: nur ein Start */
+  LAUNCHING = launch().finally(() => { LAUNCHING = null; });
+  return LAUNCHING;
+}
+async function launch() {
   /* Beide Pakete sind ES-Module: per import() laden, require() wird auf Vercel abgelehnt */
   const pm = await import('puppeteer-core'), puppeteer = pm.default || pm;
   let exe = process.env.CHROME_PATH || '', args = ['--no-sandbox', '--font-render-hinting=none'];
@@ -68,6 +73,14 @@ async function browser() {
 }
 /* Rendert ein HTML-Dokument; wartet auf window.__done, falls das Dokument selbst Seiten aufbaut */
 async function render(html, opts = {}) {
+  try { return await renderOnce(html, opts); }
+  catch (e) { /* eingefrorener oder abgestürzter Browser nach Pause: neu starten und einmal wiederholen */
+    console.error('render 1. Versuch', e && e.message);
+    try { if (BROWSER) await BROWSER.close().catch(() => {}); } catch (x) {} BROWSER = null;
+    return await renderOnce(html, opts);
+  }
+}
+async function renderOnce(html, opts = {}) {
   const b = await browser(), p = await b.newPage();
   try {
     await p.setContent(html, { waitUntil: 'load', timeout: 30000 });
