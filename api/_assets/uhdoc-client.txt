@@ -85,7 +85,7 @@ const AREA = 210;   /* nutzbare Höhe im Inhaltsbereich in mm */
 
 /* ---------- Raumbuch (wie heute: Bezeichnung, Nr, Boden, Dispo, Fläche, Gruppe, Std./Jahr), läuft über Seiten weiter ---------- */
 function raumbuchPages(intro, cont, outro) {
-  const head = '<table class="rbt"><colgroup><col><col style="width:10mm"><col style="width:20mm"><col style="width:11mm"><col style="width:15mm"><col style="width:42mm"><col style="width:17mm"></colgroup><thead><tr><th>Bezeichnung</th><th>Nr</th><th>Bodenbelag</th><th>Dispo</th><th class="num">Fläche m²</th><th>Reinigungsgruppe</th><th class="num">Std./Jahr</th></tr></thead><tbody>';
+  const head = '<table class="rbt"><colgroup><col><col style="width:10mm"><col style="width:20mm"><col style="width:11mm"><col style="width:15mm"><col style="width:50mm"><col style="width:16mm"></colgroup><thead><tr><th>Bezeichnung</th><th>Nr</th><th>Bodenbelag</th><th>Dispo</th><th class="num">Fläche m²</th><th>Reinigungsgruppe</th><th class="num">Std./Jahr</th></tr></thead><tbody>';
   const rows = ['<tr class="rg0"><td colspan="6">' + e(D.objekt || D.adresse) + '</td><td class="num">' + n2(c.hours) + '</td></tr>'];
   D.rb.forEach(fl => { rows.push('<tr class="rg1"><td colspan="6">' + e(fl.f) + '</td><td class="num">' + n2(fl.h) + '</td></tr>'); fl.rooms.forEach(r => rows.push('<tr><td>' + e(r.bez) + '</td><td>' + e(r.nr) + '</td><td>' + e(r.boden) + '</td><td>' + e(r.dispo) + '</td><td class="num">' + n2(r.fl) + '</td><td>' + e((r.g + ' ' + (r.gn || '')).trim()) + '</td><td class="num">' + n2(r.h) + '</td></tr>')); });
   rows.push('<tr class="rgt"><td colspan="4">Total</td><td class="num">' + n2(c.area) + '</td><td></td><td class="num">' + n2(c.hours) + '</td></tr>');
