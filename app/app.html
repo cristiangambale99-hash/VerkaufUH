@@ -2631,17 +2631,17 @@ function docRaumbuch(o) {
 function docLV(o) {
   const blocks = {};
   o.rooms.filter(r => r.gruppe).forEach(r => {
-    const ts = roomTasks(r); const sig = r.gruppe + '#' + rGName(r) + '|' + ts.map(x => x.t.id + ':' + x.code + (x.t.ov ? '~' + x.t.name : '')).join(',');
-    if (!blocks[sig]) blocks[sig] = { g: r.gruppe, nm: rGName(r), ts, rooms: [] };
-    blocks[sig].rooms.push(r);
+    const sig = r.gruppe + '#' + rGName(r); const b = blocks[sig] || (blocks[sig] = { g: r.gruppe, nm: rGName(r), ts: [], tk: new Map(), rooms: [] }); b.rooms.push(r);
+    roomTasks(r).forEach(x => { const k = x.t.id + ':' + x.code + (x.t.ov ? '~' + x.t.name : ''); if (!b.tk.has(k)) { const e = { ...x, rs: [] }; b.tk.set(k, e); b.ts.push(e); } b.tk.get(k).rs.push(r); });
   });
   const list = Object.values(blocks).sort((a, b) => a.g.localeCompare(b.g));
   const cnt = {}; list.forEach(b => cnt[b.g] = (cnt[b.g] || 0) + 1);
   return `<div class="sheet">${sheetHead(o, 'Leistungsverzeichnis')}${list.length ? `<div class="lvgrid">${list.map(b => {
     let last = '', body = '';
-    b.ts.forEach(x => { if (x.t.cat !== last) { body += `<div class="k">${esc(x.t.cat)}</div>`; last = x.t.cat; } const f = freqCols(x.code); body += `<div class="e"><span>✓ ${esc(x.t.name)}</span><span>${esc(x.code)}</span><span>${f[0]}</span><span>${f[1]}</span><span>${f[2]}</span></div>`; });
+    const co = []; b.ts.forEach(x => { if (!co.includes(x.t.cat)) co.push(x.t.cat); }); b.ts.sort((a, c) => co.indexOf(a.t.cat) - co.indexOf(c.t.cat));
+    b.ts.forEach(x => { if (x.t.cat !== last) { body += `<div class="k">${esc(x.t.cat)}</div>`; last = x.t.cat; } const f = freqCols(x.code); const nur = x.rs.length < b.rooms.length ? [...new Set(x.rs.map(r => r.bez + (r.nr ? ' ' + r.nr : '')))] : null; body += `<div class="e"><span>✓ ${esc(x.t.name)}${nur ? `<br><small class="muted">nur: ${esc(nur.join(', '))}</small>` : ''}</span><span>${esc(x.code)}</span><span>${f[0]}</span><span>${f[1]}</span><span>${f[2]}</span></div>`; });
     return `<div class="lvb"><h3><span>${b.g} ${esc(b.nm || GROUP[b.g].name)}</span></h3><div class="e hd"><span>Kategorie, Eintrag</span><span>Code</span><span>Wo</span><span>Mt</span><span>J</span></div>${body}
-      ${cnt[b.g] > 1 || b.rooms.some(r => r.custom) ? `<div class="who">Gilt für: ${b.rooms.map(r => esc(r.bez + (r.nr ? ' ' + r.nr : ''))).join(', ')}</div>` : ''}</div>`; }).join('')}</div>` : '<p class="muted">Noch keine Räume mit Reinigungsgruppe.</p>'}</div>`;
+      ${b.rooms.length > 1 || cnt[b.g] > 1 ? `<div class="who">Gilt für: ${b.rooms.map(r => esc(r.bez + (r.nr ? ' ' + r.nr : ''))).join(', ')}</div>` : ''}</div>`; }).join('')}</div>` : '<p class="muted">Noch keine Räume mit Reinigungsgruppe.</p>'}</div>`;
 }
 function docLegende(o) {
   const used = [...new Set(o.rooms.map(r => r.gruppe).filter(Boolean))].sort();
@@ -3898,8 +3898,10 @@ function uhDocData(o, url) {
   const cu = custOf(o), c = objCalc(o), sn = annSnap(o), seller = sellerOf(o);
   const floors = [...new Set(o.rooms.map(r => r.floor))].sort((a, b) => fRank(b) - fRank(a));
   const rb = floors.map(f => { const rs = o.rooms.filter(r => r.floor === f); return { f, h: rs.reduce((a, r) => a + roomCalc(r).hours, 0), rooms: rs.map(r => ({ bez: r.bez, nr: r.nr || '', boden: bodenCode(r.boden), dispo: r.dispo, fl: r.flaeche, g: r.gruppe || '', gn: r.gruppe ? rGName(r) : '', h: roomCalc(r).hours })) }; });
-  const blocks = {}; o.rooms.filter(r => r.gruppe).forEach(r => { const ts = roomTasks(r); const sig = r.gruppe + '#' + rGName(r) + '|' + ts.map(x => x.t.id + ':' + x.code).join(','); if (!blocks[sig]) blocks[sig] = { g: r.gruppe, nm: rGName(r) || (GROUP[r.gruppe] || {}).name || '', ts: ts.map(x => ({ cat: x.t.cat, name: x.t.name, code: x.code, f: freqCols(x.code) })), rooms: [] }; blocks[sig].rooms.push(r.bez + (r.nr ? ' ' + r.nr : '')); });
-  const lv = Object.values(blocks).sort((a, b) => a.g.localeCompare(b.g));
+  const blocks = {}, rnm = r => String(r.bez || '').trim() + (r.nr ? ' ' + r.nr : '');
+  o.rooms.filter(r => r.gruppe && r.dispo !== 'E').forEach(r => { const bk = r.gruppe + '#' + rGName(r); const b = blocks[bk] || (blocks[bk] = { g: r.gruppe, nm: rGName(r) || (GROUP[r.gruppe] || {}).name || '', tm: new Map(), rooms: [] }); b.rooms.push(rnm(r));
+    roomTasks(r).forEach(x => { const k = x.t.id + ':' + x.code + (x.t.ov ? '~' + x.t.name : ''); if (!b.tm.has(k)) b.tm.set(k, { cat: x.t.cat, name: x.t.name, code: x.code, f: freqCols(x.code), rs: [] }); b.tm.get(k).rs.push(rnm(r)); }); });
+  const lv = Object.values(blocks).sort((a, b) => a.g.localeCompare(b.g) || (a.nm || '').localeCompare(b.nm || '')).map(b => { const co = []; const ts = [...b.tm.values()]; ts.forEach(x => { if (!co.includes(x.cat)) co.push(x.cat); }); return { g: b.g, nm: b.nm, rooms: b.rooms, ts: ts.map((x, i) => ({ x, i })).sort((a, c) => co.indexOf(a.x.cat) - co.indexOf(c.x.cat) || a.i - c.i).map(({ x }) => ({ cat: x.cat, name: x.name, code: x.code, f: x.f, nur: x.rs.length < b.rooms.length ? [...new Set(x.rs)] : null })) }; });
   const used = [...new Set(o.rooms.map(r => r.gruppe).filter(Boolean))].sort().map(g => [g, (GROUP[g] || {}).name || g]);
   const codes = new Set(); o.rooms.forEach(r => roomTasks(r).forEach(x => codes.add(x.code))); o.rooms.forEach(r => codes.add(r.dispo));
   const dispo = DISPO.filter(d => codes.has(d.code)).map(d => [d.code, d.label, d.code === 'B' ? 'nach Bedarf' : d.code === 'E' ? 'durch Kunde' : d.perYear + ' Ausführungen / Jahr']);
