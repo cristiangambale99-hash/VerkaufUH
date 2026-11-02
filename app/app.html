@@ -1256,9 +1256,9 @@ function annApply() {
   if (!READY) return; let ch = false;
   (S.ann || []).forEach(a => { const o = objOf(a.objId); if (!o || (o.annahme && o.annahme.ref === a.ref)) return;
     o.annahme = Object.assign({}, a, { seen: false });
-    if (o.status !== 'gewonnen') { o.status = 'gewonnen'; o.revOpen = false; o.aktiv = false; o.aktivAb = a.vb ? a.vb + '-01' : ''; logO(o, 'Auftragserteilung erhalten, Nachfassung beendet'); }
-    if (o.aktiv === undefined) { o.aktiv = false; o.aktivAb = a.vb ? a.vb + '-01' : ''; }
-    logO(o, `Reinigungsvertrag online unterzeichnet von ${a.name}${a.funktion ? ' (' + a.funktion + ')' : ''}${a.vbTxt ? ', Vertragsbeginn per ' + a.vbTxt : ''}${a.d ? ', Startbesprechung ' + a.slotTxt + ' mit ' + (a.calName || 'Objektleiter') : ''}`); ch = true; });
+    if (o.status !== 'gewonnen') { o.status = 'gewonnen'; o.revOpen = false; o.aktiv = false; o.aktivAb = a.vb ? (a.vb.length === 7 ? a.vb + '-01' : a.vb) : ''; logO(o, 'Auftragserteilung erhalten, Nachfassung beendet'); }
+    if (o.aktiv === undefined) { o.aktiv = false; o.aktivAb = a.vb ? (a.vb.length === 7 ? a.vb + '-01' : a.vb) : ''; }
+    logO(o, `Reinigungsvertrag online unterzeichnet von ${a.name}${a.funktion ? ' (' + a.funktion + ')' : ''}${a.vbTxt ? ', Vertragsbeginn ' + a.vbTxt : ''}${a.d ? ', Startbesprechung ' + a.slotTxt + ' mit ' + (a.calName || 'Objektleiter') : ''}`); ch = true; });
   if (ch) save();
   const o = S.objects.find(x => x.annahme && !x.annahme.seen && !ANN_SHOWN.has(x.id));
   if (o && !document.getElementById('startDlg') && !document.getElementById('annDlg')) {
