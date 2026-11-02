@@ -1262,7 +1262,7 @@ function annApply() {
   if (ch) save();
   const o = S.objects.find(x => x.annahme && !x.annahme.seen && !ANN_SHOWN.has(x.id));
   if (o && !document.getElementById('startDlg') && !document.getElementById('annDlg')) {
-    if (o.start && o.start.datum && o.sp && o.sp.id) { o.annahme.seen = true; save(); return; }
+    if (o.sp && o.sp.id) { o.annahme.seen = true; save(); return; }
     setTimeout(() => annDlg(o), 200);
   }
 }
@@ -1275,8 +1275,8 @@ function annDlg(o) {
     <p style="margin:6px 0 10px"><b>${esc(cu.firma || '')}</b> hat die Offerte ${esc(o.nr || '')} am ${esc(a.atTxt || '')} angenommen. Unterschrieben von ${esc(a.name)}${a.funktion ? ', ' + esc(a.funktion) : ''}.${a.vbTxt ? ' Gewünschter Vertragsbeginn: <b>per ' + esc(a.vbTxt) + '</b>.' : ''}</p>
     <div style="background:#f0f8f9;border-radius:10px;padding:10px 12px;font-size:14px">Startbesprechung: <b>${esc(a.slotTxt || '')}</b><br><span class="small muted">mit ${esc(a.calName || '')}, steht im Kalender, der Kunde ist eingeladen</span></div>
     ${a.pdf ? `<p style="margin:10px 0 0"><a href="${esc(a.pdf)}" target="_blank" rel="noopener" style="color:#0e7c80">Unterschriebene Auftragserteilung (PDF)</a></p>` : ''}
-    <p class="small muted" style="margin:10px 0 0">Als Nächstes Reinigungsstart und Einführung festlegen. Danach starten Stellenportal und Gruppenchat wie gewohnt.</p>
-    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:14px"><button type="button" class="btn btn-s" data-act="annLater">Später</button><button type="button" class="btn btn-p" data-act="annStart" data-id="${o.id}">Reinigungsstart einrichten</button></div></div>`;
+    <p class="small muted" style="margin:10px 0 0">Reinigungsstart und Einführung legt ${esc(a.calName || 'der Abteilungsleiter')} im Startgespräch vor Ort fest. Stellenportal und Gruppenchat starten jetzt.</p>
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:14px"><button type="button" class="btn btn-s" data-act="annLater">Später</button><button type="button" class="btn btn-p" data-act="annStart" data-id="${o.id}">Stellenportal und Gruppenchat starten</button></div></div>`;
   document.body.appendChild(d);
 }
 function annBoxHtml(o) {
@@ -1466,7 +1466,9 @@ const startCard = o => {
   if (!BE_ON || o.status !== 'gewonnen' || o.inaktiv) return '';
   const st = o.start || {}, ei = o.einf || {}, line = (a, b) => `<div style="display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:5px 0;border-bottom:1px solid var(--cs-line,#e3eef0)"><span class="muted">${a}</span><span style="text-align:right">${b}</span></div>`;
   let inner;
-  if (!st.datum) inner = `<p class="small" style="margin-top:0">Reinigungsstart und einführende Person sind noch nicht erfasst.</p><button class="btn btn-p btn-sm" data-act="startOpen" data-id="${o.id}">Reinigungsstart und Einführung erfassen</button>`;
+  if (!st.datum) { const a = o.annahme || {};
+    inner = (a.vbTxt ? line('Vertragsbeginn', 'per ' + esc(a.vbTxt)) : '') + (a.slotTxt ? line('Startgespräch', esc(a.slotTxt) + (a.calName ? ` <span class="muted small">${esc(a.calName)}</span>` : '')) : '')
+      + `<p class="small muted" style="margin:${a.vbTxt || a.slotTxt ? '8px' : '0'} 0 0">Genauer Reinigungsstart, Uhrzeit und Einführung werden im Startgespräch vor Ort festgelegt und kommen von dort automatisch hierher.</p><button class="btn btn-g btn-sm" style="margin-top:6px;padding-left:0" data-act="startOpen" data-id="${o.id}">Ausnahmsweise manuell erfassen</button>`; }
   else {
     const stale = ei.mail && ei.sentFor !== startTxt(o);
     inner = line('Reinigungsstart', esc(startTxt(o))) + line('Einführung durch', esc(ei.name || '–') + (ei.mail ? ` <span class="muted small">${esc(ei.mail)}</span>` : '')) + line('Kalendertermin (1 Stunde)', ei.err ? '<span class="badge b-warn">fehlgeschlagen</span>' : ei.sentAt && !stale ? `<span class="badge b-ok">eingetragen</span>` : '<span class="badge b-warn">offen</span>') + (ei.err ? `<div class="small" style="color:var(--cs-err,#b42318);margin-top:6px">${esc(ei.err)}</div>` : '')
@@ -3265,7 +3267,7 @@ function setStatus(o, v) {
   const labels = { erfassung: 'Zurück in Erfassung', freigabe: 'Entwurf erstellt', freigegeben: 'Entwurf', versendet: 'Offerte an Kunden gesendet', gewonnen: 'Auftragserteilung erhalten, Nachfassung beendet', verloren: 'Abgesagt, Nachfassung beendet' };
   if (v === 'gewonnen' && prev !== 'gewonnen') { o.aktiv = false; o.auftragAm = isoDay(TODAY); }
   logO(o, labels[v]); save();
-  if (v === 'gewonnen' && prev !== 'gewonnen') setTimeout(() => { if (BE_ON) openStartDlg(o, true); else toast('Reinigungsstart nur mit Server möglich', 'warning'); }, 80);
+  if (v === 'gewonnen' && prev !== 'gewonnen') setTimeout(() => { if (BE_ON) runWonFlow(o); else toast('Stellenportal und Gruppenchat nur mit Server möglich', 'warning'); }, 80);   /* Reinigungsstart und Einführung legt der Abteilungsleiter im Startgespräch fest */
   const keys = { freigegeben: 'check', versendet: 'sent', gewonnen: 'sparkle', verloren: 'info', erfassung: 'info', freigabe: 'invoice' };
   toast(`${labels[v]}${o.nr ? ' · ' + o.nr : ''}`, keys[v]);
   return prev;
@@ -3575,9 +3577,9 @@ const ACT = {
     toast(`Leistungsverzeichnis gespeichert · Version ${o.lvRev}`, 'sent'); if (o.ordner && o.ordner.url) startOrdner(o, false, true); go('kun'); openPanel({ type: 'lv', id: o.id });
   },
   startCancel: () => { closeStartDlg(); toast('Reinigungsstart kann beim Kunden nachgetragen werden', 'info'); },
-  startOpen: el => { const o = objOf(el.dataset.id); if (o) openStartDlg(o, !(o.start && o.start.datum)); },
+  startOpen: el => { const o = objOf(el.dataset.id); if (o) openStartDlg(o, !(o.sp && o.sp.id)); },
   annLater: () => { const d = document.getElementById('annDlg'); if (d) d.remove(); },
-  annStart: el => { const d = document.getElementById('annDlg'); if (d) d.remove(); const o = objOf(el.dataset.id); if (!o) return; if (o.annahme) { o.annahme.seen = true; if (o.annahme.vb && !(o.start && o.start.datum)) o.start = Object.assign({}, o.start || {}, { datum: o.annahme.vb + '-01' }); save(); } openStartDlg(o, !(o.sp && o.sp.id)); },
+  annStart: async el => { const d = document.getElementById('annDlg'); if (d) d.remove(); const o = objOf(el.dataset.id); if (!o) return; if (o.annahme) { o.annahme.seen = true; save(); } if (!(o.sp && o.sp.id)) await runWonFlow(o); },
   annTest: async () => { const b = document.getElementById('annSt'); if (b) b.innerHTML = '<span class="muted">Prüfe Verbindung …</span>'; await annStatus(); },
   startOk: async el => {
     const o = objOf(el.dataset.id); if (!o) return; const first = el.dataset.first === '1', g = id => ((document.getElementById(id) || {}).value || '').trim(), err = m => { const e = document.getElementById('sdErr'); if (e) e.textContent = m; };
