@@ -106,7 +106,7 @@ function lvPages(intro, cont) {
   const ch = '<div class="ch"><span>Kategorie, Eintrag</span><span>Code</span><span>Wo</span><span>Mt</span><span>J</span></div>';
   const hgt = h => meas('<div class="alv1">' + h + '</div>', 75);
   const B = D.lv.map(b => { const hd = cn => '<div class="bh">' + e(b.g + '  ' + b.nm) + (cn ? ' <i>Fortsetzung</i>' : '') + '</div>' + ch; const rows = []; let last = '';
-    b.ts.forEach(x => { if (x.cat !== last) { rows.push({ html: '<div class="k">' + e(x.cat) + '</div>' }); last = x.cat; } rows.push({ html: '<div class="r"><span><i>✓</i>' + e(x.name) + '</span><span>' + e(x.code) + '</span><span>' + x.f[0] + '</span><span>' + x.f[1] + '</span><span>' + x.f[2] + '</span></div>' }); });
+    b.ts.forEach(x => { if (x.cat !== last) { rows.push({ html: '<div class="k">' + e(x.cat) + '</div>' }); last = x.cat; } rows.push({ html: '<div class="r"><span><i>✓</i>' + e(x.name).replace(/\//g, '/&#8203;') + (x.nur && x.nur.length ? '<small class="nur">nur: ' + e(x.nur.join(', ')) + '</small>' : '') + '</span><span>' + e(x.code) + '</span><span>' + x.f[0] + '</span><span>' + x.f[1] + '</span><span>' + x.f[2] + '</span></div>' }); });
     if (b.rooms.length > 1) rows.push({ html: '<div class="who">Gilt für: ' + e(b.rooms.join(', ')) + '</div>' });
     rows.forEach(r => r.mm = hgt(r.html)); return { h: hd(false), hc: hd(true), hmm: hgt(hd(false)), rows, tot: hgt(hd(false)) + rows.reduce((a, r) => a + r.mm, 0) }; });
   const GAP = 4, pages = []; let cols = [[]], used = 0, capNow = AREA - meas(intro);
