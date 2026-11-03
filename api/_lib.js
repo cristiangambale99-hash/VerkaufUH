@@ -67,7 +67,7 @@ async function msSend({ from, to, bcc, replyTo, subject, html, attachments }) {
   if (!sr.ok) throw new Error('Microsoft-Senden: ' + sr.status + ' ' + (await sr.text()).slice(0, 200));
   return 'ms-' + dj.id.slice(-12);
 }
-async function sendMail({ to, subject, text, attachments, kind, objectId, S, lang, nocopy, replyTo }) {
+async function sendMail({ to, subject, text, attachments, kind, objectId, S, lang, nocopy, replyTo, copyTo }) {
   const RT = replyTo || E.MAIL_REPLY_TO;
   S = S || await settings();
   const base = E.PUBLIC_URL || 'https://offertplattform-uh.vercel.app';
@@ -88,7 +88,7 @@ async function sendMail({ to, subject, text, attachments, kind, objectId, S, lan
   const plain = String(text).replace(/\[\[BTN:([^|\]]+)\|(https?:\/\/[^|\]\s]+)(?:\|[^\]]*)?\]\]/g, '$1: $2').replace(MDL, '$1: $2');
   const k = String(kind || ''), copy = nocopy ? false : /^cal/.test(k) ? S.bccBes !== 'nein' : /^(nf\d|re6)/.test(k) ? S.bccNach !== 'nein' : true;
   const payload = { from: E.MAIL_FROM, to: Array.isArray(to) ? to : [to], reply_to: RT, subject, html, text: plain + sigText(S, lang) };
-  if (copy) payload.bcc = [RT];
+  if (copy) payload.bcc = copyTo ? [].concat(copyTo) : [RT];   /* Kopie: Hotelofferten an unterhalt@, sonst an die Antwortadresse */
   const att = (attachments && attachments.length ? attachments.slice() : []); if (inl) att.push(inl);
   if (att.length) payload.attachments = att;
   let id = null, status = 'ok', err = null;
@@ -112,4 +112,5 @@ async function assetBytes(name) {
   return { ctype: r[0].ctype, buf: Buffer.from(r[0].b64, 'base64'), b64: r[0].b64 };
 }
 const HOTEL_RT = 'Clean Service Hotelservice <hotelservice@clean-service.ch>';
-module.exports = { MS_ON, msToken, MS_G, esc, rpc, makeToken, okToken, bearer, guard, body, sendMail, settings, assetBytes, E, HOTEL_RT };
+const HOTEL_CC = 'unterhalt@clean-service.ch';   /* Kopie jeder versendeten Hotelofferte */
+module.exports = { MS_ON, msToken, MS_G, esc, rpc, makeToken, okToken, bearer, guard, body, sendMail, settings, assetBytes, E, HOTEL_RT, HOTEL_CC };
