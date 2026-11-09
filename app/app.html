@@ -1737,7 +1737,7 @@ function ensureServerSettings() {
   const st = S.settings; let ch = false;
   Object.keys(MAIL_NF).forEach(k => { if (!st['mail_' + k + '_b']) { st['mail_' + k + '_b'] = MAIL_NF[k].b; ch = true; } if (!st['mail_' + k + '_t']) { st['mail_' + k + '_t'] = MAIL_NF[k].t; ch = true; } });
   Object.keys(MAIL_NF_EN).forEach(k => { if (!st['mail_en_' + k + '_b']) { st['mail_en_' + k + '_b'] = MAIL_NF_EN[k].b; ch = true; } if (!st['mail_en_' + k + '_t']) { st['mail_en_' + k + '_t'] = MAIL_NF_EN[k].t; ch = true; } });
-  [['mailSigName', 'Diogo Pereira'], ['mailSigRolle', 'Sachbearbeiter Innendienst'], ['mailSigDirekt', '052 557 02 12']].forEach(([k, v]) => { if (!st[k]) { st[k] = v; ch = true; } });
+  [['mailSigName', 'Sebastian Hidegh'], ['mailSigRolle', 'Sachbearbeiter Innendienst'], ['mailSigDirekt', '052 557 02 03'], ['mailSigMail', 's.hidegh@clean-service.ch']].forEach(([k, v]) => { if (!st[k]) { st[k] = v; ch = true; } });
   if (ch) save();
 }
 const SERVERHOST = !window.claude && /^https?:$/.test(location.protocol) && !/^(localhost|127\.0\.0\.1)$/.test(location.hostname);
@@ -3116,7 +3116,7 @@ function renderSet() {
     + card('Angepasste Offerte (Deutsch)', 'Wird beim Senden einer Revision mit dem neuen PDF versendet.', fld('sMailRB', 'Betreff (Offertnummer und «Rev.» werden angehängt)', 'mailBetreffRev') + fld('sMailR', 'Text', 'mailTextRev', { rows: 220 }))
     + card('Angepasste Offerte (Englisch)', '', fld('sEnRB', 'Subject', 'mailEnBetreffRev') + fld('sEnR', 'Text', 'mailEnTextRev', { rows: 220 }))
     + card('Signatur unter allen Mails', 'Unter jedem Mail erscheinen diese Angaben mit Firmenadresse und ISO-Zertifikaten.',
-      `<div class="frow">${fld('sSigN', 'Name', 'mailSigName', { reset: false })}${fld('sSigR', 'Funktion (Deutsch)', 'mailSigRolle', { reset: false })}</div><div class="frow">${fld('sSigRE', 'Funktion (Englisch)', 'mailSigRolleEn', { reset: false, ph: 'Office Administration' })}${fld('sSigD', 'Direktnummer', 'mailSigDirekt', { reset: false })}</div>`);
+      `<div class="frow">${fld('sSigN', 'Name', 'mailSigName', { reset: false })}${fld('sSigR', 'Funktion (Deutsch)', 'mailSigRolle', { reset: false })}</div><div class="frow">${fld('sSigRE', 'Funktion (Englisch)', 'mailSigRolleEn', { reset: false, ph: 'Office Administration' })}${fld('sSigD', 'Direktnummer', 'mailSigDirekt', { reset: false })}</div><div class="frow">${fld('sSigM', 'E-Mail', 'mailSigMail', { reset: false, ph: 's.hidegh@clean-service.ch' })}</div>`);
   }
   if (UI.setTab === 'nach') {
     const g = nfGaps();
@@ -3922,7 +3922,7 @@ function uhDocData(o, url) {
     objekt: o.name || '', adresse: o.adresse || '', art: o.art || '', days, daysTxt: seq ? days[0] + '–' + days[days.length - 1] : days.join(', '), zeitTxt, start: sn.start || '',
     c: { annual: c.annual, monthly: c.monthly, base: c.base, hours: c.hours, area: c.area }, vars: sn.vars || [], rb, lv, used, dispo, bod,
     sonder: [...SLX.map(x => { const m = c.slm[x[0]]; return m && m.mode !== 'nein' ? { n: m.name || x[1], mode: m.mode, m2: m.m2, ep: m.ep, stk: m.stk, sep: m.sep, tot: c[x[0]] || 0, ul: m.unit.u === 'mon' ? 'pro Monat' : m.unit.u === 'and' && m.unit.t ? m.unit.t : 'pro Ausführung' } : null; }).filter(Boolean), ...c.sx.map(x => ({ n: x.n, mode: x.mode, m2: x.m2, ep: x.ep, stk: x.stk, sep: x.sep, tot: x.p, ul: x.unit.u === 'mon' ? 'pro Monat' : x.unit.u === 'and' && x.unit.t ? x.unit.t : 'pro Ausführung' }))],
-    ap: { name: seller.name || 'Clean Service Scaramuzzo AG', rolle: seller.rolle || (/Scaramuzzo/.test(seller.name || '') ? 'Inhaber und Geschäftsführer' : 'Verkauf'), mail }, ol: annCfg().calName, adm: S.settings.mailSigName || 'Diogo Pereira', refs: (o.refs || []).map(r => ({ k: r.k, s: r.s || '' })),
+    ap: { name: seller.name || 'Clean Service Scaramuzzo AG', rolle: seller.rolle || (/Scaramuzzo/.test(seller.name || '') ? 'Inhaber und Geschäftsführer' : 'Verkauf'), mail }, ol: annCfg().calName, adm: S.settings.mailSigName || 'Sebastian Hidegh', refs: (o.refs || []).map(r => ({ k: r.k, s: r.s || '' })),
     logoBg: lbgHex(cu.logoBg), logo: logo && logo.startsWith('data:image') && logo.length < 1500000 ? logo : '', annUrl: url || '', kick: annKick(), rate: +(o.rate || S.settings.rate || 38), agbUrl: S.settings.uhAgbUrl || 'https://offertplattform-uh.vercel.app/agb/AGB-Unterhaltsreinigung.pdf' };
 }
 async function uhAnnUrl(o) { if (o.annUrl) return o.annUrl; const nr = o.nr || o.objNr; if (!nr || !annOn()) return ''; try { const r = await beApi('/api/ordner', { method: 'POST', body: JSON.stringify({ an: 'res', nr }) }); const j = await r.json().catch(() => ({})); return j.url || ''; } catch (e) { return ''; } }

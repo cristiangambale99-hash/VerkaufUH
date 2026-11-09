@@ -32,7 +32,7 @@ const c = D.c, wash = Math.max(0, (+c.monthly || 0) - (+c.base || 0));
 const vars = (D.vars || []).length > 1 ? D.vars : [];
 const recV = vars.length ? (vars.find(v => v.rec) || vars[0]) : null;
 const monthly = recV ? recV.m : c.monthly;
-const ol = D.ol || 'Sergio Da Silva', adm = D.adm || 'Diogo Pereira', ap = D.ap || { name: 'Mirco Scaramuzzo', rolle: 'Inhaber und Geschäftsführer' };
+const ol = D.ol || 'Sergio Da Silva', adm = D.adm || 'Sebastian Hidegh', ap = D.ap || { name: 'Mirco Scaramuzzo', rolle: 'Inhaber und Geschäftsführer' };
 const zeit = D.zeitTxt || '';
 const tage = (D.daysTxt || (D.days || []).join(', '));
 const annU = D.annUrl || 'https://offertplattform-uh.vercel.app';

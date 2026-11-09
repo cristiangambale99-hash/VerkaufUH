@@ -141,9 +141,8 @@ module.exports = async (b, res) => {
       const chat = encodeURIComponent(String(b.chatId || '')), d = String(b.description || '').slice(0, 300);
       if (!chat || !d) return fail(res, 'Chat oder Beschreibung fehlt');
       const tries = [
-        () => call('PUT', '/api/2/chats/groups/' + chat, { json: { description: d } }),
         () => call('PATCH', '/api/2/chats/groups/' + chat, { json: { description: d } }),
-        () => call('POST', '/api/2/chats/groups/' + chat, { json: { description: d } }),
+        () => call('PUT', '/api/2/chats/groups/' + chat, { json: Object.assign({ description: d }, b.title ? { title: String(b.title) } : {}) }),
       ];
       let last = null;
       for (const t of tries) { const r = await t(); last = r; if (r.ok) return res.status(200).json({ ok: true }); if (r.status === 401 || r.status === 403) break; }

@@ -177,7 +177,7 @@ async function abschluss(p, nurIntern) {
     const o = g.id ? await rpc('api_doc_get', { p_path: 'objects/' + g.id }).catch(() => null) : null;
     const chat = o && o.bk && o.bk.chatId;
     if (!chat) out.push({ k: 'chat', ok: false, t: 'Beekeeper: kein Gruppenchat im Verkaufstool eröffnet, Beschreibung nicht ergänzt' });
-    else { const j = await bk({ action: 'desc', chatId: chat, description: String(x.desc).slice(0, 300) });
+    else { const j = await bk({ action: 'desc', chatId: chat, title: o.bk.title || '', description: String(x.desc).slice(0, 300) });
       out.push({ k: 'chat', ok: !!j.ok, t: j.ok ? 'Gruppenbeschreibung im Beekeeper-Chat ergänzt' : 'Beekeeper-Beschreibung: ' + (j.error || 'fehlgeschlagen') }); }
   }
 
@@ -237,6 +237,7 @@ module.exports = async (b, res) => {
     if (job.art === 'abschluss') out = await abschluss(job.payload || {}, false);
     else if (job.art === 'pdf') out = await abschluss(job.payload || {}, true);
     else if (job.art === 'vakanz') out = await vakanz(job.payload || {});
+    else if (job.art === 'kalender') { const p = job.payload || {}; try { const r = await require('./invite').calDirect(p); out = [{ k: 'kalender', ok: true, t: 'Kalender ' + p.to + ': ' + r.done }]; } catch (e) { out = [{ k: 'kalender', ok: false, t: e.message }]; } }
     else if (job.art === 'bkcheck') { const j = await bk({ action: 'descCheck', chatId: (job.payload || {}).chatId }); out = [{ k: 'bkcheck', ok: !!j.ok, t: j.ok ? 'Beekeeper erlaubt das Setzen der Beschreibung (' + j.via + ')' : 'Beekeeper: ' + (j.error || 'fehlgeschlagen') + (j.keys ? ' · Felder: ' + j.keys.join(',') : '') }]; }
     else out = [{ k: 'art', ok: false, t: 'Unbekannter Auftrag' }];
   } catch (e) { out = [{ k: 'fehler', ok: false, t: 'Fehler: ' + String(e && e.message || e).slice(0, 300) }]; }
