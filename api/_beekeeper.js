@@ -136,6 +136,20 @@ module.exports = async (b, res) => {
       return res.status(200).json({ ok: true });
     }
 
+    /* Startgespräch: Beschreibung des Kunden-Gruppenchats setzen (max. 300 Zeichen) */
+    if (act === 'desc') {
+      const chat = encodeURIComponent(String(b.chatId || '')), d = String(b.description || '').slice(0, 300);
+      if (!chat || !d) return fail(res, 'Chat oder Beschreibung fehlt');
+      const tries = [
+        () => call('PUT', '/api/2/chats/groups/' + chat, { json: { description: d } }),
+        () => call('PATCH', '/api/2/chats/groups/' + chat, { json: { description: d } }),
+        () => call('POST', '/api/2/chats/groups/' + chat, { json: { description: d } }),
+      ];
+      let last = null;
+      for (const t of tries) { const r = await t(); last = r; if (r.ok) return res.status(200).json({ ok: true }); if (r.status === 401 || r.status === 403) break; }
+      return fail(res, 'Beschreibung nicht gesetzt (Status ' + (last && last.status) + '): ' + short(last || {}));
+    }
+
     /* Vakanzen: Absage als Einzelnachricht (Ersatzweg: kleiner Chat nur mit dieser Person) */
     if (act === 'dm') {
       const uid = String(b.userId || ''), text = String(b.text || '').slice(0, 2000);

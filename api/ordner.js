@@ -34,7 +34,8 @@ module.exports = async (req, res) => {
   try {
     if (req.method === 'POST') {
       const b = await body(req);
-      if (b.an === 'slots' || b.an === 'book') return require('./_annahme').pub(b, req, res);   // Kundenseite «Offerte annehmen» (ohne Anmeldung, mit Link-Schlüssel)
+      if (b.an === 'slots' || b.an === 'book') return require('./_annahme').pub(b, req, res);
+      if (b.bt) return require('./_bt')(b, res);   // Auftrag vom Besprechungstool (nur gültig, wenn er in bt_jobs angelegt wurde)   // Kundenseite «Offerte annehmen» (ohne Anmeldung, mit Link-Schlüssel)
       if (!guard(req, res)) return;
       if (b.an) return require('./_annahme').priv(b, res);
       if (b.qrfy) return require('./_qrfy')(b, res);
