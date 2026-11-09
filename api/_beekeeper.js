@@ -150,6 +150,17 @@ module.exports = async (b, res) => {
       return fail(res, 'Beschreibung nicht gesetzt (Status ' + (last && last.status) + '): ' + short(last || {}));
     }
 
+    /* Prüfung ohne sichtbare Änderung: aktuelle Beschreibung lesen und unverändert zurückschreiben */
+    if (act === 'descCheck') {
+      const chat = encodeURIComponent(String(b.chatId || ''));
+      const g = await call('GET', '/api/2/chats/groups/' + chat);
+      if (!g.ok || !g.json) return fail(res, 'Chat nicht lesbar (Status ' + g.status + '): ' + short(g));
+      const j = g.json.chat || g.json.group || g.json, cur = typeof j.description === 'string' ? j.description : null;
+      if (cur === null) return res.status(200).json({ ok: false, error: 'Beekeeper liefert kein Feld «description»', keys: Object.keys(j).slice(0, 30) });
+      for (const m of ['PUT', 'PATCH']) { const r = await call(m, '/api/2/chats/groups/' + chat, { json: { description: cur } }); if (r.ok) return res.status(200).json({ ok: true, via: m, len: cur.length }); if (r.status === 401 || r.status === 403) return fail(res, 'Beekeeper verweigert das Ändern (Status ' + r.status + ')'); }
+      return fail(res, 'Ändern nicht möglich');
+    }
+
     /* Vakanzen: Absage als Einzelnachricht (Ersatzweg: kleiner Chat nur mit dieser Person) */
     if (act === 'dm') {
       const uid = String(b.userId || ''), text = String(b.text || '').slice(0, 2000);

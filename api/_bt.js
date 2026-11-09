@@ -237,6 +237,7 @@ module.exports = async (b, res) => {
     if (job.art === 'abschluss') out = await abschluss(job.payload || {}, false);
     else if (job.art === 'pdf') out = await abschluss(job.payload || {}, true);
     else if (job.art === 'vakanz') out = await vakanz(job.payload || {});
+    else if (job.art === 'bkcheck') { const j = await bk({ action: 'descCheck', chatId: (job.payload || {}).chatId }); out = [{ k: 'bkcheck', ok: !!j.ok, t: j.ok ? 'Beekeeper erlaubt das Setzen der Beschreibung (' + j.via + ')' : 'Beekeeper: ' + (j.error || 'fehlgeschlagen') + (j.keys ? ' · Felder: ' + j.keys.join(',') : '') }]; }
     else out = [{ k: 'art', ok: false, t: 'Unbekannter Auftrag' }];
   } catch (e) { out = [{ k: 'fehler', ok: false, t: 'Fehler: ' + String(e && e.message || e).slice(0, 300) }]; }
   try { await rpc('api_bt_done', { p_id: id, p_result: { results: out } }); } catch (e) {}
