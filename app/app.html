@@ -1263,7 +1263,7 @@ function annApply() {
   const o = S.objects.find(x => x.annahme && !x.annahme.seen && !ANN_SHOWN.has(x.id));
   if (o && !document.getElementById('startDlg') && !document.getElementById('annDlg')) {
     if (o.start && o.start.datum && o.sp && o.sp.id) { o.annahme.seen = true; save(); return; }
-    setTimeout(() => annDlg(o), 200);
+    /* Kein Popup mehr: Reinigungsstart und Einführung werden im Startgespräch (Besprechungstool) festgelegt */
   }
 }
 function annDlg(o) {

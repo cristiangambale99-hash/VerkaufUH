@@ -67,7 +67,8 @@ async function msSend({ from, to, bcc, replyTo, subject, html, attachments }) {
   if (!sr.ok) throw new Error('Microsoft-Senden: ' + sr.status + ' ' + (await sr.text()).slice(0, 200));
   return 'ms-' + dj.id.slice(-12);
 }
-async function sendMail({ to, subject, text, attachments, kind, objectId, S, lang, nocopy, replyTo, copyTo }) {
+async function sendMail({ to, subject, text, attachments, kind, objectId, S, lang, nocopy, replyTo, copyTo, from }) {
+  const FROM = from || E.MAIL_FROM;   /* Hotelservice: Absender hotelservice@ statt unterhalt@ */
   const RT = replyTo || E.MAIL_REPLY_TO;
   S = S || await settings();
   const base = E.PUBLIC_URL || 'https://offertplattform-uh.vercel.app';
@@ -87,14 +88,15 @@ async function sendMail({ to, subject, text, attachments, kind, objectId, S, lan
   const html = `<!doctype html><html lang="${lang === 'en' ? 'en' : 'de'}"><head><meta charset="utf-8"><title>${esc(subject)}</title></head><body><div style="font-family:Verdana,Arial,sans-serif;font-size:14px;line-height:1.6;color:#222">${String(text).split(/\n{2,}/).map(para).join('')}${sigHtml(S, iso, lang)}</div></body></html>`;
   const plain = String(text).replace(/\[\[BTN:([^|\]]+)\|(https?:\/\/[^|\]\s]+)(?:\|[^\]]*)?\]\]/g, '$1: $2').replace(MDL, '$1: $2');
   const k = String(kind || ''), copy = nocopy ? false : /^cal/.test(k) ? S.bccBes !== 'nein' : /^(nf\d|re6)/.test(k) ? S.bccNach !== 'nein' : true;
-  const payload = { from: E.MAIL_FROM, to: Array.isArray(to) ? to : [to], reply_to: RT, subject, html, text: plain + sigText(S, lang) };
+  const payload = { from: FROM, to: Array.isArray(to) ? to : [to], reply_to: RT, subject, html, text: plain + sigText(S, lang) };
   if (copy) payload.bcc = copyTo ? [].concat(copyTo) : [RT];   /* Kopie: Hotelofferten an unterhalt@, sonst an die Antwortadresse */
   const att = (attachments && attachments.length ? attachments.slice() : []); if (inl) att.push(inl);
   if (att.length) payload.attachments = att;
   let id = null, status = 'ok', err = null;
   /* Bevorzugt Microsoft 365 (landet zuverlässig im Posteingang). Klappt das nicht, geht die Mail wie bisher über Resend raus. */
   if (MS_ON()) {
-    try { id = await msSend({ from: E.MAIL_FROM, to: payload.to, bcc: payload.bcc, replyTo: RT, subject, html, attachments: att });
+    try { try { id = await msSend({ from: FROM, to: payload.to, bcc: payload.bcc, replyTo: RT, subject, html, attachments: att }); }
+      catch (e1) { if (FROM === E.MAIL_FROM) throw e1; console.error('Absender ' + FROM + ' nicht möglich, Versand über Standardpostfach', e1.message); id = await msSend({ from: E.MAIL_FROM, to: payload.to, bcc: payload.bcc, replyTo: RT, subject, html, attachments: att }); }
       try { await rpc('api_mail_log', { p_kind: kind || '', p_object: objectId || '', p_to: [].concat(to).join(', '), p_subject: subject, p_resend: id, p_status: 'ok', p_error: 'via Microsoft 365' }); } catch (e) {}
       return id;
     } catch (e) { err = String(e.message || e); try { await rpc('api_mail_log', { p_kind: kind || '', p_object: objectId || '', p_to: [].concat(to).join(', '), p_subject: subject, p_resend: null, p_status: 'ms-fehler', p_error: err.slice(0, 300) }); } catch (e2) {} err = null; }
@@ -112,5 +114,6 @@ async function assetBytes(name) {
   return { ctype: r[0].ctype, buf: Buffer.from(r[0].b64, 'base64'), b64: r[0].b64 };
 }
 const HOTEL_RT = 'Clean Service Hotelservice <hotelservice@clean-service.ch>';
+const HOTEL_FROM = 'Clean Service Hotelservice <hotelservice@clean-service.ch>';
 const HOTEL_CC = 'unterhalt@clean-service.ch';   /* Kopie jeder versendeten Hotelofferte */
-module.exports = { MS_ON, msToken, MS_G, esc, rpc, makeToken, okToken, bearer, guard, body, sendMail, settings, assetBytes, E, HOTEL_RT, HOTEL_CC };
+module.exports = { MS_ON, msToken, MS_G, esc, rpc, makeToken, okToken, bearer, guard, body, sendMail, settings, assetBytes, E, HOTEL_RT, HOTEL_CC, HOTEL_FROM };

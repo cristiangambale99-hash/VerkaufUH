@@ -36,7 +36,7 @@ async function hotelNf(rows, g, T, dry, out) {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) { out.push({ nr: h.nr, k, skip: 'keine E-Mail' }); return false; }
       if (dry) { out.push({ nr: h.nr, k, dry: true, an: to }); return false; }
       const m = hMail(h, k, closeDue);
-      try { await sendMail({ to, subject: m.subject, text: m.text, kind: k, objectId: h.id, lang: 'de', replyTo: HOTEL_RT }); out.push({ nr: h.nr, k, gesendet: to }); return true; }
+      try { await sendMail({ to, subject: m.subject, text: m.text, kind: k, objectId: h.id, lang: 'de', replyTo: HOTEL_RT, from: require('./_lib').HOTEL_FROM }); out.push({ nr: h.nr, k, gesendet: to }); return true; }
       catch (e) { out.push({ nr: h.nr, k, fehler: e.message }); return false; }
     };
     if (h.status === 'versendet' && /^\d{4}-\d\d-\d\d$/.test(sent) && !h.nfOff) {
