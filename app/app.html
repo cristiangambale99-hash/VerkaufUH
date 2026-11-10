@@ -2622,13 +2622,14 @@ function sheetHead(o, title) {
   const cu = custOf(o);
   return `<div class="sh"><div><h2>${title}</h2><div class="meta">${esc(o.nr || o.objNr || 'Entwurf')}, ${esc(cu.firma)},<br>${esc(o.adresse)}</div></div><img src="${LOGO}" alt="Clean Service by Scaramuzzo"></div>`;
 }
+function gebGroups(o) { return o.multi && o.geb && o.geb.length > 1 ? o.geb.map((g, i) => ({ g, i, rooms: o.rooms.filter(r => r.geb === g.id) })).filter(x => x.rooms.length) : [{ g: null, i: 0, rooms: o.rooms }]; }
+function gebLabel(x) { return 'Gebäude ' + String.fromCharCode(65 + x.i) + ((x.g.n || '').trim() ? ' · ' + x.g.n.trim() : '') + ((x.g.a || '').trim() ? ' · ' + x.g.a.trim() : ''); }
 function docRaumbuch(o) {
-  const floors = [...new Set(o.rooms.map(r => r.floor))].sort((a, b) => fRank(b) - fRank(a));
   const c = objCalc(o);
   return `<div class="sheet">${sheetHead(o, 'Raumbuch')}<div class="tablewrap"><table><thead><tr><th>Bezeichnung</th><th>Nr</th><th>Bodenbelag</th><th>Dispo</th><th style="text-align:right">Fläche</th><th>Reinigungsgruppe</th><th style="text-align:right">Std./Jahr</th></tr></thead><tbody>
     <tr class="grp"><td colspan="6">${esc(o.name || 'Objekt')}</td><td class="num" style="text-align:right">${fmtN(c.hours, 2)}</td></tr>
-    ${floors.map(f => { const rs = o.rooms.filter(r => r.floor === f); const h = rs.reduce((a, r) => a + roomCalc(r).hours, 0);
-      return `<tr class="grp"><td colspan="6">${esc(f)}</td><td class="num" style="text-align:right">${fmtN(h, 2)}</td></tr>` + rs.map(r => `<tr><td>${esc(r.bez)}</td><td>${esc(r.nr)}</td><td>${esc(r.boden)}</td><td>${esc(r.dispo)}</td><td class="num" style="text-align:right">${r.flaeche > 0 ? fmtN(r.flaeche, 2) : '<span class="badge b-warn">fehlt</span>'}</td><td>${r.gruppe ? r.gruppe + ' ' + esc(rGName(r)) : '–'}</td><td class="num" style="text-align:right">${fmtN(roomCalc(r).hours, 2)}</td></tr>`).join(''); }).join('')}
+    ${gebGroups(o).map(x => (x.g ? `<tr class="grp"><td colspan="6" style="background:#1B8384;color:#fff">${esc(gebLabel(x))}</td><td class="num" style="text-align:right;background:#1B8384;color:#fff">${fmtN(x.rooms.reduce((a, r) => a + roomCalc(r).hours, 0), 2)}</td></tr>` : '') + [...new Set(x.rooms.map(r => r.floor))].sort((a, b) => fRank(b) - fRank(a)).map(f => { const rs = x.rooms.filter(r => r.floor === f); const h = rs.reduce((a, r) => a + roomCalc(r).hours, 0);
+      return `<tr class="grp"><td colspan="6">${esc(f)}</td><td class="num" style="text-align:right">${fmtN(h, 2)}</td></tr>` + rs.map(r => `<tr><td>${esc(r.bez)}</td><td>${esc(r.nr)}</td><td>${esc(r.boden)}</td><td>${esc(r.dispo)}</td><td class="num" style="text-align:right">${r.flaeche > 0 ? fmtN(r.flaeche, 2) : '<span class="badge b-warn">fehlt</span>'}</td><td>${r.gruppe ? r.gruppe + ' ' + esc(rGName(r)) : '–'}</td><td class="num" style="text-align:right">${fmtN(roomCalc(r).hours, 2)}</td></tr>`).join(''); }).join('')).join('')}
     <tr class="tot"><td colspan="4">Total</td><td class="num" style="text-align:right">${fmtN(c.area, 2)}</td><td></td><td class="num" style="text-align:right">${fmtN(c.hours, 2)}</td></tr>
   </tbody></table></div><p class="foot-n">Clean Service Scaramuzzo AG · ${fmtDay(isoDay(TODAY))} · Leistungswerte gemäss Stammdaten (Beispielwerte)</p></div>`;
 }
@@ -3902,8 +3903,9 @@ async function coverJpeg(src, ratio) {
 const uhNew = (o, lang) => typeof BE_ON !== 'undefined' && BE_ON && lang !== 'en' && !(o && o.richt) && S.settings.uhLayout !== 'alt';
 function uhDocData(o, url) {
   const cu = custOf(o), c = objCalc(o), sn = annSnap(o), seller = sellerOf(o);
-  const floors = [...new Set(o.rooms.map(r => r.floor))].sort((a, b) => fRank(b) - fRank(a));
-  const rb = floors.map(f => { const rs = o.rooms.filter(r => r.floor === f); return { f, h: rs.reduce((a, r) => a + roomCalc(r).hours, 0), rooms: rs.map(r => ({ bez: r.bez, nr: r.nr || '', boden: bodenCode(r.boden), dispo: r.dispo, fl: r.flaeche, g: r.gruppe || '', gn: r.gruppe ? rGName(r) : '', h: roomCalc(r).hours })) }; });
+  const flOf = list => [...new Set(list.map(r => r.floor))].sort((a, b) => fRank(b) - fRank(a)).map(f => { const rs = list.filter(r => r.floor === f); return { f, h: rs.reduce((a, r) => a + roomCalc(r).hours, 0), rooms: rs.map(r => ({ bez: r.bez, nr: r.nr || '', boden: bodenCode(r.boden), dispo: r.dispo, fl: r.flaeche, g: r.gruppe || '', gn: r.gruppe ? rGName(r) : '', h: roomCalc(r).hours })) }; });
+  /* Mehrere Gebäude: je Gebäude ein Band (Gebäude A · Name) mit eigener Stundensumme, darunter die Geschosse */
+  const rb = gebGroups(o).flatMap(x => x.g ? [{ gb: gebLabel(x), h: x.rooms.reduce((a, r) => a + roomCalc(r).hours, 0), area: x.rooms.reduce((a, r) => a + (r.flaeche || 0), 0) }].concat(flOf(x.rooms)) : flOf(x.rooms));
   const blocks = {}, rnm = r => String(r.bez || '').trim() + (r.nr ? ' ' + r.nr : '');
   o.rooms.filter(r => r.gruppe && r.dispo !== 'E').forEach(r => { const bk = r.gruppe + '#' + rGName(r); const b = blocks[bk] || (blocks[bk] = { g: r.gruppe, nm: rGName(r) || (GROUP[r.gruppe] || {}).name || '', tm: new Map(), rooms: [] }); b.rooms.push(rnm(r));
     roomTasks(r).forEach(x => { const k = x.t.id + ':' + x.code + (x.t.ov ? '~' + x.t.name : ''); if (!b.tm.has(k)) b.tm.set(k, { cat: x.t.cat, name: x.t.name, code: x.code, f: freqCols(x.code), rs: [] }); b.tm.get(k).rs.push(rnm(r)); }); });
