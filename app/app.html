@@ -1674,7 +1674,7 @@ const RA_ACT = {
   raDel: async el => { if (!armDel(el)) return; const id = RA_ST.id; S.richt = (S.richt || []).filter(x => x.id !== id); save(); closeRaDlg(); render(); toast('Richtangebot gelöscht', 'info'); },
   objDel: el => { if (!armDel(el)) return; removeObject(el.dataset.id); },
   hoNew: () => openHotel('new'), hoOpen: el => openHotel('edit:' + el.dataset.id), hoSet: () => openHotel('set'), hoAll: () => openHotel('list'),
-  raNew: () => openRaDlg(), raOpen: el => openRaDlg(el.dataset.id), raClose: () => closeRaDlg(),
+  raNew: () => planBes('', '', true), raOpen: el => openRaDlg(el.dataset.id), raClose: () => closeRaDlg(),
   raDraft: () => { if (!RA_ST.d.firma.trim()) { const e = document.getElementById('raErr'); if (e) e.textContent = 'Mindestens den Firmennamen angeben.'; return; } const r = raStore('entwurf'); closeRaDlg(); toast('Entwurf gespeichert · ' + r.nr, 'check'); render(); },
   raNext: () => { if (raCheck()) { RA_ST.d.mail = null; raStep2(); } },
   raBack: () => { const d = RA_ST.d; d.mail = { betreff: (document.getElementById('raBet') || {}).value, text: (document.getElementById('raTxt') || {}).value }; raForm(); },
@@ -2045,7 +2045,7 @@ function nfListHtml(o) {
 }
 function allOffers() {
   const live = S.objects.filter(o => o.status !== 'geplant' && o.status !== 'abgesagt').map(o => { const c = objCalc(o); const cu = custOf(o);
-    return { live:true, id:o.id, nr:o.nr || o.objNr || 'Entwurf', firma:cu.firma, objekt:o.name, objNr:o.objNr, monthly:c.monthly, hours:c.hours, status:o.status, inaktiv:o.inaktiv, inaktivSeit:o.inaktivSeit, rev:o.rev, revising:o.revising, nf:o.nf, nfDates:o.nfDates, nfShift:o.nfShift, auto:o.auto, verlorenSeit:o.verlorenSeit, reMail:o.reMail, revOpen:o.revOpen, aktiv:o.aktiv, aktivAb:o.aktivAb, start:o.start, verkaeufer:o.verkaeufer, created:o.created || o.besDatum, sent:o.sent, besDatum:o.besDatum, besZeit:o.besZeit }; });
+    return { live:true, richt:!!o.richt, id:o.id, nr:o.nr || o.objNr || 'Entwurf', firma:cu.firma, objekt:o.name, objNr:o.objNr, monthly:c.monthly, hours:c.hours, status:o.status, inaktiv:o.inaktiv, inaktivSeit:o.inaktivSeit, rev:o.rev, revising:o.revising, nf:o.nf, nfDates:o.nfDates, nfShift:o.nfShift, auto:o.auto, verlorenSeit:o.verlorenSeit, reMail:o.reMail, revOpen:o.revOpen, aktiv:o.aktiv, aktivAb:o.aktivAb, start:o.start, verkaeufer:o.verkaeufer, created:o.created || o.besDatum, sent:o.sent, besDatum:o.besDatum, besZeit:o.besZeit }; });
   const arch = S.archive.map(a => ({ ...a, live:false, id:a.nr, besDatum:a.created }));
   return [...live, ...arch].sort((a, b) => (b.created || '').localeCompare(a.created || ''));
 }
@@ -2311,8 +2311,8 @@ function renderBes() {
     ${locked ? `<div class="infobox" style="margin-bottom:16px">${ico('i-lock')}<div>Diese Besichtigung ist ${STATUS[o.status].l.toLowerCase()} und gesperrt. <button class="btn btn-g btn-sm" data-act="reopen">Wieder bearbeiten</button></div></div>` : ''}
     <div class="two">
     <form class="form" id="besForm" novalidate>
-      <div class="card fsec acc ${secOpen('kunde', SM.kunde.st) ? 'open' : ''}" id="sec-kunde"><button type="button" class="acc-h" data-act="secT" data-k="kunde" aria-expanded="${secOpen('kunde', SM.kunde.st)}"><span><span class="acc-t">Kunde und Termin</span><span class="acc-s">${SM.kunde.status}</span></span>${secIcon(SM.kunde.st)}</button><div class="acc-b"><p class="hint">Wie im Beekeeper-Formular. Pflichtfelder mit *.</p>
-        <div class="frow">${fieldHtml('bDatum','Besichtigungsdatum',o.besDatum,`type="date" data-o="besDatum" ${dis}`,true,'date')}${fieldHtml('bZeit','Besichtigungszeit',o.besZeit,`data-o="besZeit" ${dis}`,true,'time')}</div>
+      <div class="card fsec acc ${secOpen('kunde', SM.kunde.st) ? 'open' : ''}" id="sec-kunde"><button type="button" class="acc-h" data-act="secT" data-k="kunde" aria-expanded="${secOpen('kunde', SM.kunde.st)}"><span><span class="acc-t">${o.richt ? 'Kunde' : 'Kunde und Termin'}</span><span class="acc-s">${SM.kunde.status}</span></span>${secIcon(SM.kunde.st)}</button><div class="acc-b"><p class="hint">Wie im Beekeeper-Formular. Pflichtfelder mit *.</p>
+        ${o.richt ? '<div class="infobox" style="display:block;margin-bottom:10px">Richtofferte: ohne Besichtigung, im Büro erfasst. Es wird kein Besichtigungstermin eingetragen.</div>' : `<div class="frow">${fieldHtml('bDatum','Besichtigungsdatum',o.besDatum,`type="date" data-o="besDatum" ${dis}`,true,'date')}${fieldHtml('bZeit','Besichtigungszeit',o.besZeit,`data-o="besZeit" ${dis}`,true,'time')}</div>`}
         ${fieldHtml('bFirma','Firmenname',cu.firma,`data-c="firma" autocomplete="organization" ${dis}`,true)}
         <div class="frow" style="grid-template-columns:120px 1fr"><div class="field"><label for="bAnrede">Anrede</label><select id="bAnrede" data-c="anrede" ${dis}>${['','Herr','Frau'].map(a => `<option value="${a}" ${(cu.anrede || '') === a ? 'selected' : ''}>${a || '–'}</option>`).join('')}</select></div>${fieldHtml('bKontakt','Vor- und Nachname',cu.kontakt,`data-c="kontakt" autocomplete="name" ${dis}`,true)}</div>
         ${fieldHtml('bAdresse','Adresse und Ortschaft (Objekt)',o.adresse,`data-o="adresse" autocomplete="street-address" ${dis}`,true)}
@@ -2860,8 +2860,8 @@ function renderOff() {
   const rows = base.filter(o => cur[3](o) && (!q || (o.nr + ' ' + o.firma + ' ' + o.objekt).toLowerCase().includes(q)))
     .sort((a, b) => { const fa = OFF_F[3][3](a) ? 0 : 1, fb = OFF_F[3][3](b) ? 0 : 1; return fa - fb || (['gesendet','angepasst'].includes(offStage(a)) && ['gesendet','angepasst'].includes(offStage(b)) ? (a.sent || '').localeCompare(b.sent || '') : 0); });
   const sub = `Nachfassung nach ${nfGaps().slice(0,2).map(x => x + ' T').join(' · ')}. Auftragserteilung oder Absage beendet sie. «Anpassen» geht jederzeit.`;
-  const stage = o => { const [l, c] = STAGE_UI[offStage(o)]; return `<span class="badge ${c}">${l}${o.rev > 0 ? ' · Rev. ' + o.rev : ''}</span>`; };
-  el.innerHTML = phead('Offerten', 'Offerten', sub, `<div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-p" data-act="planBes">${ico('i-plus')}Besichtigung planen</button><button class="btn btn-s" data-act="raNew">${ico('i-plus')}Richtangebot erstellen</button><button class="btn btn-s" data-act="hoNew">${ico('i-plus')}Hotelofferte erstellen</button></div>`) + `
+  const stage = o => { const [l, c] = STAGE_UI[offStage(o)]; return `<span class="badge ${c}">${l}${o.rev > 0 ? ' · Rev. ' + o.rev : ''}</span>${o.richt ? ' <span class="badge b-warn" title="Ohne Besichtigung erstellt">Richtofferte</span>' : ''}`; };
+  el.innerHTML = phead('Offerten', 'Offerten', sub, `<div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-p" data-act="planBes">${ico('i-plus')}Besichtigung planen</button><button class="btn btn-s" data-act="raNew">${ico('i-plus')}Richtofferte erstellen</button><button class="btn btn-s" data-act="hoNew">${ico('i-plus')}Hotelofferte erstellen</button></div>`) + `
   <div class="content">
     <div class="pipe" role="tablist" aria-label="Offerten nach Stufe">${OFF_F.map(f => { const n = cnt(f), warn = f[0] === 'Fällig' && n > 0; return `<button class="pipe-t ${warn ? 'warn' : ''}" data-act="offF" data-v="${f[0]}" aria-pressed="${UI.offF === f[0]}"><span class="pn">${n}</span><span class="pl">${f[1]}</span><span class="ps">${f[2]}</span></button>`; }).join('')}</div>
     <div class="toolbar"><div class="search"><svg><use href="#i-search"/></svg><input id="offQ" type="search" placeholder="Nummer, Kunde oder Objekt" value="${esc(UI.offQ)}" data-q="offQ" aria-label="Offerten suchen"></div><span class="muted small">${rows.length} ${rows.length === 1 ? 'Offerte' : 'Offerten'} · ${cur[1]}</span></div>
@@ -3303,7 +3303,7 @@ function refRefresh(o) {
 document.addEventListener('input', e => { if (e.target && e.target.id === 'bRefQ') { const o = curObj(); const r = $('#refRes'); if (o && r) r.innerHTML = refResHtml(o, e.target.value); } });
 function validateBes(o) {
   const cu = custOf(o), errs = [];
-  [['bDatum', o.besDatum], ['bZeit', o.besZeit], ['bFirma', cu.firma], ['bKontakt', cu.kontakt], ['bAdresse', o.adresse], ['bRate', o.rate]].forEach(([id, v]) => {
+  (o.richt ? [] : [['bDatum', o.besDatum], ['bZeit', o.besZeit]]).concat([['bFirma', cu.firma], ['bKontakt', cu.kontakt], ['bAdresse', o.adresse], ['bRate', o.rate]]).forEach(([id, v]) => {
     const f = $('#f-' + id); const bad = v == null || v === '' ; if (f) f.classList.toggle('err', bad); if (bad) errs.push(id);
   });
   { const f = $('#f-refs'); if (f) f.classList.remove('err'); }
@@ -3325,13 +3325,14 @@ function planPanelHtml() {
   const d = UI.plan, team = teamList(), edit = !!d.oid;
   const f = (id, label, key, attrs = '', req = false, type = 'text') => `<div class="field" id="f-${id}"><label for="${id}">${label}${req ? ' <span class="req">*</span>' : ''}</label><input id="${id}" type="${type === 'time' ? 'text' : type}"${type === 'time' ? ' inputmode="numeric" maxlength="5" placeholder="HH:MM" autocomplete="off" data-t24="1"' : ''} data-pl="${key}" value="${esc(d[key] ?? '')}" ${attrs}><span class="msg">Bitte ausfüllen.</span></div>`;
   const known = S.customers.filter(c => c.firma).sort((a, b) => a.firma.localeCompare(b.firma));
-  return `<div class="panel-h"><div><div class="eyebrow">Admin-Team</div><h2 id="panelTitle">${edit ? 'Planung bearbeiten' : 'Besichtigung planen'}</h2><p class="small muted" style="margin-top:4px">Der Verkäufer startet die Erfassung vor Ort.</p></div><button class="icon-btn" data-act="closePanel" aria-label="Schliessen"><svg><use href="#i-x"/></svg></button></div>
+  const RT = !!d.richt;
+  return `<div class="panel-h"><div><div class="eyebrow">${RT ? 'Richtofferte · ohne Besichtigung' : 'Admin-Team'}</div><h2 id="panelTitle">${RT ? 'Richtofferte erstellen' : edit ? 'Planung bearbeiten' : 'Besichtigung planen'}</h2><p class="small muted" style="margin-top:4px">${RT ? 'Gleicher Ablauf wie eine UH-Offerte: Raumbuch, Leistungsverzeichnis und Preis im Büro erfassen, senden, online Auftrag erteilen lassen. Es wird kein Besichtigungstermin eingetragen.' : 'Der Verkäufer startet die Erfassung vor Ort.'}</p></div><button class="icon-btn" data-act="closePanel" aria-label="Schliessen"><svg><use href="#i-x"/></svg></button></div>
   <div class="panel-b"><form id="planForm" novalidate>
-    <div class="sec-t">Termin</div>
-    <div class="frow">${f('pDatum','Datum','datum','',true,'date')}${f('pZeit','Zeit','zeit','',true,'time')}</div>
-    <div class="field" id="f-pVerk"><label for="pVerk">Verkäufer <span class="req">*</span></label><select id="pVerk" data-pl="verkaeufer">${team.map(t => `<option ${t.name === d.verkaeufer ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}<option value="__andere" ${d.verkaeufer === '__andere' ? 'selected' : ''}>Andere …</option></select>
+    ${RT ? '<div class="sec-t">Ausarbeitung</div>' : `<div class="sec-t">Termin</div>
+    <div class="frow">${f('pDatum','Datum','datum','',true,'date')}${f('pZeit','Zeit','zeit','',true,'time')}</div>`}
+    <div class="field" id="f-pVerk"><label for="pVerk">${RT ? 'Ausgearbeitet durch' : 'Verkäufer'} <span class="req">*</span></label><select id="pVerk" data-pl="verkaeufer">${team.map(t => `<option ${t.name === d.verkaeufer ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}<option value="__andere" ${d.verkaeufer === '__andere' ? 'selected' : ''}>Andere …</option></select>
       <input id="pVerkAnd" data-pl="vAndere" value="${esc(d.vAndere || '')}" placeholder="Name des Verkäufers" autocomplete="off" style="margin-top:8px" ${d.verkaeufer === '__andere' ? '' : 'hidden'}><input id="pVerkMail" data-pl="vEmail" type="email" value="${esc(d.vEmail || '')}" placeholder="E-Mail des Verkäufers (hierhin geht die Kalendereinladung)" autocomplete="off" style="margin-top:8px" ${d.verkaeufer === '__andere' ? '' : 'hidden'}><span class="msg">Bitte Namen und gültige E-Mail eingeben.</span><span class="small muted">Team-Liste unter Einstellungen → Sätze.</span></div>
-    <div class="field"><label class="vrec" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="pCal" data-plck="cal" ${d.cal !== false ? 'checked' : ''}> Kalendereinladungen senden</label><span class="small muted">Aus: Der Termin wird nur gespeichert, Verkäufer und Kunde erhalten keine Einladung, zum Beispiel wenn die Besichtigung schon stattgefunden hat. Später einschalten und speichern sendet die Einladungen nach.</span></div>
+    ${RT ? '' : `<div class="field"><label class="vrec" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="pCal" data-plck="cal" ${d.cal !== false ? 'checked' : ''}> Kalendereinladungen senden</label><span class="small muted">Aus: Der Termin wird nur gespeichert, Verkäufer und Kunde erhalten keine Einladung, zum Beispiel wenn die Besichtigung schon stattgefunden hat. Später einschalten und speichern sendet die Einladungen nach.</span></div>`}
     <div class="sec-t">Kunde</div>
     ${f('pFirma','Firmenname','firma','autocomplete="organization"',true)}
     <div class="field"><label>Firmenlogo für die Offerte</label>${planLogoHtml()}</div>
@@ -3343,20 +3344,22 @@ function planPanelHtml() {
     <div class="frow"><div class="field"><label for="pArt">Betriebsart</label><select id="pArt" data-pl="art"><option value="">–</option>${BETRIEB.map(([k, n]) => `<option value="${k}" ${d.art === k ? 'selected' : ''}>${n}</option>`).join('')}</select><span class="small muted">Bestimmt das Titelbild der Offerte, wenn kein eigenes Titelbild gewählt ist.</span></div>${f('pObj','Objektbezeichnung','objekt','placeholder="z. B. Büro 2. OG"')}</div>
     <div class="field"><label for="pHinweis">Hinweis für den Verkäufer</label><textarea id="pHinweis" data-pl="hinweis" placeholder="Zutritt, Ansprechperson vor Ort, Parkplatz">${esc(d.hinweis || '')}</textarea></div>
   </form></div>
-  <div class="panel-f">${edit ? '' : `<button class="btn btn-s" data-act="savePlan" data-start="1">Planen und starten</button>`}<button class="btn btn-p" data-act="savePlan" style="margin-left:auto"><span class="ld" data-loader></span>${edit ? 'Speichern' : 'Besichtigung planen'}</button></div>`;
+  <div class="panel-f">${RT ? '' : edit ? '' : `<button class="btn btn-s" data-act="savePlan" data-start="1">Planen und starten</button>`}<button class="btn btn-p" data-act="savePlan" style="margin-left:auto"><span class="ld" data-loader></span>${RT ? 'Richtofferte erstellen und erfassen' : edit ? 'Speichern' : 'Besichtigung planen'}</button></div>`;
 }
-function planBes(cid, oid) {
+function planBes(cid, oid, richt) {
   const team = teamList();
   if (oid) { const o = objOf(oid), cu = custOf(o);
     UI.plan = { oid, cid: o.customerId, datum: o.besDatum, zeit: o.besZeit, verkaeufer: !o.verkaeufer ? (team[0] || {}).name : team.some(t => t.name === o.verkaeufer) ? o.verkaeufer : '__andere', vAndere: o.verkaeufer && !team.some(t => t.name === o.verkaeufer) ? o.verkaeufer : '', vEmail: o.vEmail || '', cal: !o.calOff, art: o.art || '', firma: cu.firma, logoCur: cu.logo ? med(cu.logo) : '', kontakt: cu.kontakt, anrede: cu.anrede || '', tel: cu.tel, email: cu.email, adresse: o.adresse, objekt: o.name, objNr: o.objNr || '', hinweis: o.hinweis || '' };
   } else { const cu = S.customers.find(c => c.id === cid) || {};
     UI.plan = { cid: cid || '', logoCur: cu.logo ? med(cu.logo) : '', datum: addDays(1), zeit: '09:00', verkaeufer: (team[0] || {}).name || '', cal: true, art: '', firma: cu.firma || '', kontakt: cu.kontakt || '', tel: cu.tel || '', email: cu.email || '', adresse: cu.adresse || '', objekt: '', objNr: '', hinweis: '' }; }
+  if (richt && !oid) UI.plan.richt = true;
   if (UI.view !== 'bes') go('bes');
   openPanel({ type: 'plan', id: oid || 'neu' });
-  setTimeout(() => { const f = $(oid ? '#pDatum' : (cid ? '#pDatum' : '#pFirma')); f && f.focus({ preventScroll: true }); }, 320);
+  setTimeout(() => { const f = $(richt ? '#pFirma' : oid ? '#pDatum' : (cid ? '#pDatum' : '#pFirma')); f && f.focus({ preventScroll: true }); }, 320);
 }
 function savePlan(start) {
-  const d = UI.plan, req = [['pDatum','datum'],['pZeit','zeit'],['pFirma','firma'],['pKontakt','kontakt'],['pAdresse','adresse'],['pObjNr','objNr']];
+  const d = UI.plan, req = (d.richt ? [] : [['pDatum','datum'],['pZeit','zeit']]).concat([['pFirma','firma'],['pKontakt','kontakt'],['pAdresse','adresse'],['pObjNr','objNr']]);
+  if (d.richt) { d.datum = isoDay(TODAY); d.zeit = ''; d.cal = false; }
   let vMail = '';
   if (d.verkaeufer === '__andere') { const nm = String(d.vAndere || '').trim(); vMail = (mailsOf(d.vEmail)[0] || '').toLowerCase(); $('#f-pVerk')?.classList.toggle('err', !nm || !vMail); if (!nm) { $('#pVerkAnd')?.focus(); return; } if (!vMail) { $('#pVerkMail')?.focus(); return; } d.verkaeufer = nm; }
   let first = null;
@@ -3372,8 +3375,10 @@ function savePlan(start) {
     o = { id: 'o' + uid(), customerId: cu.id, name: d.objekt || '', objNr: String(d.objNr || '').trim(), adresse: d.adresse, besDatum: d.datum, besZeit: d.zeit, verkaeufer: d.verkaeufer, vEmail: vMail, hinweis: d.hinweis || '', calOff: d.cal === false, art: d.art || '',
       days: ['Mo','Di','Mi','Do','Fr'], zeit: '', rate: S.settings.rate, pauschale: null, wasch: false, spezial: false, diverses: '', photos: [], skizze: [], signature: null,
       status: 'geplant', nr: String(d.objNr || '').trim(), created: isoDay(TODAY), sent: null, log: [[isoDay(TODAY), `Besichtigung geplant für ${d.verkaeufer}`]], rooms: [] };
+    if (d.richt) { o.richt = true; o.calOffLogged = true; o.log = [[isoDay(TODAY), `Richtofferte erstellt durch ${d.verkaeufer}, ohne Besichtigung`]]; }
     S.objects.push(o);
   }
+  if (o.richt && o.status === 'geplant') { save(); closePanel(true); UI.cur = o.id; o.status = 'erfassung'; UI.floor = 'Alle'; save(); go('bes'); toast('Richtofferte erstellt. Raumbuch und Preis im Büro erfassen.', 'check'); return; }
   if (o.calOff && !o.calOffLogged) { logO(o, 'Besichtigung ohne Kalendereinladung erfasst'); o.calOffLogged = true; }
   save(); closePanel(true); UI.cur = o.id;
   calSync(o);
