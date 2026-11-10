@@ -1578,6 +1578,7 @@ async function raStash(bytes, name) {
 const raStatus = { entwurf: ['Entwurf', 'b-neutral'], gesendet: ['Gesendet', 'b-ok'], besichtigung: ['Besichtigung geplant', 'b-ok'], abgesagt: ['Abgesagt', 'b-warn'] };
 function raListHtml() {
   const L = raList().slice().sort((a, b) => String(b.created || '').localeCompare(String(a.created || '')) || String(b.nr).localeCompare(String(a.nr)));
+  if (!L.length) return '';   /* neue Richtofferten laufen über den normalen Offertenablauf */
   const st = r => { const [l, c] = raStatus[r.status] || raStatus.entwurf; return `<span class="badge ${c}">${l}</span>`; };
   return `<div class="sec-t" style="margin-top:22px">Richtangebote</div><div class="card tablewrap">${L.length ? `<table><thead><tr><th>Nummer</th><th>Kunde</th><th style="text-align:right">Richtpreis/Mt</th><th>Status</th></tr></thead><tbody>${L.map(r => { const c = raCalc(r); return `<tr data-act="raOpen" data-id="${r.id}"><td class="num"><span class="name">${esc(r.nr)}</span><div class="muted small">${r.sent ? 'gesendet ' + fmtDay(r.sent) : 'erstellt ' + fmtDay(r.created)}</div></td><td><b>${esc(r.firma)}</b><div class="muted small">${esc(r.adresse)}</div></td><td class="num" style="text-align:right">${fmtN(c.min, 0)} bis ${fmtN(c.max, 0)}</td><td>${st(r)}</td></tr>`; }).join('')}</tbody></table>` : emptyState('Noch kein Richtangebot. Mit «Richtangebot erstellen» direkt im Büro starten.')}</div>`;
 }
@@ -2870,7 +2871,6 @@ function renderOff() {
       </tbody></table>
       <div class="mlist">${rows.map(o => `<div class="mrow ${draftLate(o) ? 'late' : ''}" data-act="openOff" data-id="${o.id}"><div class="tx"><b>${esc(o.firma)}</b><small>${esc(o.nr)} · ${chf(o.monthly, 0)}/Mt</small><small>${offNext(o)}</small></div>${stage(o)}<svg style="width:18px;height:18px;color:var(--cs-fg-2)"><use href="#i-chev"/></svg></div>`).join('')}</div>`
       : emptyState('Keine Offerte in dieser Stufe.')}</div>
-    ${raListHtml()}
     ${hoListHtml()}
   </div>`;
   hydrateIcons(el);
@@ -3913,7 +3913,9 @@ async function coverJpeg(src, ratio) {
 }
 
 /* Neues Layout (wie Muster): Daten der Offerte zusammenstellen, das PDF entsteht auf dem Server (/api/pdf) */
-const uhNew = (o, lang) => typeof BE_ON !== 'undefined' && BE_ON && lang !== 'en' && !(o && o.richt) && S.settings.uhLayout !== 'alt';
+/* Altes Richtangebot (eigenes Modul) trägt o.richt als Objekt; die neue Richtofferte nur o.richt = true und läuft wie eine UH-Offerte */
+const isRA = o => !!(o && o.richt && typeof o.richt === 'object');
+const uhNew = (o, lang) => typeof BE_ON !== 'undefined' && BE_ON && lang !== 'en' && !isRA(o) && S.settings.uhLayout !== 'alt';
 function uhDocData(o, url) {
   const cu = custOf(o), c = objCalc(o), sn = annSnap(o), seller = sellerOf(o);
   const flOf = list => [...new Set(list.map(r => r.floor))].sort((a, b) => fRank(b) - fRank(a)).map(f => { const rs = list.filter(r => r.floor === f); return { f, h: rs.reduce((a, r) => a + roomCalc(r).hours, 0), rooms: rs.map(r => ({ bez: r.bez, nr: r.nr || '', boden: bodenCode(r.boden), dispo: r.dispo, fl: r.flaeche, g: r.gruppe || '', gn: r.gruppe ? rGName(r) : '', h: roomCalc(r).hours })) }; });
@@ -3942,7 +3944,7 @@ function uhDocData(o, url) {
 }
 async function uhAnnUrl(o) { if (o.annUrl) return o.annUrl; const nr = o.nr || o.objNr; if (!nr || !annOn()) return ''; try { const r = await beApi('/api/ordner', { method: 'POST', body: JSON.stringify({ an: 'res', nr }) }); const j = await r.json().catch(() => ({})); return j.url || ''; } catch (e) { return ''; } }
 async function uhPdfCall(o, stash) {
-  const d = uhDocData(o, await uhAnnUrl(o));
+  const d = uhDocData(o, await uhAnnUrl(o)); if (window.PDF_NEUTRAL) d.neutral = true;
   const r = await beApi('/api/pdf', { method: 'POST', body: JSON.stringify(stash ? { d, stash } : { d }) });
   if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || 'PDF ' + r.status); }
   return stash ? r.json() : new Uint8Array(await r.arrayBuffer());
@@ -3965,7 +3967,7 @@ async function buildOfferPdfAlt(o, lang = 'de') {
   if (lang !== 'en' && A.kmp) { try { const kd = await PDFDocument.load(A.kmp); if (kd.getPageCount() >= 5) K = await out.copyPages(kd, [0, 1, 2, 3, 4]); } catch (e) { K = null; } }
   const C = { black: rgb(0, 0, 0), grey: rgb(0.251, 0.251, 0.251), navy: rgb(0.122, 0.22, 0.392), white: rgb(1, 1, 1), hdr: rgb(0.45, 0.45, 0.45), bar: rgb(0.95, 0.95, 0.95), ice: rgb(0.933, 0.969, 0.973) };
 
-  const R = o.richt || null;   /* Richtangebot: gleiches Layout, Preisspanne statt Festpreis, ohne Raumbuch/LV und ohne Auftragserteilung */
+  const R = isRA(o) ? o.richt : null;   /* Richtangebot: gleiches Layout, Preisspanne statt Festpreis, ohne Raumbuch/LV und ohne Auftragserteilung */
   if (R) lang = 'de';
   const cu = R ? o._cu : custOf(o), c = R ? { annual: 0, monthly: 0, wash: 0, fenster: 0 } : objCalc(o), seller = sellerOf(o);
   const nr = (o.nr || o.objNr || (lang === 'en' ? 'Draft' : 'Entwurf')) + (o.rev ? ' Rev. ' + o.rev : ''), today = fmtDay(isoDay(TODAY));

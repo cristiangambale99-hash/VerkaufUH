@@ -52,6 +52,8 @@ ${EXTRA}</style></head><body>${bodyHtml}${script ? '<script>' + script + '</scri
 function uhOfferHtml(d) {
   const A = assets();
   const a = { LH: A.LH, LOGO: A.LOGO, ICO: A.ICO, BADGES: A.BADGES, SIG: A.SIG || '', COVER: artImg(d.art) };
+  /* Neutrale Fassung (z. B. für Weitergabe über Dritte): ohne Clean-Service-Logo und ohne ISO-Badges */
+  if (d.neutral) { a.LH = b64('lh-neutral.png', 'image/png'); a.LOGO = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'; a.BADGES = []; }
   const client = rd('uhdoc-client.txt', 'utf8');
   return shell('<div class="doc" id="root"></div>', `window.D=${safeJson(d)};window.A=${safeJson(a)};document.fonts.ready.then(()=>{try{${client}}catch(e){window.__err=String(e&&e.stack||e);window.__done=true;}});`);
 }
