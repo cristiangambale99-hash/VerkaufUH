@@ -89,14 +89,14 @@ const AREA = 210;   /* nutzbare Höhe im Inhaltsbereich in mm */
 function raumbuchPages(intro, cont, outro) {
   const head = '<table class="rbt"><colgroup><col><col style="width:10mm"><col style="width:20mm"><col style="width:11mm"><col style="width:15mm"><col style="width:50mm"><col style="width:16mm"></colgroup><thead><tr><th>Bezeichnung</th><th>Nr</th><th>Bodenbelag</th><th>Dispo</th><th class="num">Fläche m²</th><th>Reinigungsgruppe</th><th class="num">Std./Jahr</th></tr></thead><tbody>';
   const rows = ['<tr class="rg0"><td colspan="6">' + e(D.objekt || D.adresse) + '</td><td class="num">' + n2(c.hours) + '</td></tr>'];
-  D.rb.forEach(fl => { rows.push('<tr class="rg1"><td colspan="6">' + e(fl.f) + '</td><td class="num">' + n2(fl.h) + '</td></tr>'); fl.rooms.forEach(r => rows.push('<tr><td>' + e(r.bez) + '</td><td>' + e(r.nr) + '</td><td>' + e(r.boden) + '</td><td>' + e(r.dispo) + '</td><td class="num">' + n2(r.fl) + '</td><td>' + e((r.g + ' ' + (r.gn || '')).trim()) + '</td><td class="num">' + n2(r.h) + '</td></tr>')); });
+  D.rb.forEach(fl => { if (fl.gb) { rows.push('<tr class="rgb"><td colspan="4">' + e(fl.gb) + '</td><td class="num">' + n2(fl.area) + '</td><td></td><td class="num">' + n2(fl.h) + '</td></tr>'); return; } rows.push('<tr class="rg1"><td colspan="6">' + e(fl.f) + '</td><td class="num">' + n2(fl.h) + '</td></tr>'); fl.rooms.forEach(r => rows.push('<tr><td>' + e(r.bez) + '</td><td>' + e(r.nr) + '</td><td>' + e(r.boden) + '</td><td>' + e(r.dispo) + '</td><td class="num">' + n2(r.fl) + '</td><td>' + e((r.g + ' ' + (r.gn || '')).trim()) + '</td><td class="num">' + n2(r.h) + '</td></tr>')); });
   rows.push('<tr class="rgt"><td colspan="4">Total</td><td class="num">' + n2(c.area) + '</td><td></td><td class="num">' + n2(c.hours) + '</td></tr>');
   const tblH = rs => head + rs.join('') + '</tbody></table>';
   const pages = []; let cur = [], i = 0, pre = intro;
   while (i < rows.length) {
     cur.push(rows[i]);
     const last = i === rows.length - 1, h = meas(pre + tblH(cur) + (last ? outro : ''));
-    if (h > AREA && cur.length > 1) { cur.pop(); pages.push(pre + tblH(cur)); cur = []; pre = cont; continue; }
+    if (h > AREA && cur.length > 1) { cur.pop(); while (cur.length > 1 && /class="rg[b1]"/.test(cur[cur.length - 1])) { cur.pop(); i--; } pages.push(pre + tblH(cur)); cur = []; pre = cont; continue; }
     i++;
   }
   pages.push(pre + tblH(cur) + outro);
@@ -137,7 +137,7 @@ function legende() {
 
 /* ---------- Inhaltsseiten ---------- */
 const pages = []; const P = (ch, h) => pages.push([ch, h]);
-const nRooms = D.rb.reduce((a, f) => a + f.rooms.length, 0);
+const nRooms = D.rb.reduce((a, f) => a + (f.rooms || []).length, 0);
 const kp = [['Preis', chfU(monthly), 'Feste Monatspauschale exkl. MwSt.' + (wash > 0 && !recV ? ', inkl. Tücherservice' : '') + (vars.length ? ', empfohlene Variante «' + e(recV.n) + '»' : '. ' + chfU(c.annual) + ' pro Jahr.')],
   ['Einsatzzeiten', zeit ? e(zeit) : e(D.days.length + '× pro Woche'), e(tage) + ', ausserhalb Ihrer ' + W[2] + '. Ihr Betrieb läuft ungestört.'],
   ['Reaktionszeit', '2 h', 'Beanstandungen beantwortet die Objektleitung innert 2 Stunden, Behebung innert 24 Stunden.'],
@@ -146,7 +146,7 @@ const kp = [['Preis', chfU(monthly), 'Feste Monatspauschale exkl. MwSt.' + (wash
   ['Erfahrung', yrs + ' Jahre', 'Seit 1984 in der Reinigung, ISO 9001, 14001 und 45001 zertifiziert.']];
 const toc = ['Ausgangslage und Objekt', 'Reinigungskonzept', 'Qualität und Nachhaltigkeit', 'Ihr Team', 'Start in vier Schritten', 'Preise', 'Raumbuch', 'Leistungsverzeichnis', 'Legende', 'Konditionen auf einen Blick', 'Nachweise und Zertifikate', MODE === 'contract' ? 'Reinigungsvertrag' : 'Auftragserteilung'];
 P('Auf einen Blick', '<div class="eb">Ihr Angebot auf einen Blick</div><h1>Auf einen Blick</h1><p class="lead" style="margin-bottom:6mm">Wir übernehmen die Unterhaltsreinigung ' + W[1] + (D.adresse ? ' an der ' + e(D.adresse) : '') + '. Gereinigt wird ausserhalb Ihrer ' + W[2] + ' nach festem Plan, Sie haben einen festen Ansprechpartner und bezahlen eine transparente Monatspauschale.</p><div class="kpis">' + kp.map(([l, a, b]) => '<div class="kpi"><small>' + l + '</small><b>' + a + '</b><span>' + b + '</span></div>').join('') + '</div><div class="sec"><h2>Inhalt</h2><div class="toc">__TOC__</div></div>');
-const bez = [...new Set(D.rb.flatMap(f => f.rooms.map(r => r.bez)).filter(Boolean))];
+const bez = [...new Set(D.rb.flatMap(f => (f.rooms || []).map(r => r.bez)).filter(Boolean))];
 const bezTxt = bez.length > 1 ? bez.slice(0, 6).join(', ').replace(/, ([^,]*)$/, ' und $1') + (bez.length > 6 ? ' und weiteren Räumen' : '') : (bez[0] || 'Räumen');
 P('Ausgangslage', '<div class="eb">Ausgangslage und Objekt</div><h1>' + W[5] + '</h1><div class="quote">' + W[4] + '</div><p class="lead" style="margin-bottom:6mm">' + W[0] + ' umfasst ' + n2(c.area, 0) + ' m² mit ' + e(bezTxt) + '. Ziel ist eine konstant hohe Sauberkeit bei planbaren Kosten und ohne Störung des Alltags.</p>'
   + '<div class="pillars">' + [['Verlässlich nach Plan', 'Gereinigt wird nach festem Tourenplan. ' + W[3] + ' finden jeden Tag gepflegte Räume vor.'], ['Feste Monatspauschale', 'Sie bezahlen einen fixen Betrag pro Monat. Sonderreinigungen offerieren wir vorgängig separat.'], ['Werterhalt mit System', 'Material- und flächengerechte Pflege schützt Böden und Oberflächen und verlängert ihre Lebensdauer.']].map(([t, d]) => '<div class="pillar"><h3>' + t + '</h3><div style="font-size:8.2pt">' + d + '</div></div>').join('') + '</div>'
