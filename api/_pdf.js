@@ -12,6 +12,17 @@ module.exports = async (req, res) => {
   }
   if (req.method !== 'POST' || !guard(req, res)) return;
   const b = await body(req), d = b.d;
+  /* Hotelofferte: fertiges Druck-HTML aus dem Hotel-Editor (vorher per /api/stash hochgeladen) → PDF, abgelegt unter b.stash */
+  if (b.htmlStash) {
+    if (!/^tmp-[\w\-]+$/.test(b.htmlStash) || !/^tmp-[\w\-]+$/.test(b.stash || '')) return res.status(400).json({ error: 'name' });
+    try {
+      const a = await require('./_lib').assetBytes(b.htmlStash); if (!a) return res.status(404).json({ error: 'Druckdaten nicht gefunden' });
+      const { pdf } = await R.render(a.buf.toString('utf8'));
+      const CH = 600000, s64 = pdf.toString('base64'), tot = Math.max(1, Math.ceil(s64.length / CH));
+      for (let i = 0; i < tot; i++) await rpc('api_asset_put', { p_name: b.stash, p_ctype: 'application/pdf', p_idx: i, p_total: tot, p_b64: s64.slice(i * CH, (i + 1) * CH) });
+      return res.status(200).json({ ok: true, name: b.stash, bytes: pdf.length });
+    } catch (e) { console.error('pdf hotel', e); return res.status(500).json({ error: 'PDF konnte nicht erstellt werden: ' + String(e.message || e).slice(0, 300) }); }
+  }
   if (!d || typeof d !== 'object' || !Array.isArray(d.rb) || !Array.isArray(d.lv)) return res.status(400).json({ error: 'Daten fehlen' });
   try {
     const { pdf, info } = await R.render(R.uhOfferHtml(d), { wait: true });
