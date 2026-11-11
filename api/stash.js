@@ -1,5 +1,7 @@
 const { rpc, guard, body } = require('./_lib');
+/* /api/pdf wird per Rewrite hierher geleitet (Hobby-Tarif: max. 12 Funktionen) */
 module.exports = async (req, res) => {
+  if (req.query && req.query.x === 'pdf') return require('./_pdf')(req, res);
   if (req.method !== 'POST' || !guard(req, res)) return;
   const { name, idx, total, b64 } = await body(req);
   if (!/^tmp-[\w\-]+$/.test(name || '')) return res.status(400).json({ error: 'name' });
