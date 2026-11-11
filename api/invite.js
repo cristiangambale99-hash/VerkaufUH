@@ -27,7 +27,8 @@ async function calDirect({ to, uid, method, start, dur, summary, location, descr
   const key = 'calev/' + crypto.createHash('sha1').update(uid + '|' + to.toLowerCase()).digest('hex').slice(0, 24);
   const old = await rpc('api_doc_get', { p_path: key }).catch(() => null), U = '/users/' + encodeURIComponent(to) + '/events';
   if (method === 'CANCEL') {
-    if (old && old.id) { try { await graph('DELETE', U + '/' + encodeURIComponent(old.id)); } catch (e) { if (e.status !== 404) throw e; } await rpc('api_doc_del', { p_path: key }).catch(() => {}); }
+    if (!old || !old.id) return null;   /* nie direkt eingetragen: Absage über den Ersatzweg */
+    try { await graph('DELETE', U + '/' + encodeURIComponent(old.id)); } catch (e) { if (e.status !== 404) throw e; } await rpc('api_doc_del', { p_path: key }).catch(() => {});
     return { done: 'deleted' };
   }
   const ev = { subject: summary, body: { contentType: 'HTML', content: `<div style="font-family:Verdana,Arial,sans-serif;font-size:13px;line-height:1.5">${esc(description || '').replace(/\n/g, '<br>')}</div>` },
@@ -35,6 +36,27 @@ async function calDirect({ to, uid, method, start, dur, summary, location, descr
     location: { displayName: location || '' }, showAs: 'busy', isReminderOn: true, reminderMinutesBeforeStart: 30 };
   if (old && old.id) { try { await graph('PATCH', U + '/' + encodeURIComponent(old.id), ev); return { done: 'updated', id: old.id }; } catch (e) { if (e.status !== 404) throw e; } }
   const j = await graph('POST', U, Object.assign({ transactionId: key.slice(6) + '-' + Date.now() }, ev));
+  await rpc('api_doc_put', { p_path: key, p_data: { id: j.id, to, uid, start } }).catch(() => {});
+  return { done: 'created', id: j.id };
+}
+/* Ersatzweg, wenn die App keinen Zugriff auf den Kalender der Person hat (z. B. Diogo, Mirco):
+   Termin im Kalender des Absenderpostfachs (unterhalt@) anlegen und die Person als Teilnehmer einladen.
+   Exchange verschickt dann eine echte Besprechungsanfrage, die Outlook automatisch im Kalender der Person einträgt.
+   Verschieben (PATCH) und Absagen (DELETE) schickt Exchange ebenfalls selbst. */
+const orgBox = () => { const m = /<([^>]+)>/.exec(E.MAIL_FROM || ''); return (m ? m[1] : (E.MAIL_FROM || 'unterhalt@clean-service.ch')).trim(); };
+async function calOrg({ to, uid, method, start, dur, summary, location, description }) {
+  const key = 'calorg/' + crypto.createHash('sha1').update(uid + '|' + to.toLowerCase()).digest('hex').slice(0, 24);
+  const old = await rpc('api_doc_get', { p_path: key }).catch(() => null), U = '/users/' + encodeURIComponent(orgBox()) + '/events';
+  if (method === 'CANCEL') {
+    if (!old || !old.id) return null;
+    try { await graph('POST', U + '/' + encodeURIComponent(old.id) + '/cancel', { comment: 'Der Termin wurde abgesagt.' }); } catch (e) { if (e.status !== 404) { try { await graph('DELETE', U + '/' + encodeURIComponent(old.id)); } catch (e2) { if (e2.status !== 404) throw e2; } } }
+    await rpc('api_doc_del', { p_path: key }).catch(() => {}); return { done: 'deleted' };
+  }
+  const ev = { subject: summary, body: { contentType: 'HTML', content: `<div style="font-family:Verdana,Arial,sans-serif;font-size:13px;line-height:1.5">${esc(description || '').replace(/\n/g, '<br>')}</div>` },
+    start: { dateTime: start + ':00', timeZone: 'W. Europe Standard Time' }, end: { dateTime: plusMin(start, dur), timeZone: 'W. Europe Standard Time' },
+    location: { displayName: location || '' }, attendees: [{ emailAddress: { address: to }, type: 'required' }], responseRequested: false, showAs: 'busy', isReminderOn: true, reminderMinutesBeforeStart: 30 };
+  if (old && old.id) { try { await graph('PATCH', U + '/' + encodeURIComponent(old.id), ev); return { done: 'updated', id: old.id }; } catch (e) { if (e.status !== 404) throw e; } }
+  const j = await graph('POST', U, Object.assign({ transactionId: key.slice(7) + '-' + Date.now() }, ev));
   await rpc('api_doc_put', { p_path: key, p_data: { id: j.id, to, uid, start } }).catch(() => {});
   return { done: 'created', id: j.id };
 }
@@ -52,6 +74,17 @@ module.exports = async (req, res) => {
       if (!kunde && MS_ON() && /@clean-service\.ch$/i.test(to)) {
         try { direct = await calDirect({ to, uid: b.uid, method, start: b.start, dur: b.dur, summary: b.summary || 'Besichtigung', location: b.location, description: b.description }); }
         catch (e) { console.error('Kalender direkt', to, e.message); direct = null; }
+        /* Kein Zugriff auf den Kalender der Person (oder Absage eines früher so eingeladenen Termins): Einladung über unterhalt@ als echte Outlook-Besprechung */
+        let org = null;
+        if (!direct || method === 'CANCEL') {
+          try { org = await calOrg({ to, uid: b.uid, method, start: b.start, dur: b.dur, summary: b.summary || 'Besichtigung', location: b.location, description: b.description }); }
+          catch (e) { console.error('Kalender Einladung', to, e.message); org = null; }
+        }
+        if (!direct && org) {
+          ids.push('org-' + org.done);
+          await rpc('api_mail_log', { p_kind: 'cal-einladung-' + method.toLowerCase(), p_object: b.objectId || b.uid, p_to: to, p_subject: (method === 'CANCEL' ? 'Abgesagt: ' : '') + (b.summary || 'Besichtigung'), p_resend: 'org-' + org.done, p_status: 'ok', p_error: 'Outlook-Einladung über ' + orgBox() }).catch(() => {});
+          continue;
+        }
       }
       const when = `${dmy(d)} um ${t} Uhr`, where = b.location ? ', ' + b.location : '';
       const subject = kunde ? (method === 'CANCEL' ? 'Absage: ' : first ? 'Neuer Zeitpunkt: ' : '') + 'Besichtigung für Ihre Reinigungsofferte am ' + when + ' · Clean Service Scaramuzzo AG' : (method === 'CANCEL' ? 'Abgesagt: ' : (first ? 'Aktualisiert: ' : '')) + (b.summary || 'Besichtigung');
@@ -71,3 +104,4 @@ module.exports = async (req, res) => {
   } catch (e) { res.status(502).json({ error: String(e.message) }); }
 };
 module.exports.calDirect = calDirect;
+module.exports.calOrg = calOrg;

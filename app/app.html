@@ -1728,7 +1728,8 @@ async function beInvite(o, opts = {}) {
 }
 async function calSync(o) {
   if (!BE_ON || !o || o.calOff) return; const done = [], miss = [];
-  if (o.calKey !== calKeyOf(o, false)) {
+  /* auch neu senden, wenn die zuständige Person die Einladung noch nicht erhalten hat (z. B. nach einem Fehler) */
+  if (o.calKey !== calKeyOf(o, false) || calRecipients(o).some(x => !(o.calTo || []).includes(x))) {
     const nw = calRecipients(o), gone = (o.calTo || []).filter(x => !nw.includes(x));
     if (gone.length) await beInvite(o, { method: 'CANCEL', to: gone });
     const to = await beInvite(o); if (to === 'keine') miss.push(o.verkaeufer || 'Verkäufer'); else if (to) done.push(...to);
