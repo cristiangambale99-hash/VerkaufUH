@@ -1,5 +1,10 @@
 <title>Offertplattform Unterhaltsreinigung</title>
 <meta name="theme-color" content="#1b8384">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Verkaufstool">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700&display=swap">
@@ -298,6 +303,7 @@ body{-webkit-tap-highlight-color:transparent}
 .ava{border-radius:50%;object-fit:cover;flex:none;border:2px solid #fff;box-shadow:0 0 0 1px var(--cs-line);background:#eaf5f6}.ava.ini{display:inline-grid;place-items:center;color:#0e7c80;font-weight:700;background:#ddf1f3}.avstack{display:flex}.avstack .ava{margin-left:-8px;width:30px;height:30px;font-size:11px}.avstack .ava:first-child{margin-left:0}.avstack .more{width:30px;height:30px;font-size:11px}
 .apps{display:flex;flex-direction:column;gap:10px}.appc{display:flex;gap:14px;align-items:flex-start;border:1px solid var(--cs-line);border-radius:12px;padding:14px}.appc.sel{border-color:#1e9e9b;background:var(--cs-mint-bg,#e6f6f1)}.appc.dim{opacity:.6}.appc .ai{display:flex;flex-direction:column;gap:2px;min-width:0;align-items:flex-start}.appc .ai b{font-size:15px}.appc .ai small{color:var(--cs-fg-2);font-size:12.5px}.appc .bkok{color:#1e7d5a!important}.appc .bkno{color:#a35a00!important}
 .appc .ai a{color:var(--cs-teal,#0e7c80);font-weight:600}.vbtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.vfind{margin-top:8px;display:flex;flex-direction:column;gap:6px;width:100%}.vfind input{width:100%}.vfr{display:flex;flex-wrap:wrap;gap:6px}.vcalc{border:1px solid var(--cs-line);border-radius:12px;padding:12px 14px;background:var(--cs-surface)}.vcalc table{width:100%;border-collapse:collapse;font-size:13.5px}.vcalc th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--cs-fg-2);text-align:left;font-weight:700;padding:0 0 6px}.vcalc td{padding:7px 0;border-top:1px solid var(--cs-line)}.vcalc .r{text-align:right}.vcalc tfoot td{border-top:2px solid var(--cs-fg,#16323a);font-weight:700;padding-top:8px}.vcalc .vk{margin-top:8px;display:flex;flex-direction:column;gap:4px;font-size:13px}.vcalc .vk div{display:flex;justify-content:space-between;gap:12px}.vcalc .vk span{color:var(--cs-fg-2)}
+.tg{display:flex;align-items:center;gap:14px;padding:12px 0;border-top:1px solid var(--cs-line)}.tg:first-child{border-top:0}.tg .x{flex:1;min-width:0}.tg b{display:block;font-size:15px;font-weight:600}.tg small{color:var(--cs-fg-2);font-size:12.5px}.swc{appearance:none;-webkit-appearance:none;width:46px;height:26px;border-radius:13px;background:#c9d4d6;position:relative;cursor:pointer;flex:0 0 auto;border:0;transition:background .15s ease-out}.swc::after{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .15s ease-out}.swc:checked{background:#1B8384}.swc:checked::after{transform:translateX(20px)}.swc:focus-visible{outline:3px solid #1B8384;outline-offset:2px}
 .npill{display:inline-flex;gap:4px;align-items:center;background:#e6f4f6;color:#1B8384;font-weight:600;font-size:12px;border-radius:999px;padding:1px 8px;margin-left:8px;vertical-align:1px}.npill svg{width:12px;height:12px}
 .onform{border:1.5px solid #9AD3D3;background:#f1fafa;border-radius:12px;padding:10px 12px;margin:6px 0 4px}.onform textarea{width:100%;border:0;background:transparent;font:inherit;font-size:16px;resize:vertical;min-height:52px;outline:0;color:var(--cs-fg)}.onform .row2{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.onform select{flex:1;min-width:150px}
 .timeline li.tn{display:block}.timeline li.tn::before{display:none}.tnote{background:#e6f4f6;border-left:3px solid #1B8384;border-radius:0 10px 10px 0;padding:8px 12px;color:#14696a;width:100%}.tnote .t{font-size:11px;letter-spacing:.1em;font-weight:700;color:#1B8384;text-transform:uppercase;display:flex;gap:6px;align-items:center}.tnote .t i{margin-left:auto;font-style:normal;color:var(--cs-fg-2);font-weight:500;letter-spacing:0;text-transform:none;font-size:12px}.tnote .t button{border:0;background:none;color:var(--cs-fg-2);font:inherit;font-size:12px;cursor:pointer;text-decoration:underline;padding:0 0 0 6px;min-height:24px}.tnote svg{width:14px;height:14px;flex:0 0 auto}.tnote p{margin:3px 0 0;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
@@ -3256,9 +3262,66 @@ function kunPanelHtml(c) {
 /* =========================================================
    EINSTELLUNGEN
    ========================================================= */
+/* =========================================================
+   Push-Nachrichten (Einstellungen → Benachrichtigungen)
+   ========================================================= */
+const PUSH = { dev: '', sub: null, prefs: { uh: true, ho: true }, who: '', st: 'init', msg: '' };
+const pushDevId = () => { let d = ''; try { d = localStorage.getItem('pushDev') || ''; if (!d) { d = 'd' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4); localStorage.setItem('pushDev', d); } } catch (e) { d = d || 'dx' + Date.now().toString(36); } return d; };
+const pushStandalone = () => (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+const pushIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const pushOK = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const b64u = s => { const p = '='.repeat((4 - s.length % 4) % 4), b = (s + p).replace(/-/g, '+').replace(/_/g, '/'), r = atob(b); return Uint8Array.from([...r].map(c => c.charCodeAt(0))); };
+async function pushInit() {
+  PUSH.dev = pushDevId();
+  if (!pushOK()) { PUSH.st = pushIOS() && !pushStandalone() ? 'ios' : 'nosupport'; return pushDraw(); }
+  if (pushIOS() && !pushStandalone()) { PUSH.st = 'ios'; return pushDraw(); }
+  try {
+    const reg = await navigator.serviceWorker.getRegistration('/'); PUSH.sub = reg ? await reg.pushManager.getSubscription() : null;
+    try { const c = JSON.parse(localStorage.getItem('pushCfg') || '{}'); if (c.prefs) PUSH.prefs = c.prefs; if (c.who) PUSH.who = c.who; } catch (e) {}
+    PUSH.st = Notification.permission === 'denied' ? 'denied' : PUSH.sub ? 'on' : 'off';
+  } catch (e) { PUSH.st = 'off'; }
+  pushDraw();
+}
+function pushDraw() {
+  const el = $('#pushBox'); if (!el) return;
+  const who = [...new Set(['Mirco Scaramuzzo', 'Sebastian Hidegh', ...teamList().map(x => x.name)])];
+  const tg = (k, t, s) => `<div class="tg"><div class="x"><b>${t}</b><small>${s}</small></div><input type="checkbox" class="swc" data-act="pushPref" data-k="${k}" ${PUSH.prefs[k] ? 'checked' : ''} aria-label="${t}"></div>`;
+  let h = '';
+  if (PUSH.st === 'init') h = '<p class="muted small">Wird geprüft …</p>';
+  else if (PUSH.st === 'nosupport') h = '<div class="infobox">' + ico('i-info') + '<div>Dieser Browser unterstützt keine Push-Nachrichten. Bitte Chrome (Android, Computer) oder Safari mit installierter App (iPhone) verwenden.</div></div>';
+  else if (PUSH.st === 'ios') h = '<div class="infobox">' + ico('i-info') + '<div><b>Am iPhone zuerst installieren:</b> Diese Seite im Safari öffnen, unten auf «Teilen» tippen, «Zum Home-Bildschirm» wählen und «Hinzufügen». Dann die neue App «Verkaufstool» auf dem Home-Bildschirm öffnen und hier erneut «Benachrichtigungen» aktivieren.</div></div>';
+  else if (PUSH.st === 'denied') h = '<div class="warnbox">' + ico('i-warn') + '<div>Mitteilungen sind für diese App blockiert. In den Einstellungen des Geräts unter «Mitteilungen» wieder erlauben und danach hier neu aktivieren.</div></div>';
+  else {
+    const on = PUSH.st === 'on';
+    h = `<div style="display:grid;gap:6px;max-width:380px"><label class="small muted" for="pushWho">Dieses Gerät gehört</label><select id="pushWho" aria-label="Gerät gehört"><option value="">Bitte wählen …</option>${who.map(w => `<option ${w === PUSH.who ? 'selected' : ''}>${esc(w)}</option>`).join('')}</select></div>
+    <div style="margin-top:8px">${tg('uh', 'Auftragserteilung Unterhaltsreinigung', 'Sobald ein Kunde die Offerte online annimmt')}${tg('ho', 'Auftragserteilung Hotelservice', 'Sobald ein Hotel die Offerte online bestätigt')}</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">${on ? `<button type="button" class="btn btn-s" data-act="pushTest">Testnachricht senden</button><button type="button" class="btn btn-s" data-act="pushOff">Auf diesem Gerät ausschalten</button>` : `<button type="button" class="btn btn-p" data-act="pushOn">Auf diesem Gerät aktivieren</button>`}</div>
+    <p class="small" style="margin-top:10px;color:${on ? 'var(--cs-brand-text)' : 'var(--cs-fg-2)'}">${on ? '● Aktiv auf diesem Gerät' : 'Noch nicht aktiviert'}${PUSH.msg ? ' · ' + esc(PUSH.msg) : ''}</p>`;
+  }
+  el.innerHTML = h;
+}
+async function pushSave() {
+  const d = { sub: PUSH.sub && PUSH.sub.toJSON(), who: PUSH.who, prefs: PUSH.prefs, ua: navigator.userAgent.slice(0, 120), at: new Date().toISOString() };
+  try { localStorage.setItem('pushCfg', JSON.stringify({ prefs: PUSH.prefs, who: PUSH.who })); } catch (e) {}
+  const r = await beApi('/api/docs', { method: 'PUT', body: JSON.stringify({ path: 'push/' + PUSH.dev, data: d }) }); if (!r.ok) throw new Error('Speichern ' + r.status);
+}
+async function pushEnable() {
+  if (!PUSH.who) { toast('Bitte zuerst wählen, wem das Gerät gehört.', 'warning'); return; }
+  try {
+    const k = await (await fetch('/api/ping?push=key')).json(); if (!k.key) { toast('Push ist auf dem Server noch nicht eingerichtet.', 'error'); return; }
+    const perm = await Notification.requestPermission(); if (perm !== 'granted') { PUSH.st = perm === 'denied' ? 'denied' : 'off'; pushDraw(); return; }
+    const reg = await navigator.serviceWorker.register('/sw.js'); await navigator.serviceWorker.ready;
+    PUSH.sub = await reg.pushManager.getSubscription() || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u(k.key) });
+    await pushSave(); PUSH.st = 'on'; PUSH.msg = ''; pushDraw(); toast('Benachrichtigungen aktiviert');
+  } catch (e) { PUSH.msg = String(e.message || e).slice(0, 80); toast('Aktivieren fehlgeschlagen', 'error'); pushDraw(); }
+}
+async function pushDisable() {
+  try { if (PUSH.sub) await PUSH.sub.unsubscribe(); PUSH.sub = null; await beApi('/api/docs?path=' + encodeURIComponent('push/' + PUSH.dev), { method: 'DELETE' }); } catch (e) {}
+  PUSH.st = 'off'; PUSH.msg = ''; pushDraw(); toast('Auf diesem Gerät ausgeschaltet');
+}
 function renderSet() {
   const el = $('[data-view="set"]');
-  const tabs = [['allg','Allgemein'],['mail','Mails'],['nach','Nachfassung'],['kal','Besichtigung'],['ann','Online-Annahme'],['team','Team'],['ref','Referenzen'],['grp','Reinigungsgruppen'],['rl','Leistungswerte'],['dis','Dispositionspläne'],['sys','System']];
+  const tabs = [['allg','Allgemein'],['mail','Mails'],['nach','Nachfassung'],['kal','Besichtigung'],['ann','Online-Annahme'],['team','Team'],['ref','Referenzen'],['grp','Reinigungsgruppen'],['rl','Leistungswerte'],['dis','Dispositionspläne'],['push','Benachrichtigungen'],['sys','System']];
   let body = '';
   if (UI.setTab === 'grp') {
     const q = UI.setQ.toLowerCase();
@@ -3353,6 +3416,9 @@ function renderSet() {
     + card('Kunde hinzufügen', '', `<div class="frow"><div class="field"><label for="rnK">Firma</label><input id="rnK" autocomplete="off"></div><div class="field"><label for="rnS">Strasse, Ort</label><input id="rnS" autocomplete="off"></div></div><div class="factions"><button type="button" class="btn btn-p" data-act="refMgrAdd">Hinzufügen</button></div>`)
     + card('Mehrere Kunden einfügen', 'Eine Zeile pro Kunde: Firma; Strasse, Ort', `<div class="field"><textarea id="rnList" style="min-height:120px" placeholder="Muster AG; Bahnhofstrasse 1, 8000 Zürich"></textarea></div><div class="factions"><button type="button" class="btn btn-s" data-act="refMgrImport">Liste übernehmen</button></div>`);
   }
+  if (UI.setTab === 'push') {
+    body = card('Push-Nachrichten', 'Meldung direkt aufs Handy, sobald eine Auftragserteilung eingeht. Jede Person stellt es für sich auf ihrem Gerät ein.', '<div id="pushBox"><p class="muted small">Wird geprüft …</p></div>');
+  }
   if (UI.setTab === 'sys') {
     const n = (a) => (a || []).length;
     body = card('Verbindung und Daten', '',
@@ -3367,6 +3433,7 @@ function renderSet() {
     + card('Wo ändere ich was?', '', `<div class="small" style="line-height:1.7"><b>Stundensatz, Konditionen:</b> Allgemein · <b>Mail-Texte, Signatur:</b> Mails · <b>Nachfass-Rhythmus und Texte:</b> Nachfassung · <b>Dauer Besichtigung, Kalender, Kopien:</b> Besichtigung · <b>Verkäufer:</b> Team · <b>Referenzen:</b> Referenzen · <b>Leistungswerte, Gruppen, Dispo:</b> die gleichnamigen Reiter.</div>`);
   }
   el.innerHTML = phead('Einstellungen', 'Einstellungen', 'Preise, Mails, Nachfassung, Team und Referenzen selbst anpassen.', '') + `<div class="content"><div class="tabs" role="tablist">${tabs.map(([k, l]) => `<button class="chip" role="tab" data-act="setTab" data-v="${k}" aria-pressed="${UI.setTab === k}">${l}</button>`).join('')}</div>${body}</div>`;
+  if ($('#pushBox')) pushInit();
 }
 function grpPanelHtml(code) {
   const g = GROUP[code], m = groupMap(code);
@@ -3704,6 +3771,9 @@ const ACT = {
   refAdd: el => { const o = curObj(); if (!o) return; const x = (S.refs || []).find(r => String(r.nr) === el.dataset.nr); if (!x) return; o.refs = o.refs || []; if (o.refs.some(r => String(r.nr) === String(x.nr))) return;
     if (o.refs.length >= 3) { toast('Maximal 3 Referenzen. Bitte zuerst eine entfernen.', 'warning'); return; }
     o.refs.push({ nr: x.nr, k: x.k, s: x.s }); save(); const q = $('#bRefQ'); if (q) q.value = ''; refRefresh(o); },
+  pushOn: () => pushEnable(), pushOff: () => pushDisable(),
+  pushPref: el => { PUSH.prefs[el.dataset.k] = !!el.checked; if (PUSH.st === 'on') pushSave().then(() => toast('Gespeichert')).catch(() => toast('Speichern fehlgeschlagen', 'error')); else { try { localStorage.setItem('pushCfg', JSON.stringify({ prefs: PUSH.prefs, who: PUSH.who })); } catch (e) {} } },
+  pushTest: async () => { try { const r = await beApi('/api/ping?push=test', { method: 'POST', body: JSON.stringify({ id: PUSH.dev }) }); const j = await r.json().catch(() => ({})); toast(j.ok ? 'Testnachricht gesendet' : (j.error || 'Keine Zustellung, bitte neu aktivieren'), j.ok ? 'success' : 'error'); } catch (e) { toast('Test fehlgeschlagen', 'error'); } },
   hoPanel: el => openPanel({ type: 'ho', id: el.dataset.id }), hoEdit: el => { closePanel(true); openHotel('edit:' + el.dataset.id); },
   onoteAdd: el => { const o = noteTarget(el.dataset.k, el.dataset.id); if (!o) return; const tx = ($('#onT').value || '').trim(), by = $('#onBy').value;
     if (!tx) { toast('Bitte eine Notiz eingeben.', 'warning'); return; } if (!by) { toast('Bitte wählen, von wem die Notiz ist.', 'warning'); return; }
@@ -3872,6 +3942,7 @@ document.addEventListener('click', e => {
   if (el.tagName === 'A') e.preventDefault();
   const f = ACT[el.dataset.act] || RA_ACT[el.dataset.act]; if (f) f(el, e);
 });
+document.addEventListener('change', e => { const t = e.target; if (t && t.id === 'pushWho') { PUSH.who = t.value; try { localStorage.setItem('pushCfg', JSON.stringify({ prefs: PUSH.prefs, who: PUSH.who })); } catch (x) {} if (PUSH.st === 'on') pushSave().catch(() => {}); } });
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   if ($('#drawer').classList.contains('open')) return closeDrawer();
