@@ -20,11 +20,15 @@ function guard(req, res) { if (okToken(bearer(req))) return true; res.status(401
 async function body(req) { if (req.body && typeof req.body === 'object') return req.body; try { return JSON.parse(req.body || '{}'); } catch (e) { return {}; } }
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 async function settings() { const d = await rpc('api_docs_since', { p_since: '1970-01-01T00:00:00Z' }); const x = d.find(r => r.path === 'config/settings' && !r.deleted); return x ? x.data : {}; }
-function sigHtml(S, iso, lang) {
-  const n = S.mailSigName || 'Sebastian Hidegh', m = S.mailSigMail || (S.mailSigName ? '' : 's.hidegh@clean-service.ch'), f = lang === 'en' ? (S.mailSigRolleEn || (!S.mailSigRolle || S.mailSigRolle === 'Sachbearbeiter Innendienst' ? 'Office Administration' : S.mailSigRolle)) : (S.mailSigRolle || 'Sachbearbeiter Innendienst'), d = S.mailSigDirekt || '052 557 02 03';
-  return `<div style="font-family:Verdana,Arial,sans-serif;font-size:14px;line-height:1.5;color:#555;margin-top:22px"><div style="color:#4fb3a5">${esc(n)}</div>${esc(f)}<br>${lang === 'en' ? 'Direct' : 'Direkt'} ${esc(d)}${m ? '<br>' + esc(m) : ''}<br>---------------------------------<br><div style="color:#4fb3a5">Clean Service Scaramuzzo AG</div>Industriestrasse 5<br>8307 Effretikon<br>0844 355 355<div style="margin-top:14px"><img src="${iso}" alt="ISO 9001, 14001, 45001" width="172" height="52" style="display:block;border:0"></div></div>`;
+/* Signatur fest im Code (nicht aus den Einstellungen), damit ein altes offenes Browserfenster sie nicht mehr überschreiben kann.
+   Unterhaltsreinigung: Mail unterhalt@, Hotelservice (Absender hotelservice@): Mail hotelservice@ */
+const SIG = { name: 'Sebastian Hidegh', rolle: 'Sachbearbeiter Innendienst', rolleEn: 'Office Administration', direkt: '052 557 02 03' };
+const sigMail = from => /hotelservice@/i.test(String(from || '')) ? 'hotelservice@clean-service.ch' : 'unterhalt@clean-service.ch';
+function sigHtml(S, iso, lang, from) {
+  const en = lang === 'en';
+  return `<div style="font-family:Verdana,Arial,sans-serif;font-size:14px;line-height:1.5;color:#555;margin-top:22px"><div style="color:#4fb3a5">${esc(SIG.name)}</div>${esc(en ? SIG.rolleEn : SIG.rolle)}<br>${en ? 'Direct' : 'Direkt'} ${esc(SIG.direkt)}<br>${esc(sigMail(from))}<br>---------------------------------<br><div style="color:#4fb3a5">Clean Service Scaramuzzo AG</div>Industriestrasse 5<br>8307 Effretikon<br>0844 355 355<div style="margin-top:14px"><img src="${iso}" alt="ISO 9001, 14001, 45001" width="172" height="52" style="display:block;border:0"></div></div>`;
 }
-function sigText(S, lang) { return `\n\n${S.mailSigName || 'Sebastian Hidegh'}\n${lang === 'en' ? (S.mailSigRolleEn || (!S.mailSigRolle || S.mailSigRolle === 'Sachbearbeiter Innendienst' ? 'Office Administration' : S.mailSigRolle)) : (S.mailSigRolle || 'Sachbearbeiter Innendienst')}\n${lang === 'en' ? 'Direct' : 'Direkt'} ${S.mailSigDirekt || '052 557 02 03'}${(S.mailSigMail || (S.mailSigName ? '' : 's.hidegh@clean-service.ch')) ? '\n' + (S.mailSigMail || 's.hidegh@clean-service.ch') : ''}\n\nClean Service Scaramuzzo AG\nIndustriestrasse 5\n8307 Effretikon\n0844 355 355`; }
+function sigText(S, lang, from) { const en = lang === 'en'; return `\n\n${SIG.name}\n${en ? SIG.rolleEn : SIG.rolle}\n${en ? 'Direct' : 'Direkt'} ${SIG.direkt}\n${sigMail(from)}\n\nClean Service Scaramuzzo AG\nIndustriestrasse 5\n8307 Effretikon\n0844 355 355`; }
 
 /* ---------- Versand über Microsoft 365 (Graph): Mails gehen über das echte Postfach (gleiche Server wie Outlook) ---------- */
 const MS_ON = () => !!(E.MS_TENANT_ID && E.MS_CLIENT_ID && E.MS_CLIENT_SECRET);
@@ -85,10 +89,10 @@ async function sendMail({ to, subject, text, attachments, kind, objectId, S, lan
       + `${b[3] ? `<div style="font-family:Verdana,Arial,sans-serif;font-size:11px;color:#767676;margin:10px 0 0">${esc(b[3])}</div>` : ''}</td></tr></table>`; };
   let iso = base + '/asset/iso.png', inl = null;
   try { const a = await assetBytes('iso.png'); if (a) { inl = { filename: 'iso.png', content: a.b64, content_type: 'image/png', content_id: 'iso-zertifikate' }; iso = 'cid:iso-zertifikate'; } } catch (e) {}
-  const html = `<!doctype html><html lang="${lang === 'en' ? 'en' : 'de'}"><head><meta charset="utf-8"><title>${esc(subject)}</title></head><body><div style="font-family:Verdana,Arial,sans-serif;font-size:14px;line-height:1.6;color:#222">${String(text).split(/\n{2,}/).map(para).join('')}${sigHtml(S, iso, lang)}</div></body></html>`;
+  const html = `<!doctype html><html lang="${lang === 'en' ? 'en' : 'de'}"><head><meta charset="utf-8"><title>${esc(subject)}</title></head><body><div style="font-family:Verdana,Arial,sans-serif;font-size:14px;line-height:1.6;color:#222">${String(text).split(/\n{2,}/).map(para).join('')}${sigHtml(S, iso, lang, FROM)}</div></body></html>`;
   const plain = String(text).replace(/\[\[BTN:([^|\]]+)\|(https?:\/\/[^|\]\s]+)(?:\|[^\]]*)?\]\]/g, '$1: $2').replace(MDL, '$1: $2');
   const k = String(kind || ''), copy = nocopy ? false : /^cal/.test(k) ? S.bccBes !== 'nein' : /^(nf\d|re6)/.test(k) ? S.bccNach !== 'nein' : true;
-  const payload = { from: FROM, to: Array.isArray(to) ? to : [to], reply_to: RT, subject, html, text: plain + sigText(S, lang) };
+  const payload = { from: FROM, to: Array.isArray(to) ? to : [to], reply_to: RT, subject, html, text: plain + sigText(S, lang, FROM) };
   if (copy) payload.bcc = copyTo ? [].concat(copyTo) : [RT];   /* Kopie: Hotelofferten an unterhalt@, sonst an die Antwortadresse */
   const att = (attachments && attachments.length ? attachments.slice() : []); if (inl) att.push(inl);
   if (att.length) payload.attachments = att;
