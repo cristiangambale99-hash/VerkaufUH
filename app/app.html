@@ -4122,6 +4122,7 @@ const BOD_W = { en: { Holz:'Wood', Laminat:'Laminate', Keramik:'Ceramic', Textil
 const bodenCodeL = (lang, b) => { const c = bodenCode(b), W = BOD_W[lang]; if (!W) return c; return c.replace(/^[A-Za-zÄÖÜäöü]+/, w => W[w] || w).replace(/\(G\)/, '(' + W.g + ')'); };
 const DAY_W = { en: { Mo:'Mon', Di:'Tue', Mi:'Wed', Do:'Thu', Fr:'Fri', Sa:'Sat', So:'Sun' } };
 const bodenText = b => (BODEN_ADUNA[b] || [b || '', b || ''])[1];
+const grpPlain = n => String(n || '').replace(/\s*[-–]?\s*\d+\s*[×x]\s*(pro Woche|\/\s*W)?\s*$/i, '').trim();   /* Gruppenbezeichnung ohne Rhythmus («Büro 5×» → «Büro») */
 const groupLabel = g => (GROUP[g] ? GROUP[g].name : '').replace(/ (\d)× pro Woche$/, ' - $1x / W').replace(/ (\d)×$/, ' - $1x / W');
 const daysLabel = days => {
   const d = DAYS.filter(x => (days || []).includes(x)); if (!d.length) return '';
@@ -4183,10 +4184,10 @@ function uhDocData(o, url) {
   /* Mehrere Gebäude: je Gebäude ein Band (Gebäude A · Name) mit eigener Stundensumme, darunter die Geschosse */
   const rb = gebGroups(o).flatMap(x => x.g ? [{ gb: gebLabel(x), h: x.rooms.reduce((a, r) => a + roomCalc(r).hours, 0), area: x.rooms.reduce((a, r) => a + (r.flaeche || 0), 0) }].concat(flOf(x.rooms)) : flOf(x.rooms));
   const blocks = {}, rnm = r => String(r.bez || '').trim() + (r.nr ? ' ' + r.nr : '');
-  o.rooms.filter(r => r.gruppe && r.dispo !== 'E').forEach(r => { const bk = r.gruppe + '#' + rGName(r); const b = blocks[bk] || (blocks[bk] = { g: r.gruppe, nm: rGName(r) || (GROUP[r.gruppe] || {}).name || '', tm: new Map(), rooms: [] }); b.rooms.push(rnm(r));
+  o.rooms.filter(r => r.gruppe && r.dispo !== 'E').forEach(r => { const bk = r.gruppe + '#' + rGName(r); const b = blocks[bk] || (blocks[bk] = { g: r.gruppe, nm: grpPlain(rGName(r) || (GROUP[r.gruppe] || {}).name) || '', tm: new Map(), rooms: [] }); b.rooms.push(rnm(r));
     roomTasks(r).forEach(x => { const k = x.t.id + ':' + x.code + (x.t.ov ? '~' + x.t.name : ''); if (!b.tm.has(k)) b.tm.set(k, { cat: x.t.cat, name: x.t.name, code: x.code, f: freqCols(x.code), rs: [] }); b.tm.get(k).rs.push(rnm(r)); }); });
   const lv = Object.values(blocks).sort((a, b) => a.g.localeCompare(b.g) || (a.nm || '').localeCompare(b.nm || '')).map(b => { const co = []; const ts = [...b.tm.values()]; ts.forEach(x => { if (!co.includes(x.cat)) co.push(x.cat); }); return { g: b.g, nm: b.nm, rooms: b.rooms, ts: ts.map((x, i) => ({ x, i })).sort((a, c) => co.indexOf(a.x.cat) - co.indexOf(c.x.cat) || a.i - c.i).map(({ x }) => ({ cat: x.cat, name: x.name, code: x.code, f: x.f, nur: x.rs.length < b.rooms.length ? [...new Set(x.rs)] : null })) }; });
-  const used = [...new Set(o.rooms.map(r => r.gruppe).filter(Boolean))].sort().map(g => [g, (GROUP[g] || {}).name || g]);
+  const used = [...new Set(o.rooms.map(r => r.gruppe).filter(Boolean))].sort().map(g => [g, grpPlain((GROUP[g] || {}).name) || g]);
   const codes = new Set(); o.rooms.forEach(r => roomTasks(r).forEach(x => codes.add(x.code))); o.rooms.forEach(r => codes.add(r.dispo));
   const dispo = DISPO.filter(d => codes.has(d.code)).map(d => [d.code, d.label, d.code === 'B' ? 'nach Bedarf' : d.code === 'E' ? 'durch Kunde' : d.perYear + ' Ausführungen / Jahr']);
   const bod = [...new Set(o.rooms.map(r => r.boden).filter(Boolean))].map(b => [bodenCode(b), bodenText(b)]);
