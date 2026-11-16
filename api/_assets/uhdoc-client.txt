@@ -1,6 +1,6 @@
 /* Offerte Unterhaltsreinigung im weichen Layout. Läuft im Server-Chromium: misst Raumbuch und Leistungsverzeichnis
    mit denselben Schriften, die im PDF landen, und setzt die Seiten. Eingaben: window.D (Daten), window.A (Bilder, Icons). */
-(function () {
+(async function () {
 const e = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const MONL = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 const fmtD = s => { if (!s) return ''; const [y, m, d] = String(s).split('-').map(Number); return d + '. ' + MONL[m - 1] + ' ' + y; };
@@ -129,11 +129,25 @@ function lvPages(intro, cont) {
   pages.push(cols);
   return pages.map((cs, i) => (i ? cont : intro) + '<div class="alv">' + cs.map(cc => '<div class="alv1">' + cc.join('') + '</div>').join('') + (cs.length < 2 ? '<div></div>' : '') + '</div>');
 }
-function legende() {
-  const sec = (t, rows, w) => '<div class="lgs"><h2>' + t + '</h2>' + tbl(w, rows) + '</div>';
-  return sec('Verwendete Reinigungsgruppen', [['Code', 'Bezeichnung']].concat(D.used.map(([a, b]) => [e(a), e(b)])), [22, 0])
-    + (D.dispo.length ? sec('Verwendete Dispositionspläne', [['Code', 'Bezeichnung', 'Weitere Informationen']].concat(D.dispo.map(([a, b, x]) => [e(a), e(b), e(x)])), [22, 0, 60]) : '')
-    + (D.bod.length ? sec('Verwendete Bodenbeläge', [['Code', 'Bezeichnung']].concat(D.bod.map(([a, b]) => [e(a), e(b)])), [22, 0]) : '');
+function legendePages(intro, cont) {
+  const hd = ['Code', 'Bezeichnung'];
+  const secs = [['Verwendete Reinigungsgruppen', hd, D.used.map(([a, b]) => [e(a), e(b)]), [22, 0]],
+    ['Verwendete Dispositionspläne', ['Code', 'Bezeichnung', 'Weitere Informationen'], D.dispo.map(([a, b, x]) => [e(a), e(b), e(x)]), [22, 0, 60]],
+    ['Verwendete Bodenbeläge', hd, D.bod.map(([a, b]) => [e(a), e(b)]), [22, 0]]].filter(x => x[2].length);
+  const mk = (t, h, rows, w, cn) => '<div class="lgs"><h2>' + t + (cn ? ' <i style="font-weight:400;font-size:.7em;color:#767676">Fortsetzung</i>' : '') + '</h2>' + tbl(w, [h].concat(rows)) + '</div>';
+  const out = []; let body = '', pre = intro, cap = AREA - 6 - meas(intro);
+  const flush = () => { out.push(pre + body); body = ''; pre = cont; cap = AREA - 6 - meas(cont); };
+  secs.forEach(([t, h, all, w]) => {
+    let rows = all.slice(), cn = false;
+    while (rows.length) {
+      let n = 0; while (n < rows.length && meas(body + mk(t, h, rows.slice(0, n + 1), w, cn)) <= cap) n++;
+      if (n === 0) { if (body) { flush(); continue; } n = 1; }
+      body += mk(t, h, rows.slice(0, n), w, cn); rows = rows.slice(n);
+      if (rows.length) { flush(); cn = true; }
+    }
+  });
+  out.push(pre + body);
+  return out;
 }
 
 /* ---------- Inhaltsseiten ---------- */
@@ -183,8 +197,10 @@ raumbuchPages('<div class="eb">Raumbuch</div><h1 style="font-size:18pt;margin-bo
   '<div class="eb" style="margin-bottom:4mm">Raumbuch · Fortsetzung</div>',
   '<div class="box" style="margin-top:6mm"><b>Reinigungszeiten.</b> ' + e([tage, zeit].filter(Boolean).join(' ') || 'Nach Vereinbarung') + '. Änderungen der Nutzung oder Flächen passen wir gemeinsam mit Ihnen an.</div>').forEach(h => P('Raumbuch', h));
 lvPages('<div class="eb">Leistungsverzeichnis</div><h1 style="font-size:17pt;margin-bottom:2.5mm">Was wir in jedem Raum erledigen</h1><p class="note" style="margin:0 0 4mm">Je Reinigungsgruppe die Leistungen nach Kategorie. Code = Häufigkeit (5x = fünfmal pro Woche, M = monatlich, B = bei Bedarf), daneben die Ausführungen pro Woche, Monat und Jahr.</p>', '<div class="eb" style="margin-bottom:4mm">Leistungsverzeichnis · Fortsetzung</div>').forEach(h => P('Leistungsverzeichnis', h));
-P('Legende', '<div class="eb">Legende</div><h1 style="font-size:18pt;margin-bottom:2.5mm">Codes und Begriffe</h1><p class="note" style="margin:0 0 5mm">Erklärung der im Raumbuch und Leistungsverzeichnis verwendeten Reinigungsgruppen, Dispositionspläne und Bodenbeläge.</p>' + legende());
-(D.plans || []).forEach((src, i, arr) => P('Grundrissplan', '<div class="eb">Grundrissplan</div><h1 style="font-size:18pt;margin-bottom:2.5mm">Grundrissplan' + (arr.length > 1 ? ' ' + (i + 1) + ' von ' + arr.length : '') + '</h1><div style="height:176mm;display:flex;align-items:center;justify-content:center;border:1px solid #d8e3e5;border-radius:2mm;padding:3mm;box-sizing:border-box"><img src="' + e(src) + '" alt="" style="max-width:100%;max-height:100%;object-fit:contain"></div>'));
+legendePages('<div class="eb">Legende</div><h1 style="font-size:18pt;margin-bottom:2.5mm">Codes und Begriffe</h1><p class="note" style="margin:0 0 5mm">Erklärung der im Raumbuch und Leistungsverzeichnis verwendeten Reinigungsgruppen, Dispositionspläne und Bodenbeläge.</p>', '<div class="eb" style="margin-bottom:4mm">Legende, Fortsetzung</div>').forEach(h => P('Legende', h));
+const PD = (await Promise.all((D.plans || []).map(src => new Promise(r => { const im = new Image(); im.onload = () => r({ src, w: im.naturalWidth, h: im.naturalHeight }); im.onerror = () => r(null); im.src = src; })))).filter(Boolean);
+PD.forEach((pl, i) => { const t = 'Grundrissplan' + (PD.length > 1 ? ' ' + (i + 1) + ' von ' + PD.length : ''), ls = pl.w > pl.h * 1.1;
+  P('Grundrissplan', '<div class="eb">Grundrissplan</div><h1 style="font-size:18pt;margin-bottom:2mm">' + t + '</h1><div style="position:relative;height:186mm;width:190mm;margin-left:-15mm"><img src="' + e(pl.src) + '" alt="" style="position:absolute;left:50%;top:50%;' + (ls ? 'transform:translate(-50%,-50%) rotate(90deg);max-width:186mm;max-height:190mm' : 'transform:translate(-50%,-50%);max-width:190mm;max-height:186mm') + '"></div>'); });
 const KF = [['Vertrag', 'Unbefristet', 'Werkvertrag nach Art. 363 ff. OR'], ['Kündigung', '3 Monate', 'Schriftlich auf Monatsende'], ['Preisbindung', '1 Jahr', 'Fest ab Vertragsbeginn'], ['Zahlung', '30 Tage netto', 'Verrechnung monatlich, jeweils anfangs Monat'], ['Gültigkeit', '6 Monate', 'Ab Offertdatum'], ['Reklamation', 'Rückmeldung in 2 Std.', 'Behebung innert 24 Stunden'], ['Versicherung', 'CHF 5 Mio.', 'Betriebshaftpflicht bei der Allianz Suisse'], ['Vertraulichkeit', 'Garantiert', 'Alle Informationen werden vertraulich behandelt']];
 const agbBox = D.agbUrl
   ? '<div class="agbl"><div><small>Vollständige Allgemeine Geschäftsbedingungen</small><a href="' + e(D.agbUrl) + '" target="_blank">AGB Unterhaltsreinigung öffnen (PDF)</a></div><span>Integrierender Bestandteil dieser Offerte</span></div>'
@@ -202,9 +218,10 @@ const tk = { 'Ausgangslage und Objekt': 'Ausgangslage', 'Konditionen auf einen B
 const tocH = toc.map(t => { const k = tk[t] || t; return first[k] ? '<div>' + t + '<span>' + String(first[k]).padStart(2, '0') + '</span></div>' : ''; }).join('');
 const html = cover + letter + pages.map(([ch, h], i) => page('<div class="in">' + h.replace('__TOC__', tocH).replace(/__RB__/g, first['Raumbuch']) + '</div>', i + 3, ch)).join('');
 document.getElementById('root').innerHTML = html;
+
 if (MEAS) MEAS.remove();
 /* Kontrolle: Inhalt, der über den Inhaltsbereich hinausläuft */
 const over = [...document.querySelectorAll('.pg')].map((pg, i) => { const inn = pg.querySelector('.in'); if (!inn) return null; const lim = inn.getBoundingClientRect().bottom; const mx = [...inn.querySelectorAll('*')].reduce((m, el) => Math.max(m, el.getBoundingClientRect().bottom), 0); return mx > lim + 2 ? { p: i + 1, mm: Math.round((mx - lim) * 25.4 / 96) } : null; }).filter(Boolean);
 window.__info = { pages: document.querySelectorAll('.pg').length, over };
 window.__done = true;
-})();
+})().catch(e => { window.__err = String(e && e.stack || e); window.__done = true; });
