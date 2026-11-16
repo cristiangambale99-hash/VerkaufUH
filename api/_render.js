@@ -36,7 +36,7 @@ function assets() {
   try { ASSETS.SIG = 'data:image/png;base64,' + require('./_sig').SIG_MIRCO; } catch (e) {}
   return ASSETS;
 }
-const ARTS = ['buero', 'praxis', 'fitness', 'restaurant', 'schule', 'verkauf', 'industrie', 'wohnbau', 'kita', 'hotel'];
+const ARTS = ['buero', 'praxis', 'fitness', 'restaurant', 'schule', 'verkauf', 'industrie', 'wohnbau', 'kita', 'hotel', 'indigo'];
 function artImg(k) { if (!ARTS.includes(k)) return ''; const f = path.join(AS, 'art', k + '.jpg'); return fs.existsSync(f) ? 'data:image/jpeg;base64,' + fs.readFileSync(f).toString('base64') : ''; }
 const safeJson = o => JSON.stringify(o).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
 
@@ -51,7 +51,7 @@ ${EXTRA}</style></head><body>${bodyHtml}${script ? '<script>' + script + '</scri
 /* Offerte Unterhaltsreinigung: Daten aus der App → komplettes HTML */
 function uhOfferHtml(d) {
   const A = assets();
-  const a = { LH: A.LH, LOGO: A.LOGO, ICO: A.ICO, BADGES: A.BADGES, SIG: A.SIG || '', COVER: artImg(d.art) };
+  const a = { LH: A.LH, LOGO: A.LOGO, ICO: A.ICO, BADGES: A.BADGES, SIG: A.SIG || '', COVER: artImg(d.artBild) || artImg(d.art) };
   /* Neutrale Fassung (z. B. für Weitergabe über Dritte): ohne Clean-Service-Logo und ohne ISO-Badges */
   if (d.neutral) { a.LH = b64('lh-neutral.png', 'image/png'); a.LOGO = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'; a.BADGES = []; }
   const client = rd('uhdoc-client.txt', 'utf8');

@@ -1953,6 +1953,7 @@ function objCalc(o) {
   const rate = o.rate || S.settings.rate;
   const nWeek = (o.days || []).length || 1;
   const noArea = o.rooms.filter(r => !(r.flaeche > 0)).length;
+  const areaRooms = area; if (+o.flaecheTotal > area) area = +o.flaecheTotal;   // Gesamtfläche von Hand (Raumflächen unbekannt)
   const calcPerClean = wk / nWeek;                   // Ø Std. pro Reinigung aus den Flächen
   /* Modus «Einsatz»: Verkäufer schätzt die Stunden pro Reinigung nach Erfahrung (Flächen oft unbekannt).
      Dann gilt: Std. pro Einsatz × Reinigungen pro Woche × Wochenfaktor × Stundensatz. Periodische Arbeiten sind darin enthalten. */
@@ -1979,7 +1980,7 @@ function objCalc(o) {
   const slv = {}, slm = {}; SLX.forEach(x => { slv[x[0]] = slTotal(o, x[0]); slm[x[0]] = { mode: slMode(o, x[0]), m2: o[x[0] + 'M2'] > 0 ? +o[x[0] + 'M2'] : 0, ep: slEP(o, x[0]), stk: o[x[0] + 'Stk'] > 0 ? +o[x[0] + 'Stk'] : 0, sep: o[x[0] + 'StkEP'] > 0 ? +o[x[0] + 'StkEP'] : 0, name: slName(o, x[0]), unit: slUnitOf({ unit: o[x[0] + 'Unit'], ut: o[x[0] + 'UT'] }) }; }); const { fenster, glas, teppich } = slv; const sx = (o.sx || []).map(x => ({ n: (x.n || '').trim(), p: slTotalX(x), mode: x.mode === 'm2' ? 'm2' : x.mode === 'stk' ? 'stk' : 'pauschal', m2: x.m2 > 0 ? +x.m2 : 0, ep: x.ep > 0 ? +x.ep : 0, stk: x.stk > 0 ? +x.stk : 0, sep: x.sep > 0 ? +x.sep : 0, unit: slUnitOf(x) })).filter(x => x.n && x.p > 0);  // Fensterreinigung pauschal pro Ausführung (nicht im Monatsbetrag)
   const monthly = base + wash;
   const mode = o.pauschale > 0 ? 'pauschale' : rhOn ? 'zeit' : einsatz ? 'einsatz' : 'flaeche';
-  return { rhOn, rhLines, proTag, tage, hours, area, bad, noArea, rate, wk, per, nWeek, perClean, calcPerClean, einsatz: einsatz || rhOn, mode, monthHoursWeekly, monthHoursPer, monthHours, xzH, wf: WF(), calcMonthly, base, wash, fenster, glas, teppich, slm, sx, monthly, annual: monthly * 12, perWeek: wk };
+  return { rhOn, rhLines, proTag, tage, hours, area, areaRooms, bad, noArea, rate, wk, per, nWeek, perClean, calcPerClean, einsatz: einsatz || rhOn, mode, monthHoursWeekly, monthHoursPer, monthHours, xzH, wf: WF(), calcMonthly, base, wash, fenster, glas, teppich, slm, sx, monthly, annual: monthly * 12, perWeek: wk };
 }
 const custOf = o => S.customers.find(c => c.id === o.customerId) || {};
 /* Preisvarianten: Variante 1 = Hauptpreis des Objekts, weitere Varianten von Hand (z. B. 1x und 2x pro Woche) */
@@ -2356,6 +2357,12 @@ function renderBes() {
         <div class="frow">${fieldHtml('bMail','E-Mail',cu.email,`data-c="email" inputmode="email" ${dis}`,false,'email')}${fieldHtml('bTel','Telefon',cu.tel,`data-c="tel" inputmode="tel" ${dis}`,false,'tel')}</div>
         ${fieldHtml('bWeb','Website (für das Logo in der Offerte)',cu.website,`data-c="website" inputmode="url" placeholder="z. B. republik.ch" ${dis}`)}
         ${fieldHtml('bObj','Objektbezeichnung',o.name,`data-o="name" placeholder="z. B. Praxisräumlichkeiten" ${dis}`)}
+        <div class="sec-t" style="margin-top:6px">Team auf der Offerte («Feste Gesichter»)</div>
+        <datalist id="dlTeam">${[...new Set(['Sergio Da Silva', 'Sebastian Hidegh', 'Mirco Scaramuzzo', ...EINF_TEAM.map(x => x[0]), ...teamList().map(x => x.name)])].map(n => `<option value="${esc(n)}">`).join('')}</datalist>
+        <div class="frow">${fieldHtml('bPl','Objektleiter / Projektleiter',o.objektleiter || '',`data-o="objektleiter" list="dlTeam" placeholder="Standard: ${esc(annCfg().calName)}" ${dis}`)}${fieldHtml('bPlX','Zusatzangabe (optional)',o.objektleiterX || '',`data-o="objektleiterX" placeholder="z. B. 12 Jahre Erfahrung · DE, EN" ${dis}`)}</div>
+        <div class="frow">${fieldHtml('bSb','Sachbearbeiter Innendienst',o.sachbearbeiter || '',`data-o="sachbearbeiter" list="dlTeam" placeholder="Standard: Sebastian Hidegh" ${dis}`)}${fieldHtml('bSbX','Zusatzangabe (optional)',o.sachbearbeiterX || '',`data-o="sachbearbeiterX" placeholder="z. B. 3 Jahre Erfahrung · DE, EN, ES" ${dis}`)}</div>
+        <div class="frow">${fieldHtml('bGf','Geschäftsführung / Gesamtverantwortung',o.gf || '',`data-o="gf" list="dlTeam" placeholder="Standard: Mirco Scaramuzzo" ${dis}`)}${fieldHtml('bGfX','Zusatzangabe (optional)',o.gfX || '',`data-o="gfX" placeholder="Standard: Offerte, Vertrag und Eskalation" ${dis}`)}</div>
+        <p class="hint" style="margin-top:-4px">Diese Personen erscheinen auf der Offerte unter «Ihr Team». Leere Felder verwenden die Standardbesetzung.</p>
         <div class="field"><label>Visitenkarte</label><label class="btn btn-s upl" style="justify-self:start">${ico('i-cam')}Foto aufnehmen<input type="file" accept="image/*" capture="environment" data-file="card" ${dis}></label>${cu.card ? `<div class="thumbs"><img src="${med(cu.card)}" alt="Visitenkarte"></div>` : ''}</div>
       </div></div>
 
@@ -2370,6 +2377,7 @@ function renderBes() {
 
       <div class="card fsec acc ${secOpen('raumbuch', SM.raumbuch.st) ? 'open' : ''}" id="sec-raumbuch"><button type="button" class="acc-h" data-act="secT" data-k="raumbuch" aria-expanded="${secOpen('raumbuch', SM.raumbuch.st)}"><span><span class="acc-t">Raumbuch</span><span class="acc-s">${SM.raumbuch.status}</span></span>${secIcon(SM.raumbuch.st)}</button><div class="acc-b"><p class="hint">Raumtyp antippen legt den Raum sofort an, mehrmals antippen legt mehrere an. Boden und Fläche ergänzt du bei Bedarf in der Zeile.</p>
         ${gebHtml(o, locked)}
+        ${fieldHtml('bFlTot', 'Reinigungsfläche gesamt in m² (optional)', o.flaecheTotal || '', `data-o="flaecheTotal" data-num="1" inputmode="decimal" placeholder="z. B. 1000" ${locked ? 'disabled' : ''}`, false, 'text', 'Wenn die Gesamtfläche bekannt ist, die einzelnen Räume aber nicht: hier eintragen. Sie erscheint so auf der Offerte. Sind die Raumflächen erfasst und grösser, zählen diese.')}
         <div class="field" style="margin-bottom:6px"><label>Stockwerk</label><div class="chips">${['Alle', ...floorsOf(o).reverse()].map(f => { const n = o.rooms.filter(r => inG(r) && (f === 'Alle' || r.floor === f)).length; return `<button type="button" class="chip" data-act="floor" data-f="${f}" aria-pressed="${UI.floor === f}">${f}${n ? `<span class="cnt">${n}</span>` : ''}</button>`; }).join('')}${locked ? '' : UI.floorNew ? `<span class="fnew"><input id="fNewIn" placeholder="z. B. 6. OG, Dachgeschoss" maxlength="24" autocomplete="off"><button type="button" class="btn btn-s btn-sm" data-act="floorAdd">Hinzufügen</button></span>` : `<button type="button" class="chip" data-act="floorNew" style="border-style:dashed">+ Stockwerk eintragen</button>`}</div></div>
         ${locked ? '' : `<div class="field" style="margin-bottom:8px"><label>Boden für neue Räume <span class="small muted">(Toiletten und Küchen: Keramik)</span></label><div class="chips">${BODEN_STD.slice(0, 6).map(bd => `<button type="button" class="chip" data-act="bodenStd" data-v="${esc(bd)}" aria-pressed="${(o.bodenStd || 'Vinyl') === bd}">${esc(bd)}</button>`).join('')}<button type="button" class="chip" data-act="bodenStd" data-v="Andere" aria-pressed="${bodenCustom(o.bodenStd) || o.bodenStd === 'Andere'}">Andere</button></div>${(bodenCustom(o.bodenStd) || o.bodenStd === 'Andere') ? `<div class="bodenx"><label class="small">Bodenbelag selbst eintragen</label><input id="stdBodenX" data-bsx="1" maxlength="30" placeholder="z. B. Gummi" value="${esc(o.bodenStd === 'Andere' ? '' : o.bodenStd)}"><div class="seg" style="margin-top:6px">${[['hart', 'Hartbelag (glatt)'], ['textil', 'Textil / Teppich']].map(([v, l]) => `<label><input type="radio" name="bsxt" value="${v}" data-bst="${v}" ${((o.bodenStdT || 'hart') === v) ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></div>` : ''}</div>
         <div class="field" style="margin-bottom:4px"><label>Raum hinzufügen${UI.floor === 'Alle' ? ' (Stockwerk zuerst wählen, sonst EG)' : ' im ' + UI.floor}</label></div>
@@ -2453,6 +2461,14 @@ function moveRoom(id, d) {
   const a = o.rooms.indexOf(r), b = o.rooms.indexOf(t); o.rooms[a] = t; o.rooms[b] = r; UI.flashRoom = id; save(); refreshBesLive();
 }
 /* Reinigungszeit als Text: eine Zeit für alle Tage oder pro Tag */
+/* Zeiten pro Tag sauber zusammenfassen: gleiche Zeit an aufeinanderfolgenden Tagen wird zu «Mo–Mi ab 18:00 Uhr» */
+const zeitNorm = t => { t = String(t || '').trim(); if (!t) return 'nach Vereinbarung'; if (/^\d{1,2}[:.]\d\d$/.test(t)) return 'ab ' + t.replace('.', ':') + ' Uhr'; if (/^\d{1,2}[:.]\d\d\s*[-–]\s*\d{1,2}[:.]\d\d$/.test(t)) return t.replace(/\./g, ':').replace(/\s*[-–]\s*/, '–') + ' Uhr'; return t; };
+function zeitGrp(o) {
+  const z = o.zeiten || {}, sel = DAYS.filter(d => (o.days || []).includes(d)), out = [];
+  sel.forEach(d => { const t = zeitNorm(z[d]), last = out[out.length - 1];
+    if (last && last.t === t && DAYS.indexOf(d) === DAYS.indexOf(last.ds[last.ds.length - 1]) + 1) last.ds.push(d); else out.push({ ds: [d], t }); });
+  return out.map(g => ({ d: g.ds.length >= 3 ? g.ds[0] + '–' + g.ds[g.ds.length - 1] : g.ds.length === 2 ? g.ds[0] + ' und ' + g.ds[1] : g.ds[0], t: g.t }));
+}
 function zeitText(o, sep = ', ') {
   if (o.zeitProTag) { const z = o.zeiten || {}; return DAYS.filter(d => (o.days || []).includes(d)).map(d => `${d} ${z[d] || '–'}`).join(sep); }
   return o.zeit || '';
@@ -3087,7 +3103,7 @@ function renderKun() {
   const rows = all.filter(o => (F === 'Alle' || kunSt(o) === F) && (!q || (custOf(o).firma + ' ' + custOf(o).kontakt + ' ' + o.name + ' ' + (o.nr || '') + ' ' + o.adresse).toLowerCase().includes(q)))
     .sort((a, b) => custOf(a).firma.localeCompare(custOf(b).firma));
   const info = o => o.status === 'gewonnen' ? (o.lvEditing ? '<span class="badge b-warn">LV in Anpassung</span>' : `<span class="badge ${o.lvRev ? 'b-info' : 'b-neutral'}">LV ${lvStand(o)}</span>`) : `<span class="badge ${STAGE_UI[offStage(o)][1]}">${STAGE_UI[offStage(o)][0]}</span>`;
-  el.innerHTML = phead('Kunden', 'Kunden', 'Alle erfassten Besichtigungen. Aktiv: Auftrag erhalten. Inaktiv: Auftrag nicht erhalten oder Kunde nicht mehr bedient. Das Leistungsverzeichnis wird direkt beim Kunden angepasst.', `<button class="btn btn-p" data-act="planBes">${ico('i-plus')}Besichtigung planen</button>`) + `
+  el.innerHTML = phead('Kunden', 'Kunden', 'Alle erfassten Besichtigungen. Aktiv: Auftrag erhalten. Inaktiv: Auftrag nicht erhalten oder Kunde nicht mehr bedient. Das Leistungsverzeichnis wird direkt beim Kunden angepasst.', `<div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-s" data-act="avOpen">${ico('i-doc')}Anpassungsvertrag</button><button class="btn btn-p" data-act="planBes">${ico('i-plus')}Besichtigung planen</button></div>`) + `
   <div class="content"><div class="toolbar"><div class="chips">${['Aktiv','Inaktiv','Alle'].map(f => `<button class="chip" data-act="kunF" data-v="${f}" aria-pressed="${F === f}">${f} · ${cnt(f)}</button>`).join('')}</div><div class="search"><svg><use href="#i-search"/></svg><input id="kunQ" type="search" placeholder="Kunde, Objekt oder Nummer" value="${esc(UI.kunQ)}" data-q="kunQ" aria-label="Kunden suchen"></div></div>
   <div class="card tablewrap offt">${rows.length ? `<table><thead><tr><th>Kunde</th><th>Kontakt</th><th style="text-align:right">Std./Jahr</th><th style="text-align:right">CHF/Monat</th><th>Stand</th><th style="text-align:right">Aktion</th></tr></thead><tbody>
     ${rows.map(o => { const c = objCalc(o), cu = custOf(o); return `<tr data-act="openLv" data-id="${o.id}" aria-selected="${UI.panel?.type === 'lv' && UI.panel.id === o.id}"><td><b>${esc(cu.firma)}</b><div class="muted small">${o.nr ? esc(o.nr) + ' · ' : ''}${esc(o.name)}</div></td><td class="muted">${esc(cu.kontakt)}</td><td class="num" style="text-align:right">${fmtN(c.hours, 1)}</td><td class="num" style="text-align:right">${fmtN(c.monthly, 2)}</td><td>${info(o)}</td><td style="text-align:right">${o.status === 'gewonnen' && !o.inaktiv ? `<button class="btn btn-p btn-sm btn-adj" data-act="lvEdit" data-id="${o.id}">${o.lvEditing ? 'Fortsetzen' : 'LV anpassen'}</button>` : ''}</td></tr>`; }).join('')}</tbody></table>
@@ -3255,6 +3271,7 @@ function kunPanelHtml(c) {
     ${c.card ? `<div class="sec-t">Visitenkarte</div><img src="${med(c.card)}" alt="Visitenkarte" style="max-width:100%;border-radius:10px;border:1px solid var(--cs-line)">` : ''}
     <div class="sec-t">Objekte</div>${os.map(o => `<div class="objcard"><div class="mrow" style="display:flex" data-act="editBes" data-id="${o.id}"><div class="tx" style="flex:1"><b>${esc(o.name)}</b><small class="muted">${esc(o.adresse)} · ${chf(objCalc(o).monthly, 0)}/Mt</small></div>${badge(o.status)}</div>
       ${['versendet','gewonnen'].includes(o.status) && o.rooms.length ? `<div class="lvdl"><div class="small" style="font-weight:600">Leistungsverzeichnis für das Reinigungsteam</div><div class="langs">${Object.entries(LANGS).map(([k, v]) => `<button class="btn btn-s btn-sm" data-act="lvPdf" data-id="${o.id}" data-lang="${k}" title="${v}">${k.toUpperCase()}</button>`).join('')}</div>
+      ${o.av ? `<div style="margin:8px 0 2px"><button class="btn btn-s btn-sm" data-act="avcOpen" data-id="${o.id}">${ico('i-doc', 16)}Anpassungsvertrag${o.av.sent ? ' (gesendet ' + esc(o.av.sent.at) + ')' : ' erstellen'}</button></div>` : ''}
       <div style="margin:8px 0 2px"><button class="btn btn-p btn-sm" data-act="${o.revising ? 'editBes' : 'reviseOff'}" data-id="${o.id}">${ico('i-doc', 16)}${o.revising ? 'Anpassung fortsetzen' : 'Offerte und LV anpassen'}</button></div><div class="small" style="font-weight:600;margin-top:8px">Offerte</div><div class="langs"><button class="btn btn-s btn-sm" data-act="pdf" data-id="${o.id}" data-lang="de">DE</button><button class="btn btn-s btn-sm" data-act="pdf" data-id="${o.id}" data-lang="en">EN</button></div></div>` : ''}</div>`).join('') || '<p class="muted small">Keine Objekte.</p>'}
   </div><div class="panel-f"><button class="btn btn-p" data-act="planBes" data-cid="${c.id}" style="margin-left:auto">${ico('i-plus')}Besichtigung planen</button></div>`;
 }
@@ -3488,6 +3505,8 @@ function renderPanel(keepScroll) {
   if (p.type === 'kun') html = kunPanelHtml(S.customers.find(c => c.id === p.id));
   if (p.type === 'grp') html = grpPanelHtml(p.id);
   if (p.type === 'plan') html = planPanelHtml();
+  if (p.type === 'av') html = avPanelHtml();
+  if (p.type === 'avc') html = avcPanelHtml(p.id);
   if (p.type === 'gr') html = grPanelHtml();
   $('#panel').innerHTML = html;
   if (keepScroll) { const b2 = $('#panel .panel-b'); if (b2) b2.scrollTop = st; }
@@ -3646,7 +3665,223 @@ function askYN(title, text, yes, onYes, no = 'Nein') {
   d.querySelector('#ynNo').onclick = close; d.addEventListener('click', e => { if (e.target === d) close(); });
   d.querySelector('#ynYes').onclick = () => { close(); onYes(); }; d.querySelector('#ynNo').focus();
 }
+/* =========================================================
+   ANPASSUNGSVERTRAG · altes Leistungsverzeichnis (PDF) einlesen, im neuen Layout anpassen, Vertrag als PDF versenden
+   ========================================================= */
+async function avParsePdf(pdfjs, bytes) {
+  const pdf = await pdfjs.getDocument({ data: bytes, isEvalSupported: false }).promise;
+  const out = { objNr: '', firma: '', adresse: '', rooms: [], groups: [] };
+  const NOISE = /^(Clean-Service Scaramuzzo AG|\d{1,2}\.\d{1,2}\.\d{4} \/.*|\d+ ?\/ ?\d+|Reinigungsgruppe, Kategorie.*|Code, Woche, Monat, Jahr)$/;
+  const CJK = /[⺀-￿]/;
+  let curG = null;
+  for (let pn = 1; pn <= pdf.numPages; pn++) {
+    const page = await pdf.getPage(pn);
+    try { await page.getOperatorList(); } catch (e) {}
+    const tc = await page.getTextContent(), P = [];
+    for (const it of tc.items) {
+      const s = it.str; if (!s || !s.trim() || CJK.test(s)) continue;
+      let f = ''; try { f = page.commonObjs.get(it.fontName).name || ''; } catch (e) {}
+      P.push({ x: it.transform[4], y: it.transform[5], h: Math.round(it.height), s: s.trim(), bold: /Bold/i.test(f), wd: /Wingd/i.test(f), ar: /Arial|Wingd/i.test(f) });
+    }
+    const A = P.filter(p => p.ar && !NOISE.test(p.s));
+    const title = (A.find(p => p.bold && p.h === 12 && p.x < 100) || {}).s || '';
+    if (/Leistungsverzeichnis/.test(title) || /Raumbuch/.test(title)) {
+      const hd = A.filter(p => p.h === 10 && !p.bold && p.x < 100 && p.y > 630).sort((a, b) => b.y - a.y);
+      if (hd[0] && !out.objNr) { const m = /^(\S+?),\s*(.+)$/.exec(hd[0].s); if (m) { out.objNr = m[1]; out.firma = m[2]; } }
+      if (hd[1] && !out.adresse) out.adresse = hd[1].s;
+    }
+    if (/Raumbuch/.test(title)) {
+      const hx = {}; A.filter(p => p.y > 610 && p.y < 625 && p.h === 8).forEach(p => { hx[p.s] = p.x; });
+      const xN = hx['Nr'], xB = hx['Bodenbelag'], xD = hx['Dispo'], xF = hx['Fläche'], xG = hx['Reinigungsgruppe'];
+      if (xB == null || xG == null) continue;
+      let floor = '';
+      const rows = {}; A.filter(p => p.y < 605).forEach(p => { const k = Math.round(p.y / 2); (rows[k] = rows[k] || []).push(p); });
+      Object.keys(rows).map(Number).sort((a, b) => b - a).forEach(k => {
+        const r = rows[k].sort((a, b) => a.x - b.x), first = r[0];
+        if (first.bold && first.x < 40) { if (first.h === 10) floor = first.s; return; }
+        if (first.x > 40 || first.h !== 8) return;
+        const cell = (x0, x1) => r.filter(p => p.x >= x0 - 3 && p.x < x1 - 3).map(p => p.s).join(' ');
+        const cols = [xN, xB, xD, xF, xG].filter(v => v != null).sort((a, b) => a - b);
+        const nxt = x => cols.find(v => v > x + 1) || 9999;
+        const bez = cell(0, xN != null ? xN : xB), g = /^(\d+\.\d+)\s+(.*)$/.exec(cell(xG, 9999)); if (!bez || !g) return;
+        out.rooms.push({ floor, bez, nr: xN != null ? cell(xN, nxt(xN)) : '', boden: cell(xB, nxt(xB)), dispo: cell(xD, nxt(xD)), flaeche: xF != null ? cell(xF, nxt(xF)) : '', gcode: g[1] });
+      });
+    } else if (/Leistungsverzeichnis/.test(title)) {
+      for (const col of [0, 1]) {
+        const L = A.filter(p => (p.x < 298 ? 0 : 1) === col && p.y > 50 && p.y < 612);
+        if (!L.length) continue;
+        const x0 = Math.min(...L.map(p => p.x)), xc = x0 + 160;
+        const mk = L.filter(p => p.wd).map(p => p.y).sort((a, b) => b - a);
+        const items = mk.map(y => ({ y, parts: [], code: '' }));
+        const hdrs = [], cats = [];
+        L.forEach(p => {
+          if (p.wd) return;
+          if (p.bold && p.h === 10) { hdrs.push(p); return; }
+          if (p.bold && p.h === 8) { cats.push(p); return; }
+          let it = null; for (let i = items.length - 1; i >= 0; i--) if (items[i].y >= p.y - 6) { it = items[i]; break; }
+          if (!it) return;
+          if (p.x >= xc - 10) { if (!it.code && /^(\d+x|SO|B|M|J|H|V|Q|14T|E)$/.test(p.s)) it.code = p.s; } else it.parts.push(p);
+        });
+        const ev = [];
+        hdrs.sort((a, b) => b.y - a.y).forEach(h => { const k = Math.round(h.y); let e = ev.find(z => z.t === 'g' && Math.abs(z.y - h.y) < 2); if (!e) { e = { t: 'g', y: h.y, ps: [] }; ev.push(e); } e.ps.push(h); });
+        cats.forEach(c => ev.push({ t: 'c', y: c.y, s: c.s })); items.forEach(i => ev.push({ t: 'i', y: i.y, it: i }));
+        ev.sort((a, b) => b.y - a.y || (a.t === 'i') - (b.t === 'i'));
+        let cat = '';
+        ev.forEach(e => {
+          if (e.t === 'g') { const t = e.ps.sort((a, b) => a.x - b.x).map(p => p.s).join(' '), m = /^(\d+\.\d+)\s+(.+)$/.exec(t); if (m) { curG = out.groups.find(g => g.code === m[1]); if (!curG) { curG = { code: m[1], name: m[2], items: [] }; out.groups.push(curG); } cat = ''; } else if (curG && !curG.items.length) curG.name += ' ' + t; }
+          else if (e.t === 'c') cat = e.s;
+          else if (curG) { const name = e.it.parts.sort((a, b) => b.y - a.y || a.x - b.x).map(p => p.s).join(' ').replace(/\s+/g, ' ').trim(); if (name && e.it.code) curG.items.push({ cat, name, code: e.it.code }); }
+        });
+      }
+    }
+  }
+  return out;
+}
+
+
+const AV_MON = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+const avDate = iso => { const m = /^(\d{4})-(\d\d)-(\d\d)/.exec(iso || ''); return m ? `${m[3]}. ${AV_MON[+m[2] - 1]} ${m[1]}` : ''; };
+const avNextMonth = () => { const d = new Date(TODAY.getFullYear(), TODAY.getMonth() + 1, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`; };
+const avFloor = s => { s = String(s || '').toLowerCase(); if (/unter|keller|^ug/.test(s)) return 'UG'; if (/erd|^eg/.test(s)) return 'EG'; const m = /(\d)\./.exec(s) || /(\d)/.exec(s); return m && +m[1] >= 1 && +m[1] <= 5 ? m[1] + '. OG' : 'EG'; };
+function avBoden(s) {
+  const t = String(s || '').toLowerCase();
+  const m = [[/parkett|holz/, 'Parkett'], [/laminat/, 'Laminat'], [/keram|platte|plättli|fliese/, 'Keramik'], [/textil|teppich/, 'Textil'], [/beton/, 'Beton'], [/linol/, 'Linoleum'], [/pvc/, 'PVC'], [/vinyl/, 'Vinyl'], [/stein|granit|marmor/, 'Naturstein (G)']].find(x => x[0].test(t));
+  return m ? m[1] : (String(s || '').trim().slice(0, 30) || 'Andere');
+}
+const avNorm = s => String(s || '').replace(/^bfall/i, m => 'Abfall').toLowerCase().replace(/\s+/g, ' ').trim();
+/* PDF-Daten → Raumliste (nur Prüfung, noch nichts gespeichert) */
+function avBuild(P, objId) {
+  const taskKey = {}, taskName = {};
+  TASK_ORDER.forEach(id => { const t = TASKS[id]; taskKey[avNorm(t.cat) + '|' + avNorm(t.name)] = id; (taskName[avNorm(t.name)] = taskName[avNorm(t.name)] || []).push(id); });
+  const cats = Object.keys(CAT_LAST), xtNew = {};
+  const catOf = c => cats.find(k => avNorm(k) === avNorm(c)) || XCAT;
+  const codeOf = c => c === 'SO' ? 'B' : c === 'V' ? 'H' : c;
+  const gmap = {}, newTasks = [];
+  P.groups.forEach(g => {
+    const map = {}, xt = [];
+    g.items.forEach(it => {
+      const nm = it.name.replace(/^bfall/i, 'Abfall'), cat = catOf(it.cat);
+      let id = taskKey[avNorm(cat) + '|' + avNorm(nm)] || ((taskName[avNorm(nm)] || []).length === 1 ? taskName[avNorm(nm)][0] : null);
+      if (!id) { const k = avNorm(cat) + '|' + avNorm(nm); id = xtNew[k] || (xtNew[k] = 'av' + uid()); xt.push({ id, n: nm, c: cat }); }
+      const c = codeOf(it.code); map[id] = WEEKLY(c) ? 'R' : c;
+    });
+    gmap[g.code] = { name: g.name, map, xt };
+  });
+  return { gmap };
+}
+function avApplyGroups(P, o) {
+  const { gmap } = avBuild(P);
+  const out = {}; S.settings.customGroups = S.settings.customGroups || [];
+  P.groups.forEach(g => {
+    const m = gmap[g.code], std = GROUP[g.code] && !CGX[g.code];
+    if (std) { const cur = groupMap(g.code), a = Object.keys(m.map).sort().join(), b = Object.keys(cur).sort().join(); if (a === b && Object.keys(cur).every(k => cur[k] === m.map[k])) { out[g.code] = g.code; return; } }
+    const same = S.settings.customGroups.find(c => JSON.stringify(c.map) === JSON.stringify(m.map) && c.code && (c.base === g.code || c.code === g.code));
+    if (same) { out[g.code] = same.code; return; }
+    const code = GROUP[g.code] ? nextGroupCode(g.code) : g.code;
+    const cg = { code, name: g.name, base: GROUP[g.code] ? g.code : '', map: m.map, xt: m.xt, created: isoDay(TODAY), from: P.objNr || '' };
+    S.settings.customGroups.push(cg); registerCustomGroups(); out[g.code] = code;
+  });
+  return out;
+}
+function avImport() {
+  const d = UI.av, P = d.parsed; if (!P) return;
+  const firma = (d.firma || '').trim(), nr = (d.objNr || '').trim();
+  const bad = []; if (!firma) bad.push('avFirma'); if (!nr) bad.push('avNr'); if (!(d.adresse || '').trim()) bad.push('avAdr');
+  ['avFirma', 'avNr', 'avAdr'].forEach(i => $('#f-' + i)?.classList.toggle('err', bad.includes(i))); if (bad.length) { $('#' + bad[0])?.focus(); return; }
+  const map = avApplyGroups(P);
+  let cu = S.customers.find(c => (c.firma || '').trim().toLowerCase() === firma.toLowerCase());
+  if (!cu) { cu = { id: 'c' + uid(), firma, kontakt: (d.kontakt || '').trim(), adresse: d.adresse.trim(), email: (d.email || '').trim(), tel: '', card: null }; S.customers.push(cu); }
+  else { if (d.kontakt && !cu.kontakt) cu.kontakt = d.kontakt.trim(); if (d.email && !cu.email) cu.email = d.email.trim(); }
+  const rooms = P.rooms.map(r => { const g = map[r.gcode] || r.gcode, bo = avBoden(r.boden), dp = /^(\d+x|E|B|M|Q|H|J|14T)$/.test(r.dispo) && DISPO_BY[r.dispo] ? r.dispo : '1x', fl = parseFloat(String(r.flaeche).replace(/[’'\s]/g, '').replace(',', '.'));
+    return { id: uid(), floor: avFloor(r.floor), bez: r.bez, nr: r.nr || '', gruppe: g, flaeche: fl > 0 ? fl : null, boden: bo, bodenT: bodenCustom(bo) ? (/textil|teppich/i.test(r.boden) ? 'textil' : 'hart') : null, dispo: dp, custom: null, notiz: '', photos: [] }; });
+  const o = { id: 'o' + uid(), customerId: cu.id, name: '', objNr: nr, nr, adresse: d.adresse.trim(), besDatum: isoDay(TODAY), besZeit: '', verkaeufer: (teamList()[0] || {}).name || '', vEmail: '', hinweis: '', calOff: true, calOffLogged: true, art: '',
+    days: ['Mo','Di','Mi','Do','Fr'], zeit: '', rate: S.settings.rate, pauschale: null, wasch: false, spezial: false, diverses: '', photos: [], skizze: [], signature: null,
+    status: 'gewonnen', created: isoDay(TODAY), sent: null, rooms, av: { ref: nr, from: P.objNr || nr, at: isoDay(TODAY) },
+    log: [[isoDay(TODAY), `Leistungsverzeichnis aus altem System übernommen (${rooms.length} Räume, ${P.groups.length} Reinigungsgruppen) für Anpassungsvertrag`]] };
+  S.objects.push(o); LVSNAP[o.id] = JSON.parse(JSON.stringify({ ...o, log: undefined })); o.lvEditing = true; save();
+  UI.cur = o.id; UI.floor = 'Alle'; UI.av = null; closePanel(true); go('bes'); toast(`${rooms.length} Räume übernommen. Leistungsverzeichnis anpassen, dann Vertrag erstellen.`, 'check');
+}
+function avPickPdf() {
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'application/pdf,.pdf';
+  inp.onchange = async () => {
+    const f = inp.files && inp.files[0]; if (!f) return; const d = UI.av; d.busy = true; d.err = ''; d.file = f.name; renderPanel(true);
+    try {
+      if (!window.pdfjsLib) throw new Error('PDF-Modul nicht geladen. Bitte Seite neu laden.');
+      const P = await avParsePdf(window.pdfjsLib, new Uint8Array(await f.arrayBuffer()));
+      if (!P.rooms.length || !P.groups.length) throw new Error('Im PDF wurden kein Raumbuch und kein Leistungsverzeichnis erkannt. Bitte das PDF aus dem alten System verwenden.');
+      d.parsed = P; d.firma = d.firma || P.firma; d.objNr = d.objNr || P.objNr; d.adresse = d.adresse || P.adresse;
+    } catch (e) { d.err = String((e && e.message) || e); d.parsed = null; }
+    d.busy = false; renderPanel(true);
+  }; inp.click();
+}
+function avPanelHtml() {
+  const d = UI.av || {}, P = d.parsed, nIt = P ? P.groups.reduce((a, g) => a + g.items.length, 0) : 0;
+  const f = (id, label, key, ph = '') => `<div class="field" id="f-${id}"><label for="${id}">${label}</label><input id="${id}" data-av="${key}" value="${esc(d[key] || '')}" placeholder="${ph}" autocomplete="off"></div>`;
+  return `<div class="panel-h"><div><div class="eyebrow">Unterhaltsreinigung</div><h2 id="panelTitle">Anpassungsvertrag</h2><p class="small muted" style="margin-top:4px">Aktuelles Leistungsverzeichnis als PDF einlesen. Es erscheint im neuen Layout, kann angepasst werden und geht danach mit dem Vertrag an den Kunden.</p></div><button class="icon-btn" data-act="closePanel" aria-label="Schliessen"><svg><use href="#i-x"/></svg></button></div>
+  <div class="panel-b">
+    <div class="sec-t">1 · Leistungsverzeichnis einlesen</div>
+    <div class="ldrop ${P ? 'has' : ''}" data-act="avPick" tabindex="0" role="button" aria-label="PDF auswählen"><svg style="width:24px;height:24px;color:var(--cs-brand-text)"><use href="#i-up"/></svg><div><b>${d.busy ? 'Wird gelesen …' : P ? esc(d.file || 'PDF') + ' · anderes PDF wählen' : 'PDF aus dem alten System wählen'}</b><small>Raumbuch und Leistungsverzeichnis (Aduna-Export)</small></div></div>
+    ${d.err ? `<div class="warnbox" style="margin-top:10px">${ico('i-warn')}<div>${esc(d.err)}</div></div>` : ''}
+    ${P ? `<div class="infobox" style="margin-top:10px">${ico('i-info')}<div>Gelesen: <b>${P.rooms.length} Räume</b>, <b>${P.groups.length} Reinigungsgruppen</b> mit ${nIt} Leistungen. Bitte unten prüfen.</div></div>
+    <div class="sec-t">2 · Kunde und Objekt</div>
+    ${f('avFirma', 'Firma <span class="req">*</span>', 'firma')}${f('avAdr', 'Adresse <span class="req">*</span>', 'adresse', 'Strasse, PLZ Ort')}
+    <div class="frow">${f('avNr', 'Vertrags- / Objektnummer <span class="req">*</span>', 'objNr')}${f('avKo', 'Ansprechperson (Unterzeichner)', 'kontakt')}</div>${f('avMail', 'E-Mail des Kunden', 'email', 'optional')}` : ''}
+  </div><div class="panel-f"><button class="btn btn-p" data-act="avImport" style="margin-left:auto" ${P ? '' : 'disabled'}>${ico('i-doc', 16)}Übernehmen und Leistungsverzeichnis anpassen</button></div>`;
+}
+function avcDefaults(o) {
+  const cu = custOf(o), a = o.av, c = objCalc(o), base = +a.base || 0, delta = Math.max(0, Math.round((c.monthly - base) * 20) / 20);
+  const anr = cu.anrede === 'Frau' ? 'Sehr geehrte Frau ' : cu.anrede === 'Herr' ? 'Sehr geehrter Herr ' : 'Guten Tag ';
+  return Object.assign({ ref: a.ref || o.nr, firma: cu.firma, adresse: o.adresse || cu.adresse || '', unterzeichner: cu.kontakt || '', titel: 'Anpassung Unterhaltsreinigung', bestehend: '', erweiterung: delta, vb: avNextMonth(), to: 'unterhalt@clean-service.ch',
+    betreff: `Anpassungsvertrag ${a.ref || o.nr} · ${cu.firma}`,
+    text: `${(anr + ((cu.anrede && cu.kontakt) ? cu.kontakt.split(' ').slice(-1)[0] : '')).trim()}\n\nBesten Dank für das Gespräch. Im Anhang finden Sie den Anpassungsvertrag mit dem angepassten Leistungsverzeichnis.\n\nBitte unterzeichnen Sie den Vertrag und senden Sie ihn uns zurück. Bei Fragen sind wir gerne für Sie da.`.replace(/\s+$/, '') }, a.draft || {});
+}
+function avcPanelHtml(oid) {
+  const o = objOf(oid); if (!o) return ''; const d = UI.avc = UI.avc && UI.avc.oid === oid ? UI.avc : Object.assign({ oid }, avcDefaults(o));
+  const cu = custOf(o), n = v => String(v == null ? '' : v);
+  const f = (id, label, key, attrs = '', type = 'text') => `<div class="field"><label for="${id}">${label}</label><input id="${id}" type="${type}" data-avc="${key}" value="${esc(n(d[key]))}" ${attrs} autocomplete="off"></div>`;
+  const tot = (+String(d.bestehend).replace(',', '.') || 0) + (+String(d.erweiterung).replace(',', '.') || 0);
+  return `<div class="panel-h"><div><div class="eyebrow">Anpassungsvertrag · ${esc(cu.firma)}</div><h2 id="panelTitle">Vertrag erstellen und senden</h2><p class="small muted" style="margin-top:4px">Das Leistungsverzeichnis ist gespeichert (Version ${o.lvRev || 1}). Der Vertrag erscheint im neuen Layout, das Leistungsverzeichnis hängt als Beilage im selben PDF.</p></div><button class="icon-btn" data-act="closePanel" aria-label="Schliessen"><svg><use href="#i-x"/></svg></button></div>
+  <div class="panel-b"><div class="sec-t">Vertrag</div>
+    <div class="frow">${f('acRef', 'Vertragsnummer (bestehender Vertrag)', 'ref')}${f('acVb', 'Vertragsbeginn', 'vb', '', 'date')}</div>
+    ${f('acTit', 'Titel der Leistung', 'titel')}${f('acFirma', 'Auftraggeber', 'firma')}
+    <div class="field"><label for="acAdr">Adresse</label><textarea id="acAdr" data-avc="adresse" rows="2">${esc(n(d.adresse))}</textarea></div>${f('acUnt', 'Unterzeichner Auftraggeber', 'unterzeichner')}
+    <div class="sec-t">Preis (CHF pro Monat, exkl. MwSt.)</div>
+    <div class="frow">${f('acBe', 'Bestehende Monatspauschale', 'bestehend', 'inputmode="decimal" placeholder="z. B. 1142.55"')}${f('acEx', 'Erweiterung', 'erweiterung', 'inputmode="decimal"')}</div>
+    <div class="infobox">${ico('i-info')}<div>Total neue Monatspauschale: <b id="acTot">${tot ? chf(tot, 2) : 'bitte Preise eintragen'}</b>. Die Erweiterung ist aus dem angepassten Leistungsverzeichnis vorgeschlagen und kann überschrieben werden.</div></div>
+    <div class="sec-t">Mail</div>
+    <div class="field"><label for="acTo">Empfänger</label><input id="acTo" type="email" data-avc="to" value="${esc(n(d.to))}" autocomplete="off"><div class="factions" style="margin-top:6px"><button class="btn btn-s btn-sm" data-act="avTo" data-v="unterhalt@clean-service.ch">Zur Freigabe an unterhalt@</button>${cu.email ? `<button class="btn btn-s btn-sm" data-act="avTo" data-v="${esc(cu.email)}">Direkt an Kunde</button>` : ''}</div></div>
+    ${f('acBet', 'Betreff', 'betreff')}<div class="field"><label for="acTxt">Text</label><textarea id="acTxt" data-avc="text" rows="7">${esc(n(d.text))}</textarea></div>
+    ${d.err ? `<div class="warnbox">${ico('i-warn')}<div>${esc(d.err)}</div></div>` : ''}${d.ok ? `<div class="infobox">${ico('i-check')}<div>${esc(d.ok)}</div></div>` : ''}
+  </div><div class="panel-f"><button class="btn btn-s" data-act="avcPrev"><span class="ld" data-loader></span>PDF ansehen</button><button class="btn btn-p" data-act="avcSend" style="margin-left:auto"><span class="ld" data-loader></span>Vertrag senden</button></div>`;
+}
+const avcNum = v => { const x = parseFloat(String(v).replace(/[’'\s]/g, '').replace(',', '.')); return isFinite(x) ? x : 0; };
+const avcData = (o, d) => ({ nr: d.ref, ref: d.ref, firma: d.firma, adresse: d.adresse, titel: d.titel, bestehend: avcNum(d.bestehend), erweiterung: avcNum(d.erweiterung), vbTxt: avDate(d.vb) || 'Vereinbarung', datumTxt: avDate(isoDay(TODAY)), unterzeichner: d.unterzeichner });
+async function avcPdf(o, d) {
+  const r = await beApi('/api/pdf', { method: 'POST', body: JSON.stringify({ av: avcData(o, d) }) });
+  if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || 'PDF ' + r.status); }
+  const doc = await window.PDFLib.PDFDocument.load(new Uint8Array(await r.arrayBuffer()));
+  if (o.rooms.length) { const lv = await buildLvPdf(o, 'de'); (await doc.copyPages(lv, lv.getPageIndices())).forEach(p => doc.addPage(p)); }
+  return await doc.save({ useObjectStreams: true });
+}
+
 const ACT = {
+  avOpen: () => { UI.av = {}; openPanel({ type: 'av', id: 'neu' }); },
+  avPick: () => avPickPdf(),
+  avImport: () => avImport(),
+  avcOpen: el => { UI.avc = null; closePanel(true); openPanel({ type: 'avc', id: el.dataset.id }); },
+  avTo: el => { if (UI.avc) { UI.avc.to = el.dataset.v; const i = $('#acTo'); if (i) i.value = el.dataset.v; } },
+  avcPrev: async el => { const o = objOf(UI.avc && UI.avc.oid); if (!o) return; el.classList.add('busy'); try { const b = await avcPdf(o, UI.avc), url = URL.createObjectURL(new Blob([b], { type: 'application/pdf' })); if (!window.open(url, '_blank')) await saveBlob(new Blob([b], { type: 'application/pdf' }), 'Anpassungsvertrag_' + safeName(UI.avc.ref) + '.pdf', o, 'Anpassungsvertrag-Vorschau erstellt'); } catch (e) { console.error(e); toast('PDF konnte nicht erstellt werden: ' + (e.message || ''), 'error'); } el.classList.remove('busy'); },
+  avcSend: async el => { const d = UI.avc, o = objOf(d && d.oid); if (!o) return; const to = String(d.to || '').trim();
+    if (!isMail(to)) { d.err = 'Bitte eine gültige E-Mail-Adresse beim Empfänger eintragen.'; d.ok = ''; renderPanel(true); return; }
+    if (!avcNum(d.erweiterung)) { d.err = 'Bitte den Preis der Erweiterung eintragen.'; d.ok = ''; renderPanel(true); return; }
+    el.classList.add('busy'); el.disabled = true; BE_BUSY++; d.err = ''; d.ok = '';
+    try { const bytes = await avcPdf(o, d), name = 'tmp-av-' + String(o.id).replace(/[^\w\-]/g, ''), CH = 600000, tot = Math.ceil(bytes.length / CH);
+      for (let i = 0; i < tot; i++) { const r = await beApi('/api/stash', { method: 'POST', body: JSON.stringify({ name, idx: i, total: tot, b64: b64OfBytes(bytes.subarray(i * CH, (i + 1) * CH)) }) }); if (!r.ok) throw new Error('PDF-Übertragung fehlgeschlagen'); }
+      const r = await beApi('/api/send', { method: 'POST', body: JSON.stringify({ to, subject: d.betreff, text: d.text, kind: 'av', objectId: o.id, filename: 'Anpassungsvertrag_' + safeName(d.ref) + '_' + safeName(d.firma) + '.pdf', stash: name }) });
+      const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'HTTP ' + r.status);
+      o.av = Object.assign(o.av || {}, { sent: { at: isoDay(TODAY), to }, draft: { ref: d.ref, vb: d.vb, bestehend: d.bestehend, erweiterung: d.erweiterung } }); logO(o, `Anpassungsvertrag ${d.ref} an ${to} gesendet`); save(); toast('Anpassungsvertrag gesendet an ' + to, 'sent'); d.ok = 'Gesendet an ' + to + '.';
+    } catch (e) { console.error(e); d.err = 'Senden fehlgeschlagen: ' + (e.message || e); }
+    BE_BUSY--; el.disabled = false; el.classList.remove('busy'); renderPanel(true); },
   go: el => go(el.dataset.v),
   newBes: () => planBes(),
   newBesFor: el => planBes(el.dataset.id),
@@ -3851,7 +4086,9 @@ const ACT = {
     const note = (($('#lvNote') || {}).value || '').trim(), mb = snap ? objCalc(snap).monthly : c.monthly;
     o.lvRev = (o.lvRev || 0) + 1; o.lvHist = (o.lvHist || []).concat([{ rev: o.lvRev, date: isoDay(TODAY), note, added, removed, changed, hours: c.hours, monthly: c.monthly, monthlyBefore: mb }]);
     delete o.lvEditing; delete LVSNAP[o.id]; logO(o, `Leistungsverzeichnis Version ${o.lvRev} gespeichert${note ? ': ' + note : ''}`); save();
-    toast(`Leistungsverzeichnis gespeichert · Version ${o.lvRev}`, 'sent'); if (o.ordner && o.ordner.url) startOrdner(o, false, true); go('kun'); openPanel({ type: 'lv', id: o.id });
+    toast(`Leistungsverzeichnis gespeichert · Version ${o.lvRev}`, 'sent'); if (o.ordner && o.ordner.url) startOrdner(o, false, true); go('kun');
+    if (o.av && !o.av.sent) { o.av.base = mb; save(); UI.avc = null; openPanel({ type: 'avc', id: o.id }); return; }
+    openPanel({ type: 'lv', id: o.id });
   },
   startCancel: () => { closeStartDlg(); toast('Reinigungsstart kann beim Kunden nachgetragen werden', 'info'); },
   startOpen: el => { const o = objOf(el.dataset.id); if (o) openStartDlg(o, !(o.start && o.start.datum)); },
@@ -3978,6 +4215,8 @@ document.addEventListener('input', e => {
   if (t.dataset.vn != null && t.dataset.vn !== '') { const o = curObj(); if (!o) return; const i = +t.dataset.vn; if (i === 0) o.varMainN = t.value; else o.vars[i - 1].n = t.value; save(); return; }
   if (t.dataset.st) { const o = curObj(); if (!o) return; o.stdTage = o.stdTage || {}; o.stdTage[t.dataset.st] = num(t.value); save(); refreshBesLive(); return; }
   if (t.dataset.zt) { const o = curObj(); if (!o) return; o.zeiten = o.zeiten || {}; o.zeiten[t.dataset.zt] = t.value; save(); refreshBesLive(); return; }
+  if (t.dataset.av && UI.av) { UI.av[t.dataset.av] = t.value; return; }
+  if (t.dataset.avc && UI.avc) { UI.avc[t.dataset.avc] = t.value; if (/^(bestehend|erweiterung)$/.test(t.dataset.avc)) { const x = $('#acTot'); if (x) { const v = avcNum(UI.avc.bestehend) + avcNum(UI.avc.erweiterung); x.textContent = v ? chf(v, 2) : 'bitte Preise eintragen'; } } return; }
   if (t.dataset.kc) { const cu = S.customers.find(c => c.id === t.dataset.cid); if (cu) { cu[t.dataset.kc] = t.value; save(); } return; }
   if (t.dataset.sstr) { S.settings[t.dataset.sstr] = t.value; save(); return; }
   if (t.dataset.q) { UI[t.dataset.q] = t.value; const pos = t.selectionStart; RENDER[UI.view](); const n = $('#' + t.id); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (x) {} } return; }
@@ -4192,16 +4431,16 @@ function uhDocData(o, url) {
   const dispo = DISPO.filter(d => codes.has(d.code)).map(d => [d.code, d.label, d.code === 'B' ? 'nach Bedarf' : d.code === 'E' ? 'durch Kunde' : d.perYear + ' Ausführungen / Jahr']);
   const bod = [...new Set(o.rooms.map(r => r.boden).filter(Boolean))].map(b => [bodenCode(b), bodenText(b)]);
   const days = DAYS.filter(d => (o.days || []).includes(d)), di = days.map(d => DAYS.indexOf(d)), seq = days.length >= 3 && di.every((x, i) => !i || x === di[i - 1] + 1);
-  const z = String(o.zeit || '').trim(), zeitTxt = o.zeitProTag ? zeitText(o) : /^\d{1,2}[:.]\d\d$/.test(z) ? 'ab ' + z.replace('.', ':') + ' Uhr' : z;
+  const z = String(o.zeit || '').trim(), zg = o.zeitProTag ? zeitGrp(o) : null, zeitTxt = zg && zg.length ? zg.map(x => x.d + ' ' + x.t).join(', ') : o.zeitProTag ? zeitText(o) : /^\d{1,2}[:.]\d\d$/.test(z) ? 'ab ' + z.replace('.', ':') + ' Uhr' : z;
   const [cuS, ...cuR] = String(cu.adresse || '').split(',');
   const logo = med(cu.logo); const today = isoDay(TODAY), dt = o.sent || today, g6 = (() => { const d = new Date(dt + 'T12:00:00Z'); d.setUTCMonth(d.getUTCMonth() + 6); return d.toISOString().slice(0, 10); })();
   const mail = (String(seller.kontakt || '').match(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/i) || [])[0] || 'unterhalt@clean-service.ch';
   const nr = o.nr || o.objNr || 'Entwurf';
   return { mode: 'offer', nrTxt: nr + (o.rev ? ' Rev. ' + o.rev : ''), datum: dt, gueltig: g6, firma: cu.firma || '', kontakt: cu.kontakt || '', anrede: cu.anrede || '', cuStrasse: (cuS || '').trim(), cuOrt: cuR.join(',').trim(), email: cu.email || '', gruss: sn.gruss,
-    objekt: o.name || '', adresse: o.adresse || '', art: o.art || '', days, daysTxt: seq ? days[0] + '–' + days[days.length - 1] : days.join(', '), zeitTxt, start: sn.start || '',
+    objekt: o.name || '', adresse: o.adresse || '', art: o.art || '', artBild: o.artBild || '', days, daysTxt: seq ? days[0] + '–' + days[days.length - 1] : days.join(', '), zeitTxt, zgrp: !!(zg && zg.length), zl: zg ? zg.map(x => x.d + ': ' + x.t) : [], start: sn.start || '',
     c: { annual: c.annual, monthly: c.monthly, base: c.base, hours: c.hours, area: c.area }, vars: sn.vars || [], rb, lv, used, dispo, bod,
     sonder: [...SLX.map(x => { const m = c.slm[x[0]]; return m && m.mode !== 'nein' ? { n: m.name || x[1], mode: m.mode, m2: m.m2, ep: m.ep, stk: m.stk, sep: m.sep, tot: c[x[0]] || 0, ul: m.unit.u === 'mon' ? 'pro Monat' : m.unit.u === 'and' && m.unit.t ? m.unit.t : 'pro Ausführung' } : null; }).filter(Boolean), ...c.sx.map(x => ({ n: x.n, mode: x.mode, m2: x.m2, ep: x.ep, stk: x.stk, sep: x.sep, tot: x.p, ul: x.unit.u === 'mon' ? 'pro Monat' : x.unit.u === 'and' && x.unit.t ? x.unit.t : 'pro Ausführung' }))],
-    ap: { name: seller.name || 'Clean Service Scaramuzzo AG', rolle: seller.rolle || (/Scaramuzzo/.test(seller.name || '') ? 'Inhaber und Geschäftsführer' : 'Verkauf'), mail }, ol: annCfg().calName, adm: 'Sebastian Hidegh', refs: (o.refs || []).map(r => ({ k: r.k, s: r.s || '' })),
+    ap: { name: seller.name || 'Clean Service Scaramuzzo AG', rolle: seller.rolle || (/Scaramuzzo/.test(seller.name || '') ? 'Inhaber und Geschäftsführer' : 'Verkauf'), mail }, ol: String(o.objektleiter || '').trim() || annCfg().calName, olX: String(o.objektleiterX || '').trim(), adm: String(o.sachbearbeiter || '').trim() || 'Sebastian Hidegh', admX: String(o.sachbearbeiterX || '').trim(), gf: String(o.gf || '').trim() || 'Mirco Scaramuzzo', gfX: String(o.gfX || '').trim(), refs: (o.refs || []).map(r => ({ k: r.k, s: r.s || '' })),
     logoBg: lbgHex(cu.logoBg), logo: logo && logo.startsWith('data:image') && logo.length < 1500000 ? logo : '', annUrl: url || '', kick: annKick(), rate: +(o.rate || S.settings.rate || 38), agbUrl: S.settings.uhAgbUrl || 'https://offertplattform-uh.vercel.app/agb/AGB-Unterhaltsreinigung.pdf' };
 }
 async function uhAnnUrl(o) { if (o.annUrl) return o.annUrl; const nr = o.nr || o.objNr; if (!nr || !annOn()) return ''; try { const r = await beApi('/api/ordner', { method: 'POST', body: JSON.stringify({ an: 'res', nr }) }); const j = await r.json().catch(() => ({})); return j.url || ''; } catch (e) { return ''; } }

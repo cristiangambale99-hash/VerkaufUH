@@ -23,6 +23,19 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true, name: b.stash, bytes: pdf.length });
     } catch (e) { console.error('pdf hotel', e); return res.status(500).json({ error: 'PDF konnte nicht erstellt werden: ' + String(e.message || e).slice(0, 300) }); }
   }
+  /* Anpassungsvertrag: Daten in b.av → PDF (mit stash abgelegt für den Mailversand, sonst als Datei) */
+  if (b.av && typeof b.av === 'object') {
+    try {
+      const { pdf } = await R.render(require('./_av').html(b.av));
+      if (b.stash) {
+        if (!/^tmp-[\w\-]+$/.test(b.stash)) return res.status(400).json({ error: 'name' });
+        const CH = 600000, s64 = pdf.toString('base64'), tot = Math.max(1, Math.ceil(s64.length / CH));
+        for (let i = 0; i < tot; i++) await rpc('api_asset_put', { p_name: b.stash, p_ctype: 'application/pdf', p_idx: i, p_total: tot, p_b64: s64.slice(i * CH, (i + 1) * CH) });
+        return res.status(200).json({ ok: true, name: b.stash, bytes: pdf.length });
+      }
+      res.setHeader('Content-Type', 'application/pdf'); res.setHeader('Cache-Control', 'no-store'); return res.status(200).send(pdf);
+    } catch (e) { console.error('pdf av', e); return res.status(500).json({ error: 'Vertrag konnte nicht erstellt werden: ' + String(e.message || e).slice(0, 300) }); }
+  }
   if (!d || typeof d !== 'object' || !Array.isArray(d.rb) || !Array.isArray(d.lv)) return res.status(400).json({ error: 'Daten fehlen' });
   try {
     const { pdf, info } = await R.render(R.uhOfferHtml(d), { wait: true });
