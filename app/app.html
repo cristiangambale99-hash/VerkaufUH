@@ -339,6 +339,7 @@ body{-webkit-tap-highlight-color:transparent}
 .mbar{display:none}
 .kv{display:grid;grid-template-columns:180px minmax(0,1fr);gap:8px 16px;font-size:14px}
 .kv dt{color:var(--cs-fg-2)} .kv dd{margin:0;font-weight:500}
+.lzbox{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;border:1px solid var(--cs-brand);background:#fff;border-radius:10px;padding:12px 14px;margin:12px 0}.lzbox>div{display:flex;flex-direction:column;gap:2px;min-width:200px;flex:1}.lzbox.ok{border-color:#bfd9dc;background:#f4fafb}
 .pricebox{display:flex;justify-content:space-between;align-items:baseline;gap:12px;background:var(--cs-head);border-radius:10px;padding:14px 16px;margin:12px 0}
 .pricebox b{font-family:var(--cs-head-font);font-size:26px;font-weight:400;color:var(--cs-brand-text)}
 .stat-steps{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 4px}
@@ -2390,6 +2391,7 @@ function renderBes() {
         <div class="frow">${fieldHtml('bRate','Stundensatz (CHF/h)',o.rate,`data-o="rate" data-num="1" inputmode="decimal" ${dis}`,true)}</div>` : `<div class="frow">${fieldHtml('bStd','Stunden pro Einsatz (Erfahrungswert)',o.stdEinsatz ?? '',`data-o="stdEinsatz" data-num="1" inputmode="decimal" placeholder="${c.calcPerClean > 0 ? 'Vorschlag ' + fmtN(c.calcPerClean, 2) : 'z. B. 2.5'}" ${dis}`)}${fieldHtml('bRate','Stundensatz (CHF/h)',o.rate,`data-o="rate" data-num="1" inputmode="decimal" ${dis}`,true)}</div>`}
         <div class="calcline small muted" id="calcLine">${calcLineText(c)}</div>
         ${rlHtml(o, dis)}
+        ${lzBoxHtml(o, c, dis)}
         <div class="pricebox"><span class="muted">Berechnete Monatspauschale</span><b id="calcMonthly">${chf(c.calcMonthly)}</b></div>
         ${fieldHtml('bPausch','Monatspauschale manuell (CHF, überschreibt die Berechnung)',o.pauschale ?? '',`data-o="pauschale" data-num="1" inputmode="decimal" placeholder="${fmtN(c.calcMonthly, 2)}" ${dis}`)}
         ${varHtml(o, dis)}
@@ -2504,6 +2506,16 @@ function rhHtml(o, dis) {
     <div class="rhsum" id="rhSum">${rhSumTxt(o)}</div></div>`;
 }
 function rhSumTxt(o) { const c = objCalc(o); return c.rhOn ? `Total pro Monat: <b>${fmtN(c.monthHours, 2)} h</b> × ${chf(c.rate)} = <b>${chf(c.calcMonthly)}</b>` : 'Noch keine Stunden erfasst.'; }
+/* Preis gemäss Leistungszahlen: Erfahrungswerte (Std. pro Einsatz / pro Tag / pro Rhythmus) ausschalten, dann rechnet das Tool aus Raumflächen × Leistungszahlen */
+function lzBoxHtml(o, c, dis) {
+  if (!(c.areaRooms > 0)) return '';
+  if (c.mode === 'flaeche') return `<div class="lzbox ok"><div><b>Preis wird gemäss Leistungszahlen gerechnet</b><span class="small muted">${fmtN(c.areaRooms, 1)} m² Raumfläche ergeben ${fmtN(c.perClean, 2)} h pro Reinigung.</span></div></div>`;
+  if (c.mode !== 'einsatz' && c.mode !== 'zeit') return '';
+  const t = objCalc({ ...o, stdEinsatz: null, stdProTag: false, stdRh: false, pauschale: null });
+  rlCtx(o);
+  if (!(t.perClean > 0)) return '';
+  return `<div class="lzbox"><div><b>Flächen und Leistungszahlen erfasst</b><span class="small muted">Gerechnet ergibt das ${fmtN(t.perClean, 2)} h pro Reinigung und ${chf(t.calcMonthly)} pro Monat. Aktuell gilt der eingetragene Erfahrungswert (${chf(c.calcMonthly)}).</span></div>${dis ? '' : '<button type="button" class="btn btn-p btn-sm" data-act="calcLz">Gemäss Leistungszahlen rechnen</button>'}</div>`;
+}
 function calcLineText(c) {
   if (c.rhOn) return c.rhLines.map(x => `${rhLabel(x.f)} ${fmtN(x.h, 2)} h ${rhFactTxt(x.f)} = ${fmtN(x.m, 2)}`).join(' + ') + ` = ${fmtN(c.monthHours, 2)} h/Monat × ${chf(c.rate)} = ${chf(c.calcMonthly)} · Zeit pro Rhythmus`;
   if (!(c.perClean > 0)) return 'Noch keine Stunden pro Einsatz: Erfahrungswert eintragen oder Flächen erfassen.';
@@ -3952,6 +3964,7 @@ const ACT = {
   titelSet: el => { const o = curObj(); if (!o) return; const k = o.photos[+el.dataset.i]; o.titel = o.titel === k ? null : k; save(); renderBes(); toast(o.titel ? 'Titelbild gewählt' : 'Titelbild entfernt', 'info'); },
   roomUp: el => moveRoom(el.dataset.id, -1),
   roomDown: el => moveRoom(el.dataset.id, 1),
+  calcLz: () => { const o = curObj(); if (!o) return; o.stdEinsatz = null; o.stdProTag = false; o.stdRh = false; save(); renderBes(); toast('Preis wird jetzt gemäss Leistungszahlen gerechnet'); },
   rlOpen: () => { const o = curObj(); if (o) openPanel({ type: 'rl', oid: o.id }); },
   rlN: el => { UI.rlN = +el.dataset.v; renderSet(); },
   rlgReset: () => { S.settings.rlG = {}; save(); renderSet(); toast('Aduna-Standard wiederhergestellt'); },
