@@ -2737,11 +2737,13 @@ function docRaumbuch(o) {
     <tr class="tot"><td colspan="4">Total</td><td class="num" style="text-align:right">${fmtN(c.area, 2)}</td><td></td><td class="num" style="text-align:right">${fmtN(c.hours, 2)}</td></tr>
   </tbody></table></div><p class="foot-n">Clean Service Scaramuzzo AG · ${fmtDay(isoDay(TODAY))} · Leistungswerte gemäss Stammdaten (Beispielwerte)</p></div>`;
 }
+/* Schlüssel einer Leistung im Leistungsverzeichnis: Eigene Leistungen, die je Raum einzeln angelegt wurden (verschiedene interne Nummer, gleicher Name), erscheinen nur einmal */
+const lvKey = x => x.t.custom ? 'x|' + x.t.cat + '|' + String(x.t.name || '').trim().toLowerCase() + ':' + x.code : x.t.id + ':' + x.code + (x.t.ov ? '~' + x.t.name : '');
 function docLV(o) {
   const blocks = {};
   o.rooms.filter(r => r.gruppe).forEach(r => {
     const sig = r.gruppe + '#' + rGName(r); const b = blocks[sig] || (blocks[sig] = { g: r.gruppe, nm: rGName(r), ts: [], tk: new Map(), rooms: [] }); b.rooms.push(r);
-    roomTasks(r).forEach(x => { const k = x.t.id + ':' + x.code + (x.t.ov ? '~' + x.t.name : ''); if (!b.tk.has(k)) { const e = { ...x, rs: [] }; b.tk.set(k, e); b.ts.push(e); } b.tk.get(k).rs.push(r); });
+    roomTasks(r).forEach(x => { const k = lvKey(x); if (!b.tk.has(k)) { const e = { ...x, rs: [] }; b.tk.set(k, e); b.ts.push(e); } b.tk.get(k).rs.push(r); });
   });
   const list = Object.values(blocks).sort((a, b) => a.g.localeCompare(b.g));
   const cnt = {}; list.forEach(b => cnt[b.g] = (cnt[b.g] || 0) + 1);
@@ -4488,7 +4490,7 @@ function uhDocData(o, url) {
   const rb = gebGroups(o).flatMap(x => x.g ? [{ gb: gebLabel(x), h: x.rooms.reduce((a, r) => a + roomCalc(r).hours, 0), area: x.rooms.reduce((a, r) => a + (r.flaeche || 0), 0) }].concat(flOf(x.rooms)) : flOf(x.rooms));
   const blocks = {}, rnm = r => String(r.bez || '').trim() + (r.nr ? ' ' + r.nr : '');
   o.rooms.filter(r => r.gruppe && r.dispo !== 'E').forEach(r => { const bk = r.gruppe + '#' + rGName(r); const b = blocks[bk] || (blocks[bk] = { g: r.gruppe, nm: grpPlain(rGName(r) || (GROUP[r.gruppe] || {}).name) || '', tm: new Map(), rooms: [] }); b.rooms.push(rnm(r));
-    roomTasks(r).forEach(x => { const k = x.t.id + ':' + x.code + (x.t.ov ? '~' + x.t.name : ''); if (!b.tm.has(k)) b.tm.set(k, { cat: x.t.cat, name: x.t.name, code: x.code, f: freqCols(x.code), rs: [] }); b.tm.get(k).rs.push(rnm(r)); }); });
+    roomTasks(r).forEach(x => { const k = lvKey(x); if (!b.tm.has(k)) b.tm.set(k, { cat: x.t.cat, name: x.t.name, code: x.code, f: freqCols(x.code), rs: [] }); b.tm.get(k).rs.push(rnm(r)); }); });
   const lv = Object.values(blocks).sort((a, b) => a.g.localeCompare(b.g) || (a.nm || '').localeCompare(b.nm || '')).map(b => { const co = []; const ts = [...b.tm.values()]; ts.forEach(x => { if (!co.includes(x.cat)) co.push(x.cat); }); return { g: b.g, nm: b.nm, rooms: b.rooms, ts: ts.map((x, i) => ({ x, i })).sort((a, c) => co.indexOf(a.x.cat) - co.indexOf(c.x.cat) || a.i - c.i).map(({ x }) => ({ cat: x.cat, name: x.name, code: x.code, f: x.f, nur: x.rs.length < b.rooms.length ? [...new Set(x.rs)] : null })) }; });
   const used = [...new Set(o.rooms.map(r => r.gruppe).filter(Boolean))].sort().map(g => [g, grpPlain((GROUP[g] || {}).name) || g]);
   const codes = new Set(); o.rooms.forEach(r => roomTasks(r).forEach(x => codes.add(x.code))); o.rooms.forEach(r => codes.add(r.dispo));
@@ -4978,7 +4980,7 @@ async function drawSheets(ctx, which) {
   const rn = r => roomName(lang, r.bez) + (r.nr ? ' ' + r.nr : '');
   const gnOwn = r => String(r.gName || '').trim();
   o.rooms.filter(r => r.gruppe && r.dispo !== 'E').forEach(r => { const bk = r.gruppe + '#' + gnOwn(r); const g = blocks[bk] || (blocks[bk] = { g: r.gruppe, nm: gnOwn(r), rooms: [], tm: new Map() }); g.rooms.push(r);
-    roomTasks(r).forEach(x => { const k = x.t.id + ':' + x.code + (x.t.ov ? '~' + x.t.name : ''); if (!g.tm.has(k)) g.tm.set(k, { e: x, rs: [] }); g.tm.get(k).rs.push(r); }); });
+    roomTasks(r).forEach(x => { const k = lvKey(x); if (!g.tm.has(k)) g.tm.set(k, { e: x, rs: [] }); g.tm.get(k).rs.push(r); }); });
   const list = Object.values(blocks).sort((a, b) => a.g.localeCompare(b.g) || (a.nm || '').localeCompare(b.nm || ''));
   list.forEach(b => { b.ts = [...b.tm.values()].map(v => ({ ...v.e, sub: v.rs.length < b.rooms.length ? v.rs.map(rn) : null }));
     const co = []; b.ts.forEach(x => { if (!co.includes(x.t.cat)) co.push(x.t.cat); }); b.ts = b.ts.map((x, i) => ({ x, i })).sort((a, c) => co.indexOf(a.x.t.cat) - co.indexOf(c.x.t.cat) || a.i - c.i).map(z => z.x); });
