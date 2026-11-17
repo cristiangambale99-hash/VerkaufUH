@@ -339,7 +339,9 @@ body{-webkit-tap-highlight-color:transparent}
 .mbar{display:none}
 .kv{display:grid;grid-template-columns:180px minmax(0,1fr);gap:8px 16px;font-size:14px}
 .kv dt{color:var(--cs-fg-2)} .kv dd{margin:0;font-weight:500}
-.lzbox{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;border:1px solid var(--cs-brand);background:#fff;border-radius:10px;padding:12px 14px;margin:12px 0}.lzbox>div{display:flex;flex-direction:column;gap:2px;min-width:200px;flex:1}.lzbox.ok{border-color:#bfd9dc;background:#f4fafb}
+.lzbox{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;border:1px solid var(--cs-brand);background:#fff;border-radius:10px;padding:12px 14px;margin:12px 0}.lzbox>div{display:flex;flex-direction:column;gap:2px;min-width:200px;flex:1}.ogbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;border:1px solid #bfd9dc;background:#f4fafb;border-radius:10px;padding:10px 14px;margin:10px 0}.ogbar>div{display:flex;flex-direction:column;gap:2px;min-width:200px;flex:1}.ogrow{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:#fff;border:1px solid #d9e6e8;border-radius:10px;padding:10px 12px;margin:0 0 8px;cursor:pointer;font:inherit;color:inherit}.ogrow:hover{border-color:var(--cs-brand)}.ogc{font-weight:700;color:var(--cs-brand-text);min-width:42px}.ogn{display:flex;flex-direction:column;flex:1;min-width:0}.ogrow .chev{width:16px;height:16px;flex:none}
+.lzwarn{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;border:1px solid #e8b9a8;background:#fdf3ee;border-radius:10px;padding:12px 14px;margin:12px 0}.lzwarn>div{display:flex;flex-direction:column;gap:2px;min-width:200px;flex:1}
+.lzbox.ok{border-color:#bfd9dc;background:#f4fafb}
 .pricebox{display:flex;justify-content:space-between;align-items:baseline;gap:12px;background:var(--cs-head);border-radius:10px;padding:14px 16px;margin:12px 0}
 .pricebox b{font-family:var(--cs-head-font);font-size:26px;font-weight:400;color:var(--cs-brand-text)}
 .stat-steps{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 4px}
@@ -1856,8 +1858,8 @@ const rlCtx = o => { RL_CTX = o && o.rlMode === 'custom' ? (o.rlOv || {}) : null
 function rlCats(o) { rlCtx(o); const set = new Set(); o.rooms.filter(r => !(rlgOf(r) > 0)).forEach(r => roomTasks(r).forEach(x => set.add(x.t.cat))); return CATALOG.cats.map(c => c.name).filter(n => set.has(n)); }
 function rlUsed(o) {
   rlCtx(o); const seen = new Set(), rows = [];
-  o.rooms.forEach(r => { if (r.gruppe && r.flaeche > 0 && r.dispo !== 'E') { const a = bodenArt(r), n = rhyOf(r), k = rlgKey(r.gruppe, a, n); if (!seen.has(k) && rlgStd(r.gruppe, a, n) > 0) { seen.add(k); const fam = FAMILIES[r.gruppe]; rows.push({ k, a, n, std: rlgStd(r.gruppe, a, n), name: fam ? FAM_LABEL[fam] : r.gruppe + ' ' + ((GROUP[r.gruppe] || {}).name || '') }); } } });
-  return rows.sort((x, y) => x.name.localeCompare(y.name) || x.n - y.n);
+  o.rooms.forEach(r => { if (r.gruppe && r.flaeche > 0 && r.dispo !== 'E') { const a = bodenArt(r), n = rhyOf(r), k = rlgKey(r.gruppe, a, n); if (!seen.has(k) && r.dispo !== 'B') { seen.add(k); const fam = FAMILIES[r.gruppe]; rows.push({ k, a, n, std: rlgStd(r.gruppe, a, n), miss: !(rlgStd(r.gruppe, a, n) > 0), name: fam ? FAM_LABEL[fam] : r.gruppe + ' ' + ((GROUP[r.gruppe] || {}).name || '') }); } } });
+  return rows.sort((x, y) => (y.miss - x.miss) || x.name.localeCompare(y.name) || x.n - y.n);
 }
 function rlHtml(o, dis) {
   const custom = o.rlMode === 'custom', nOv = Object.keys(o.rlOv || {}).length;
@@ -1865,12 +1867,35 @@ function rlHtml(o, dis) {
     <p class="small muted" style="margin:0 0 ${custom ? 8 : 0}px">${custom ? 'Für diese Offerte gelten angepasste Leistungszahlen' + (nOv ? ' (' + nOv + ' geändert)' : '') + '. Die hinterlegten Standardwerte bleiben unverändert.' : 'Es gelten die hinterlegten Aduna-Richtleistungen, passend zum Reinigungsrhythmus jedes Raums (z. B. 1× pro Woche).'}</p>
     ${custom && !dis ? `<button type="button" class="btn btn-s btn-sm" data-act="rlOpen">Leistungszahlen bearbeiten …</button>` : ''}</div>`;
 }
+/* Reinigungsgruppen dieser Offerte: Übersicht und Leistungen je Gruppe nur für diese Offerte anpassen (wirkt auf alle Räume der Gruppe in dieser Offerte) */
+const ogRooms = (o, code) => o.rooms.filter(r => r.gruppe === code);
+function ogPanelHtml(oid) {
+  const o = objOf(oid); if (!o) return '';
+  const codes = [...new Set(o.rooms.filter(r => r.gruppe && r.dispo !== 'E').map(r => r.gruppe))].sort((x, y) => x.localeCompare(y, 'de', { numeric: true }));
+  const rows = codes.map(code => { const rs = ogRooms(o, code), g = GROUP[code], n = Math.max(...rs.map(r => Object.keys(roomMap(r)).length)), ang = rs.some(r => r.custom), m2 = rs.reduce((a, r) => a + (r.flaeche > 0 ? r.flaeche : 0), 0);
+    return `<button type="button" class="ogrow" data-act="ogOpen" data-id="${esc(code)}"><span class="ogc">${esc(code)}</span><span class="ogn"><b>${esc(g ? g.name : code)}</b><small class="muted">${rs.length} ${rs.length === 1 ? 'Raum' : 'Räume'}${m2 ? ' · ' + fmtN(m2, 1) + ' m²' : ''} · ${n} Leistungen</small></span>${ang ? '<span class="badge b-info">angepasst</span>' : ''}<svg class="chev"><use href="#i-chev"/></svg></button>`; }).join('');
+  return `<div class="panel-h"><div><div class="eyebrow">Diese Offerte</div><h2 id="panelTitle">Reinigungsgruppen</h2></div><button class="icon-btn" data-act="closePanel" aria-label="Schliessen"><svg><use href="#i-x"/></svg></button></div>
+  <div class="panel-b"><p class="small muted" style="margin-top:0">Alle Reinigungsgruppen, die in dieser Offerte vorkommen. Gruppe öffnen und Leistungen abwählen, die nicht enthalten sind. Die Änderung gilt nur für diese Offerte und alle ihre Räume dieser Gruppe.</p>${rows || '<p class="muted small">Noch keine Räume mit Reinigungsgruppe.</p>'}</div>
+  <div class="panel-f"><button class="btn btn-p" data-act="closePanel" style="margin-left:auto">Fertig</button></div>`;
+}
+function ogDetailHtml(oid, code) {
+  const o = objOf(oid), g = GROUP[code]; if (!o || !g) return '';
+  const rs = ogRooms(o, code), locked = o.status !== 'erfassung' && !o.revising && !o.lvEditing, dis = locked ? 'disabled' : '', gm = groupMap(code);
+  const ids = TASK_ORDER.filter(id => id in gm || rs.some(r => id in roomMap(r)));
+  let last = '', html = '', on = 0;
+  ids.forEach(id => { const t = TASKS[id], isOn = rs.length > 0 && rs.every(r => id in roomMap(r)), part = !isOn && rs.some(r => id in roomMap(r)); if (isOn) on++;
+    if (t.cat !== last) { html += `<div class="tcat">${esc(t.cat)}</div>`; last = t.cat; }
+    html += `<div class="tk ${isOn ? '' : 'off'}"><input type="checkbox" data-ogt="${id}" ${isOn ? 'checked' : ''} ${dis} aria-label="${esc(t.name)}"><span class="nm">${esc(t.name)}${part ? ' <small class="muted">(nur in einem Teil der Räume)</small>' : ''}</span></div>`; });
+  return `<div class="panel-h"><div><div class="eyebrow">Reinigungsgruppe in dieser Offerte</div><h2 id="panelTitle">${esc(code)} ${esc(g.name)}</h2><div style="margin-top:6px"><span class="badge b-info">${on} von ${ids.length} Leistungen</span> <span class="small muted">${rs.length} ${rs.length === 1 ? 'Raum' : 'Räume'}: ${esc(rs.map(r => r.bez).slice(0, 4).join(', '))}${rs.length > 4 ? ' …' : ''}</span></div></div><button class="icon-btn" data-act="closePanel" aria-label="Schliessen"><svg><use href="#i-x"/></svg></button></div>
+  <div class="panel-b"><div class="infobox">${ico('i-info')}<div>Häkchen entfernen = Leistung ist in dieser Offerte für alle Räume dieser Gruppe nicht enthalten. Die Standard-Gruppe und andere Offerten bleiben unverändert.</div></div>${html}</div>
+  <div class="panel-f"><button class="btn btn-g" data-act="ogBack">‹ Alle Gruppen</button>${rs.some(r => r.custom) && !locked ? `<button class="btn btn-s" data-act="ogReset" data-id="${esc(code)}">Auf Standard zurücksetzen</button>` : ''}<button class="btn btn-p" data-act="closePanel" style="margin-left:auto">Fertig</button></div>`;
+}
 function rlPanelHtml(oid) {
   const o = objOf(oid); if (!o) return '';
   const rows = rlUsed(o), cats = rlCats(o), ov = o.rlOv || {}, dis = (o.status !== 'erfassung' && !o.revising && !o.lvEditing) ? 'disabled' : '';
   return `<div class="panel-h"><div><div class="eyebrow">Diese Offerte</div><h2 id="panelTitle">Leistungszahlen</h2></div><button class="icon-btn" data-act="closePanel" aria-label="Schliessen"><svg><use href="#i-x"/></svg></button></div>
   <div class="panel-b"><p class="small muted" style="margin-top:0">Richtleistung in m² pro Stunde je Reinigungsgruppe, Bodenart und Rhythmus. Änderungen gelten nur für diese Offerte. Geänderte Werte sind markiert.</p>
-  ${rows.length ? rows.map((x, i) => `<div class="rlrow"><label for="rlg${i}">${esc(x.name)}<small class="muted" style="display:block">${BART.find(b => b[0] === x.a)[1]} · ${x.n}× pro Woche</small></label><span class="small muted">Standard ${fmtN(x.std, 2)}</span><input id="rlg${i}" data-rlo="${esc(x.k)}" inputmode="decimal" value="${ov[x.k] ?? x.std}" class="${ov[x.k] ? 'ed' : ''}" ${dis}></div>`).join('') : '<p class="muted small">Noch keine Räume mit Fläche und Reinigungsgruppe.</p>'}
+  ${rows.length ? rows.map((x, i) => `<div class="rlrow"><label for="rlg${i}">${esc(x.name)}<small class="muted" style="display:block">${BART.find(b => b[0] === x.a)[1]} · ${x.n}× pro Woche</small></label><span class="small muted">${x.miss ? 'Standard fehlt' : 'Standard ' + fmtN(x.std, 2)}</span><input id="rlg${i}" data-rlo="${esc(x.k)}" inputmode="decimal" value="${ov[x.k] ?? (x.miss ? '' : x.std)}" placeholder="m²/h" class="${ov[x.k] ? 'ed' : ''}" ${dis}></div>`).join('') : '<p class="muted small">Noch keine Räume mit Fläche und Reinigungsgruppe.</p>'}
   ${cats.length ? `<div class="sec-t">Räume ohne Richtleistung</div>` + cats.map((c, i) => `<div class="rlrow"><label for="rlo${i}">${esc(c)}</label><span class="small muted">Standard ${fmtN(S.settings.rl[c], 0)}</span><input id="rlo${i}" data-rlo="${esc(c)}" inputmode="decimal" value="${ov[c] ?? S.settings.rl[c]}" class="${ov[c] ? 'ed' : ''}" ${dis}></div>`).join('') : ''}</div>
   <div class="panel-f">${Object.keys(ov).length && !dis ? `<button class="btn btn-s" data-act="rlReset">Auf Standard zurücksetzen</button>` : ''}<button class="btn btn-p" data-act="closePanel" style="margin-left:auto">Fertig</button></div>`;
 }
@@ -1926,7 +1951,9 @@ function roomTasks(r) {
   const rg = r.flaeche > 0 ? rlgOf(r) : 0;
   if (rg > 0) {
     const h0 = out.filter(x => x.code === r.dispo).reduce((a, x) => a + x.perExec, 0), k = h0 > 0 ? (r.flaeche / rg) / h0 : 1;
-    if (k !== 1) out.forEach(x => { x.perExec *= k; x.wk *= k; x.per *= k; x.h *= k; });
+    if (h0 > 0) { if (k !== 1) out.forEach(x => { x.perExec *= k; x.wk *= k; x.per *= k; x.h *= k; }); }
+    /* Eigene Gruppen (aus altem System): ihre Tätigkeiten haben keine Einzelleistung, die Zeit kommt allein aus Fläche ÷ Leistungszahl und wird gleichmässig auf die täglichen Tätigkeiten verteilt */
+    else if (r.dispo !== 'B') { const ex = out.filter(x => x.code === r.dispo); if (ex.length) { const each = (r.flaeche / rg) / ex.length; ex.forEach(x => { x.perExec = each; x.wk = WEEKLY(r.dispo) ? each * parseInt(r.dispo) : 0; x.per = WEEKLY(r.dispo) ? 0 : each * perYear(r.dispo); x.h = (x.wk * WF() + x.per / 12) * 12; }); } }
   }
   return out.sort((a, b) => (ORDER_IDX[a.t.id] ?? 9999) - (ORDER_IDX[b.t.id] ?? 9999));
 }
@@ -2383,6 +2410,7 @@ function renderBes() {
         ${locked ? '' : `<div class="field" style="margin-bottom:8px"><label>Boden für neue Räume <span class="small muted">(Toiletten und Küchen: Keramik)</span></label><div class="chips">${BODEN_STD.slice(0, 6).map(bd => `<button type="button" class="chip" data-act="bodenStd" data-v="${esc(bd)}" aria-pressed="${(o.bodenStd || 'Vinyl') === bd}">${esc(bd)}</button>`).join('')}<button type="button" class="chip" data-act="bodenStd" data-v="Andere" aria-pressed="${bodenCustom(o.bodenStd) || o.bodenStd === 'Andere'}">Andere</button></div>${(bodenCustom(o.bodenStd) || o.bodenStd === 'Andere') ? `<div class="bodenx"><label class="small">Bodenbelag selbst eintragen</label><input id="stdBodenX" data-bsx="1" maxlength="30" placeholder="z. B. Gummi" value="${esc(o.bodenStd === 'Andere' ? '' : o.bodenStd)}"><div class="seg" style="margin-top:6px">${[['hart', 'Hartbelag (glatt)'], ['textil', 'Textil / Teppich']].map(([v, l]) => `<label><input type="radio" name="bsxt" value="${v}" data-bst="${v}" ${((o.bodenStdT || 'hart') === v) ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></div>` : ''}</div>
         <div class="field" style="margin-bottom:4px"><label>Raum hinzufügen${UI.floor === 'Alle' ? ' (Stockwerk zuerst wählen, sonst EG)' : ' im ' + UI.floor}</label></div>
         <div class="quick">${(UI.moreTypes ? RAUMTYPEN : RAUMTYPEN.slice(0, 9)).map(([n, g]) => `<button type="button" class="qbtn" data-act="addRoom" data-n="${esc(n)}" data-g="${g}">+ ${esc(n)}${(() => { const k = o.rooms.filter(r => inG(r) && r.bez === n && (UI.floor === 'Alle' || r.floor === UI.floor)).length; return k ? ` <span class="cnt">${k}</span>` : ''; })()}</button>`).join('')}${UI.moreTypes ? `<button type="button" class="qbtn" data-act="addRoom" data-n="" data-g="">+ Andere</button><button type="button" class="qbtn" data-act="moreTypes" style="color:var(--cs-fg-2)">weniger</button>` : `<button type="button" class="qbtn" data-act="moreTypes" style="color:var(--cs-fg-2)">mehr …</button>`}</div>`}
+        ${o.rooms.some(r => r.gruppe) ? `<div class="ogbar"><div><b>Reinigungsgruppen dieser Offerte</b><span class="small muted">${new Set(o.rooms.filter(r => r.gruppe && r.dispo !== 'E').map(r => r.gruppe)).size} Gruppen. Öffnen und Leistungen abwählen, die nicht enthalten sind.</span></div><button type="button" class="btn btn-s btn-sm" data-act="ogOpen">Gruppen ansehen</button></div>` : ''}
         <div id="roomList">${roomListHtml(o, grouped)}</div>
       </div></div>
 
@@ -2507,14 +2535,17 @@ function rhHtml(o, dis) {
 }
 function rhSumTxt(o) { const c = objCalc(o); return c.rhOn ? `Total pro Monat: <b>${fmtN(c.monthHours, 2)} h</b> × ${chf(c.rate)} = <b>${chf(c.calcMonthly)}</b>` : 'Noch keine Stunden erfasst.'; }
 /* Preis gemäss Leistungszahlen: Erfahrungswerte (Std. pro Einsatz / pro Tag / pro Rhythmus) ausschalten, dann rechnet das Tool aus Raumflächen × Leistungszahlen */
+function lzMissing(o) { rlCtx(o); const rs = o.rooms.filter(r => r.gruppe && r.flaeche > 0 && r.dispo !== 'E' && r.dispo !== 'B' && !(rlgOf(r) > 0)); return { n: rs.length, m2: rs.reduce((a, r) => a + r.flaeche, 0) }; }
 function lzBoxHtml(o, c, dis) {
   if (!(c.areaRooms > 0)) return '';
-  if (c.mode === 'flaeche') return `<div class="lzbox ok"><div><b>Preis wird gemäss Leistungszahlen gerechnet</b><span class="small muted">${fmtN(c.areaRooms, 1)} m² Raumfläche ergeben ${fmtN(c.perClean, 2)} h pro Reinigung.</span></div></div>`;
-  if (c.mode !== 'einsatz' && c.mode !== 'zeit') return '';
+  const ms = lzMissing(o);
+  const warn = ms.n ? `<div class="lzwarn"><div><b>Für ${ms.n} ${ms.n === 1 ? 'Raum' : 'Räume'} (${fmtN(ms.m2, 1)} m²) fehlt eine Leistungszahl</b><span class="small muted">Diese Räume zählen aktuell mit 0 Stunden, der Preis ist dadurch zu tief.</span></div>${dis ? '' : '<button type="button" class="btn btn-s btn-sm" data-act="rlFix">Leistungszahlen ergänzen</button>'}</div>` : '';
+  if (c.mode === 'flaeche') return `<div class="lzbox ok"><div><b>Preis wird gemäss Leistungszahlen gerechnet</b><span class="small muted">${fmtN(c.areaRooms, 1)} m² Raumfläche ergeben ${fmtN(c.perClean, 2)} h pro Reinigung.</span></div></div>${warn}`;
+  if (c.mode !== 'einsatz' && c.mode !== 'zeit') return warn;
   const t = objCalc({ ...o, stdEinsatz: null, stdProTag: false, stdRh: false, pauschale: null });
   rlCtx(o);
-  if (!(t.perClean > 0)) return '';
-  return `<div class="lzbox"><div><b>Flächen und Leistungszahlen erfasst</b><span class="small muted">Gerechnet ergibt das ${fmtN(t.perClean, 2)} h pro Reinigung und ${chf(t.calcMonthly)} pro Monat. Aktuell gilt der eingetragene Erfahrungswert (${chf(c.calcMonthly)}).</span></div>${dis ? '' : '<button type="button" class="btn btn-p btn-sm" data-act="calcLz">Gemäss Leistungszahlen rechnen</button>'}</div>`;
+  if (!(t.perClean > 0)) return warn;
+  return `<div class="lzbox"><div><b>Flächen und Leistungszahlen erfasst</b><span class="small muted">Gerechnet ergibt das ${fmtN(t.perClean, 2)} h pro Reinigung und ${chf(t.calcMonthly)} pro Monat. Aktuell gilt der eingetragene Erfahrungswert (${chf(c.calcMonthly)}).</span></div>${dis ? '' : '<button type="button" class="btn btn-p btn-sm" data-act="calcLz">Gemäss Leistungszahlen rechnen</button>'}</div>${warn}`;
 }
 function calcLineText(c) {
   if (c.rhOn) return c.rhLines.map(x => `${rhLabel(x.f)} ${fmtN(x.h, 2)} h ${rhFactTxt(x.f)} = ${fmtN(x.m, 2)}`).join(' + ') + ` = ${fmtN(c.monthHours, 2)} h/Monat × ${chf(c.rate)} = ${chf(c.calcMonthly)} · Zeit pro Rhythmus`;
@@ -3513,6 +3544,8 @@ function renderPanel(keepScroll) {
   if (p.type === 'ho') html = hoPanelHtml(p.id);
   if (p.type === 'lv') html = lvPanelHtml(p.id);
   if (p.type === 'rl') html = rlPanelHtml(p.oid);
+  if (p.type === 'og') html = ogPanelHtml(p.oid);
+  if (p.type === 'ogd') html = ogDetailHtml(p.oid, p.code);
   if (p.type === 'vak') html = vakPanelHtml(objOf(p.id));
   if (p.type === 'kun') html = kunPanelHtml(S.customers.find(c => c.id === p.id));
   if (p.type === 'grp') html = grpPanelHtml(p.id);
@@ -3965,6 +3998,10 @@ const ACT = {
   roomUp: el => moveRoom(el.dataset.id, -1),
   roomDown: el => moveRoom(el.dataset.id, 1),
   calcLz: () => { const o = curObj(); if (!o) return; o.stdEinsatz = null; o.stdProTag = false; o.stdRh = false; save(); renderBes(); toast('Preis wird jetzt gemäss Leistungszahlen gerechnet'); },
+  rlFix: () => { const o = curObj(); if (!o) return; o.rlMode = 'custom'; save(); openPanel({ type: 'rl', oid: o.id }); },
+  ogOpen: el => { const o = curObj(); if (!o) return; if (el && el.dataset && el.dataset.id) openPanel({ type: 'ogd', oid: o.id, code: el.dataset.id }); else openPanel({ type: 'og', oid: o.id }); },
+  ogBack: () => { const o = curObj(); if (o) openPanel({ type: 'og', oid: o.id }); },
+  ogReset: el => { const o = curObj(); if (!o) return; ogRooms(o, el.dataset.id).forEach(r => { r.custom = null; }); save(); renderPanel(true); refreshBesLive(); toast('Leistungen auf Standard der Gruppe zurückgesetzt'); },
   rlOpen: () => { const o = curObj(); if (o) openPanel({ type: 'rl', oid: o.id }); },
   rlN: el => { UI.rlN = +el.dataset.v; renderSet(); },
   rlgReset: () => { S.settings.rlG = {}; save(); renderSet(); toast('Aduna-Standard wiederhergestellt'); },
@@ -4277,6 +4314,9 @@ document.addEventListener('change', e => {
     if (t.dataset.rs === 'floor' && UI.floor !== 'Alle' && t.value) { UI.floor = t.value; save(); renderBes(); renderPanel(true); toast('Raum nach ' + t.value + ' verschoben', 'info'); return; }
     save(); renderPanel(true); refreshBesLive(); return; }
   if (t.dataset.tn) { const x = curRoom(); if (!x) return; const r = x[1], id = t.dataset.tn, v = t.value.trim().replace(/\s+/g, ' '); UI.tnEdit = null; r.tn = { ...(r.tn || {}) }; const orig = (TASKS[id] || {}).name; if (!v || v === orig) delete r.tn[id]; else r.tn[id] = v; if (!Object.keys(r.tn).length) r.tn = null; save(); renderPanel(true); refreshBesLive(); return; }
+  if (t.dataset.ogt) { const o = objOf(UI.panel.oid); if (!o) return; const code = UI.panel.code, id = t.dataset.ogt, gm = groupMap(code);
+    ogRooms(o, code).forEach(r => { const m = { ...roomMap(r) }; if (t.checked) m[id] = gm[id] || 'R'; else delete m[id]; r.custom = m; });
+    save(); renderPanel(true); refreshBesLive(); return; }
   if (t.dataset.tk || t.dataset.tkc) { const x = curRoom(); if (!x) return; const r = x[1];
     const m = { ...roomMap(r) }; const id = t.dataset.tk || t.dataset.tkc;
     if (t.dataset.tk) { if (t.checked) m[id] = 'R'; else delete m[id]; } else m[id] = t.value;
