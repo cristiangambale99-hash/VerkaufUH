@@ -2967,7 +2967,18 @@ function abtSet(a, fromPick) {
   abtApply(); go(ABT[a].home);
 }
 const hoSentDay = o => o.sent ? String(o.sent).slice(0, 10) : '';
-const hoDue = o => o.status === 'versendet' && hoSentDay(o) && (TODAY - parseDay(hoSentDay(o))) / 864e5 >= 7;
+/* Nachfassung Hotelservice: gleiche Stufen und Darstellung wie in der Unterhaltsreinigung (Punkte und «1. in 3 Tagen» bzw. «1. fällig») */
+function hoNfInfo(o) {
+  if (!o || o.status !== 'versendet' || !hoSentDay(o) || o.nfOff) return null;
+  const st = (S.hotelnf || []).find(x => x && x.id === o.id) || {}, g = nfGaps(), sent = hoSentDay(o), dates = st.nfDates || [];
+  const done = Math.min(st.nf || 0, 2), dayLeft = d => Math.round((parseDay(d) - TODAY) / 864e5);
+  const due0 = addDaysTo(sent, g[0]), n1 = dates[0] || due0, due1 = addDaysTo(n1, g[1]), n2 = dates[1] || due1, close = addDaysTo(n2, g[2]);
+  if (done >= 2) return { fin: true, done, total: 2, closeDue: close };
+  const due = done === 0 ? due0 : due1, left = dayLeft(due);
+  return { done, total: 2, due, left, over: left <= 0 };
+}
+function hoNfDots(n) { return `<span class="nfdots" title="${n.fin ? 'Alle Nachfassungen erledigt' : n.done + ' von ' + n.total + ' Nachfassungen erledigt'}">${[0, 1].map(i => `<i class="${i < n.done ? 'on' : (i === n.done && n.over) ? 'due' : ''}"></i>`).join('')}</span>`; }
+const hoDue = o => { const n = hoNfInfo(o); return !!n && !n.fin && n.over; };
 const hoWon = o => ['gewonnen', 'angenommen'].includes(o.status);
 function abtKpis() {
   const wk = d => { if (!d) return false; const x = parseDay(d), s = new Date(TODAY); s.setDate(s.getDate() - ((s.getDay() + 6) % 7)); const e = new Date(s); e.setDate(e.getDate() + 7); return x >= s && x < e; };
@@ -3004,7 +3015,7 @@ const HO_F = [
 function hoNext(o) {
   const s = HO_STG(o);
   if (s === 'entwurf') return '<span class="muted">Prüfen und senden</span>';
-  if (s === 'gesendet') { if (hoDue(o)) return '<span class="badge b-warn">Nachfassung fällig</span>'; const d = Math.floor((TODAY - parseDay(hoSentDay(o) || isoDay(TODAY))) / 864e5); return `<span class="muted">Antwort offen seit ${d} ${d === 1 ? 'Tag' : 'Tagen'}</span>`; }
+  if (s === 'gesendet') { const n = hoNfInfo(o); if (!n) return '<span class="muted">Kein Nachfassen</span>'; if (n.fin) return `${hoNfDots(n)} <span class="muted">inaktiv am ${fmtDay(n.closeDue)}</span>`; return `${hoNfDots(n)} ${n.over ? `<span class="badge b-warn">${n.done + 1}. fällig</span>` : `${n.done + 1}. in ${n.left} ${n.left === 1 ? 'Tag' : 'Tagen'}`}`; }
   if (s === 'auftrag') return '<span class="muted">Aktiv ab Vertragsbeginn</span>';
   return '<span class="muted">Kein Nachfassen</span>';
 }
@@ -3042,7 +3053,7 @@ function renderHver() {
   <div class="content">
     <div class="toolbar">${['Monat', 'Quartal', 'Jahr', 'Alle'].map(c => `<button class="chip" data-act="hverP" data-v="${c}" aria-pressed="${P === c}">${c === 'Monat' ? MONTHS[m] + ' ' + y : c === 'Quartal' ? 'Q' + (Math.floor(m / 3) + 1) + ' ' + y : c === 'Jahr' ? String(y) : 'Gesamt'}</button>`).join('')}</div>
     ${grp('Abschluss', [tile('Offerten erstellt', O.length, `${O.filter(o => (o.status || 'entwurf') === 'entwurf').length} Entwürfe`), tile('Gesendet', sent.length, `${open.length} offen beim Kunden`), tile('Gewonnen', won.length, `${lost.length} abgelehnt`), tile('Abschlussquote', fmtN(quote, 0) + ' %', 'gewonnen von entschieden')])}
-    ${grp('Nachfassen', [tile('Zum Nachfassen', O.filter(hoDue).length, 'gesendet vor 7 Tagen oder mehr', O.filter(hoDue).length ? 'warnk' : '')])}
+    ${grp('Nachfassen', [tile('Zum Nachfassen', O.filter(hoDue).length, 'Nachfassung fällig', O.filter(hoDue).length ? 'warnk' : '')])}
     <div class="card" style="margin-top:16px"><div class="card-h"><h2>Trichter</h2><span class="small muted">${P === 'Alle' ? 'Gesamt' : P}</span></div><div class="funnel">${fN.map(([l, n]) => `<div class="fn"><span>${l}</span><div class="fb"><i style="width:${Math.max(n / fMax * 100, n ? 4 : 0)}%"></i></div><b class="num">${n}</b></div>`).join('')}</div></div>
     <div class="card" style="margin-top:16px"><div class="card-h"><h2>Nach Branche</h2></div><div style="overflow-x:auto"><table class="tbl vt"><thead><tr><th>Branche</th><th class="r">Erstellt</th><th class="r">Gesendet</th><th class="r">Gewonnen</th><th class="r">Abgelehnt</th><th class="r">Quote</th></tr></thead><tbody>${segs.length ? segs.map(srow).join('') : '<tr><td colspan="6" class="muted">Keine Daten im Zeitraum.</td></tr>'}</tbody></table></div></div>
   </div>`;

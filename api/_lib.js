@@ -23,12 +23,15 @@ async function settings() { const d = await rpc('api_docs_since', { p_since: '19
 /* Signatur fest im Code (nicht aus den Einstellungen), damit ein altes offenes Browserfenster sie nicht mehr überschreiben kann.
    Unterhaltsreinigung: Mail unterhalt@, Hotelservice (Absender hotelservice@): Mail hotelservice@ */
 const SIG = { name: 'Sebastian Hidegh', rolle: 'Sachbearbeiter Innendienst', rolleEn: 'Office Administration', direkt: '052 557 02 03' };
+/* Hotelservice (Absender hotelservice@): Signatur Diogo Pereira, Unterhaltsreinigung: Sebastian Hidegh */
+const SIG_HO = { name: 'Diogo Pereira', rolle: 'Sachbearbeiter Innendienst', rolleEn: 'Office Administration', direkt: '052 557 02 12' };
+const sigOf = from => /hotelservice@/i.test(String(from || '')) ? SIG_HO : SIG;
 const sigMail = from => /hotelservice@/i.test(String(from || '')) ? 'hotelservice@clean-service.ch' : 'unterhalt@clean-service.ch';
 function sigHtml(S, iso, lang, from) {
   const en = lang === 'en';
-  return `<div style="font-family:Verdana,Arial,sans-serif;font-size:14px;line-height:1.5;color:#555;margin-top:22px"><div style="color:#4fb3a5">${esc(SIG.name)}</div>${esc(en ? SIG.rolleEn : SIG.rolle)}<br>${en ? 'Direct' : 'Direkt'} ${esc(SIG.direkt)}<br>${esc(sigMail(from))}<br>---------------------------------<br><div style="color:#4fb3a5">Clean Service Scaramuzzo AG</div>Industriestrasse 5<br>8307 Effretikon<br>0844 355 355<div style="margin-top:14px"><img src="${iso}" alt="ISO 9001, 14001, 45001" width="172" height="52" style="display:block;border:0"></div></div>`;
+  return `<div style="font-family:Verdana,Arial,sans-serif;font-size:14px;line-height:1.5;color:#555;margin-top:22px"><div style="color:#4fb3a5">${esc(sigOf(from).name)}</div>${esc(en ? sigOf(from).rolleEn : sigOf(from).rolle)}<br>${en ? 'Direct' : 'Direkt'} ${esc(sigOf(from).direkt)}<br>${esc(sigMail(from))}<br>---------------------------------<br><div style="color:#4fb3a5">Clean Service Scaramuzzo AG</div>Industriestrasse 5<br>8307 Effretikon<br>0844 355 355<div style="margin-top:14px"><img src="${iso}" alt="ISO 9001, 14001, 45001" width="172" height="52" style="display:block;border:0"></div></div>`;
 }
-function sigText(S, lang, from) { const en = lang === 'en'; return `\n\n${SIG.name}\n${en ? SIG.rolleEn : SIG.rolle}\n${en ? 'Direct' : 'Direkt'} ${SIG.direkt}\n${sigMail(from)}\n\nClean Service Scaramuzzo AG\nIndustriestrasse 5\n8307 Effretikon\n0844 355 355`; }
+function sigText(S, lang, from) { const en = lang === 'en'; const G = sigOf(from); return `\n\n${G.name}\n${en ? G.rolleEn : G.rolle}\n${en ? 'Direct' : 'Direkt'} ${G.direkt}\n${sigMail(from)}\n\nClean Service Scaramuzzo AG\nIndustriestrasse 5\n8307 Effretikon\n0844 355 355`; }
 
 /* ---------- Versand über Microsoft 365 (Graph): Mails gehen über das echte Postfach (gleiche Server wie Outlook) ---------- */
 const MS_ON = () => !!(E.MS_TENANT_ID && E.MS_CLIENT_ID && E.MS_CLIENT_SECRET);
