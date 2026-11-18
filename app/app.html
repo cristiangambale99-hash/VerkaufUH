@@ -2757,7 +2757,7 @@ function docLV(o) {
   return `<div class="sheet">${sheetHead(o, 'Leistungsverzeichnis')}${list.length ? `<div class="lvgrid">${list.map(b => {
     let last = '', body = '';
     const co = []; b.ts.forEach(x => { if (!co.includes(x.t.cat)) co.push(x.t.cat); }); b.ts.sort((a, c) => co.indexOf(a.t.cat) - co.indexOf(c.t.cat));
-    b.ts.forEach(x => { if (x.t.cat !== last) { body += `<div class="k">${esc(x.t.cat)}</div>`; last = x.t.cat; } const f = freqCols(x.code); const nur = x.rs.length < b.rooms.length ? [...new Set(x.rs.map(r => r.bez + (r.nr ? ' ' + r.nr : '')))] : null; body += `<div class="e"><span>✓ ${esc(x.t.name)}${nur ? `<br><small class="muted">nur: ${esc(nur.join(', '))}</small>` : ''}</span><span>${esc(x.code)}</span><span>${f[0]}</span><span>${f[1]}</span><span>${f[2]}</span></div>`; });
+    b.ts.forEach(x => { if (x.t.cat !== last) { body += `<div class="k">${esc(x.t.cat)}</div>`; last = x.t.cat; } const f = freqCols(x.code); body += `<div class="e"><span>✓ ${esc(x.t.name)}</span><span>${esc(x.code)}</span><span>${f[0]}</span><span>${f[1]}</span><span>${f[2]}</span></div>`; });
     return `<div class="lvb"><h3><span>${b.g} ${esc(b.nm || GROUP[b.g].name)}</span></h3><div class="e hd"><span>Kategorie, Eintrag</span><span>Code</span><span>Wo</span><span>Mt</span><span>J</span></div>${body}</div>`; }).join('')}</div>` : '<p class="muted">Noch keine Räume mit Reinigungsgruppe.</p>'}</div>`;
 }
 function docLegende(o) {
