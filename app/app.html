@@ -2758,8 +2758,7 @@ function docLV(o) {
     let last = '', body = '';
     const co = []; b.ts.forEach(x => { if (!co.includes(x.t.cat)) co.push(x.t.cat); }); b.ts.sort((a, c) => co.indexOf(a.t.cat) - co.indexOf(c.t.cat));
     b.ts.forEach(x => { if (x.t.cat !== last) { body += `<div class="k">${esc(x.t.cat)}</div>`; last = x.t.cat; } const f = freqCols(x.code); const nur = x.rs.length < b.rooms.length ? [...new Set(x.rs.map(r => r.bez + (r.nr ? ' ' + r.nr : '')))] : null; body += `<div class="e"><span>✓ ${esc(x.t.name)}${nur ? `<br><small class="muted">nur: ${esc(nur.join(', '))}</small>` : ''}</span><span>${esc(x.code)}</span><span>${f[0]}</span><span>${f[1]}</span><span>${f[2]}</span></div>`; });
-    return `<div class="lvb"><h3><span>${b.g} ${esc(b.nm || GROUP[b.g].name)}</span></h3><div class="e hd"><span>Kategorie, Eintrag</span><span>Code</span><span>Wo</span><span>Mt</span><span>J</span></div>${body}
-      ${b.rooms.length > 1 || cnt[b.g] > 1 ? `<div class="who">Gilt für: ${b.rooms.map(r => esc(r.bez + (r.nr ? ' ' + r.nr : ''))).join(', ')}</div>` : ''}</div>`; }).join('')}</div>` : '<p class="muted">Noch keine Räume mit Reinigungsgruppe.</p>'}</div>`;
+    return `<div class="lvb"><h3><span>${b.g} ${esc(b.nm || GROUP[b.g].name)}</span></h3><div class="e hd"><span>Kategorie, Eintrag</span><span>Code</span><span>Wo</span><span>Mt</span><span>J</span></div>${body}</div>`; }).join('')}</div>` : '<p class="muted">Noch keine Räume mit Reinigungsgruppe.</p>'}</div>`;
 }
 function docLegende(o) {
   const used = [...new Set(o.rooms.map(r => r.gruppe).filter(Boolean))].sort();
@@ -4343,7 +4342,7 @@ document.addEventListener('change', e => {
     r.custom = m; save(); renderPanel(true); refreshBesLive(); return; }
   if (t.dataset.gtk || t.dataset.gtkc) { const code = UI.panel.id, id = t.dataset.gtk || t.dataset.gtkc;
     const ed = S.settings.groupEdits[code] = S.settings.groupEdits[code] || {};
-    const base = TASKS[id].codes[code]; const baseNorm = base ? (WEEKLY(base) ? 'R' : base) : null;
+    const base = CGX[code] ? (CGX[code].map || {})[id] : TASKS[id].codes[code]; const baseNorm = base ? (WEEKLY(base) ? 'R' : base) : null;   /* eigene Gruppen: Ausgangswert aus der gespeicherten Gruppe, sonst wurde das Abwählen nie gespeichert */
     const val = t.dataset.gtk ? (t.checked ? (baseNorm || 'R') : null) : t.value;
     if (val === baseNorm) delete ed[id]; else ed[id] = val;
     if (!Object.keys(ed).length) delete S.settings.groupEdits[code];
