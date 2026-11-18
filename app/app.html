@@ -1851,7 +1851,14 @@ function rlgBase(code, a, n) {
   return n <= 1 ? v('1x') : n === 2 ? (v('1x') + v('3x')) / 2 : n === 3 ? v('3x') : n === 4 ? (v('3x') + v('5x')) / 2 : n === 5 ? v('5x') : r5(v('5x') * RHY_F67[fam][n]);
 }
 const rlgStd = (code, a, n = 1) => { const ed = (S.settings.rlG || {})[rlgKey(code, a, n)]; return ed === -1 ? 0 : ed > 0 ? ed : rlgBase(code, a, n); };
-const rlgOf = r => { if (!r.gruppe) return 0; const a = bodenArt(r), n = rhyOf(r), k = rlgKey(r.gruppe, a, n); return (RL_CTX && RL_CTX[k] > 0) ? RL_CTX[k] : rlgStd(r.gruppe, a, n); };
+const rlgOf = r => {
+  if (!r.gruppe) return 0; const a = bodenArt(r), n = rhyOf(r), k = rlgKey(r.gruppe, a, n);
+  if (RL_CTX && RL_CTX[k] > 0) return RL_CTX[k];
+  const sd = rlgStd(r.gruppe, a, n); if (sd > 0) return sd;
+  /* Objektspezifische Leistungszahl nur für einen anderen Rhythmus erfasst (z. B. 7×, Raum läuft aber 3×): nächstliegenden Rhythmus übernehmen, sonst zählt der Raum 0 Stunden */
+  if (RL_CTX) { const alt = [1, 2, 3, 4, 5, 6, 7].filter(m => m !== n && RL_CTX[rlgKey(r.gruppe, a, m)] > 0).sort((x, y) => Math.abs(x - n) - Math.abs(y - n) || y - x)[0]; if (alt) return RL_CTX[rlgKey(r.gruppe, a, alt)]; }
+  return 0;
+};
 /* Leistungszahlen (m²/h): Standard aus den Einstellungen oder pro Offerte angepasst (o.rlMode = 'custom', o.rlOv = {Kategorie: m²/h}) */
 let RL_CTX = null;
 const rlCtx = o => { RL_CTX = o && o.rlMode === 'custom' ? (o.rlOv || {}) : null; };
