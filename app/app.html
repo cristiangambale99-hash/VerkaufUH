@@ -2464,7 +2464,7 @@ const lbgHex = v => /^#[0-9a-f]{6}$/i.test(v || '') ? v.toUpperCase() : '#FFFFFF
 function lbgHtml(cu) { const cur = lbgHex(cu.logoBg); return `<div class="lbgrow" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px"><span class="small muted" style="margin-right:4px">Hintergrund der Logokarte</span>${LBG.map(([h, n]) => `<button type="button" data-act="lbg" data-cid="${cu.id}" data-c="${h}" title="${n}" aria-label="${n}" style="width:26px;height:26px;border-radius:50%;cursor:pointer;padding:0;background:${h};border:${cur === h ? '3px solid #2BB6B7' : '1px solid #c9d6d8'}"></button>`).join('')}<label class="small muted" title="Eigene Farbe" style="display:inline-flex;align-items:center;gap:4px;cursor:pointer"><input type="color" data-lbgc="${cu.id}" value="${cur}" style="width:28px;height:26px;border:1px solid #c9d6d8;border-radius:6px;padding:0;background:none;cursor:pointer">eigene</label></div>`; }
 function logoBarHtml(o) {
   const cu = custOf(o), src = med(cu.logo), has = !!src, tp = o.titel && (o.photos || []).includes(o.titel);
-  return `<div class="logobar ${has ? 'ok' : 'miss'}"><div class="lbimg" style="background:${lbgHex(cu.logoBg)}">${has ? `<img src="${src}" alt="Kundenlogo">` : '–'}</div><div class="lbtx"><b>${has ? 'Kundenlogo hinterlegt' : 'Kundenlogo fehlt noch'}</b><span>${has ? 'Vom Admin-Bereich, wird auf der Offerte übernommen.' : 'Der Admin hat noch kein Logo eingefügt. Die Offerte geht ohne Logo raus, bis es da ist.'}${tp ? ' Titelbild gewählt: Es ersetzt das Bild auf der Titelseite komplett.' : ''}</span>${has ? lbgHtml(cu) : ''}</div></div>`;
+  return `<div class="logobar ${has ? 'ok' : 'miss'}"><div class="lbimg" style="background:${lbgHex(cu.logoBg)}">${has ? `<img src="${src}" alt="Kundenlogo">` : '–'}</div><div class="lbtx"><b>${has ? 'Kundenlogo hinterlegt' : 'Kundenlogo fehlt noch'}</b><span>${has ? 'Vom Admin-Bereich, wird auf der Offerte übernommen. Passt es nicht, hier ersetzen oder entfernen.' : 'Der Admin hat noch kein Logo eingefügt. Die Offerte geht ohne Logo raus, bis es da ist.'}${tp ? ' Titelbild gewählt: Es ersetzt das Bild auf der Titelseite komplett.' : ''}</span><div class="factions" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-start"><label class="btn ${has ? 'btn-s' : 'btn-p'} btn-sm upl">${ico('i-up', 16)}${has ? 'Logo ersetzen' : 'Logo hochladen'}<input type="file" accept="image/*" data-file="logo"></label>${has ? `<button type="button" class="btn btn-g btn-sm" data-act="logoClear" data-id="${cu.id}">Logo entfernen</button>` : ''}</div>${has ? lbgHtml(cu) : ''}</div></div>`;
 }
 function gebFix(o) {
   if (!o.geb || !o.geb.length) o.geb = [{ id: uid(), n: '', a: '' }];
@@ -3195,7 +3195,7 @@ function renderVak() {
   const cnt = f => all.filter(o => f === 'Alle' || vakSt(o) === f).length;
   const rows = all.filter(o => F === 'Alle' || vakSt(o) === F).sort((a, b) => ((a.start || {}).datum || '9').localeCompare((b.start || {}).datum || '9'));
   const stack = o => { const ap = vakOf(o).apps || []; return ap.length ? `<span class="avstack">${ap.slice(0, 4).map(a => avaHtml(a, 30)).join('')}${ap.length > 4 ? `<span class="ava ini more">+${ap.length - 4}</span>` : ''}</span>` : ''; };
-  const stb = o => { const v = vakOf(o), n = (v.apps || []).length; if (v.chosen) { const c = v.apps.find(a => a.id === v.chosen) || {}; return `<span class="badge b-ok">Besetzt · ${esc(c.name || '')}</span>`; }
+  const stb = o => { const v = vakOf(o), n = (v.apps || []).length; if (v.chosen) { const c = v.apps.find(a => a.id === v.chosen) || (v.manual ? { name: v.manual.name || 'Fixdame vorhanden' } : {}); return `<span class="badge b-ok">Besetzt · ${esc(c.name || '')}</span>`; }
     if (!o.sp || !o.sp.id) return '<span class="badge b-warn">Nicht im Stellenportal</span>';
     return n ? `<span class="badge b-info">${n} Bewerbung${n > 1 ? 'en' : ''}</span>` : '<span class="badge b-neutral">Noch keine Bewerbung</span>'; };
   el.innerHTML = phead('Vakanzen', 'Vakanzen', 'Gewonnene Aufträge, für die eine Raumpflegerin gesucht wird. Bewerbungen aus dem Stellenportal erscheinen hier automatisch. Mit «Bestätigen» kommt die Raumpflegerin direkt in den Kunden-Gruppenchat und der Kunde verschwindet aus dem Stellenportal, mit «Absagen» erhält sie eine Absage in Beekeeper.', `<button class="btn btn-s" data-act="vakLoadAll"><span class="ld" data-loader></span>${ico('i-down')}Bewerbungen abrufen</button>`) + `
@@ -3261,6 +3261,23 @@ async function vakConfirm(o, a) {
   logO(o, `Vakanz: ${a.name} bestätigt` + (res.some(x => !x.ok) ? ' (mit offenen Punkten)' : '')); delete VAK_BUSY[k];
   save(); toast(res.some(x => !x.ok) ? 'Bestätigt, aber nicht alles hat geklappt (siehe Karte)' : `${a.name} ist eingeteilt`, res.some(x => !x.ok) ? 'warning' : 'sparkle'); vakDone(o, v, a);
 }
+/* Von Hand auf «Besetzt»: Kunde hat schon eine Fixdame (z. B. bereits gestartet). Keine Nachricht an Bewerberinnen, Kunde wird nur aus dem Stellenportal genommen. */
+async function vakManual(o, name) {
+  const v = vakOf(o), k = o.id + '|manual', res = [];
+  if (VAK_BUSY[k] || v.chosen) return; VAK_BUSY[k] = 1; toast('Wird ausgeführt …', 'info');
+  if (!v.spOff && o.sp && o.sp.id) {
+    if (!BE_ON) res.push({ ok: false, t: 'Stellenportal nicht erreichbar (nur in der Live-Version): Kunde bitte dort von Hand entfernen' });
+    else { try { const j = await spCall({ action: 'vergeben', id: o.sp.id }); v.spOff = !!j.ok; res.push({ ok: !!j.ok, t: j.ok ? 'Kunde aus dem Stellenportal genommen' : 'Stellenportal: ' + (j.error || 'fehlgeschlagen') }); } catch (e) { res.push({ ok: false, t: 'Stellenportal: ' + e.message }); } }
+  }
+  o = vakLive(o, v); v.chosen = 'manual'; v.chosenAt = isoDay(TODAY); v.manual = { name: String(name || '').trim(), at: isoDay(TODAY), by: (typeof vakNoteBy === 'function' ? vakNoteBy() : '') || '' }; v.done = res.length ? res : null;
+  logO(o, 'Vakanz: von Hand auf «Besetzt» gesetzt' + (v.manual.name ? ' (' + v.manual.name + ')' : ' (Fixdame vorhanden)') + (res.some(x => !x.ok) ? ', mit offenen Punkten' : '')); delete VAK_BUSY[k];
+  save(); toast(res.some(x => !x.ok) ? 'Auf «Besetzt» gesetzt, aber nicht alles hat geklappt (siehe Karte)' : 'Auf «Besetzt» gesetzt', res.some(x => !x.ok) ? 'warning' : 'check'); vakDone(o, v);
+}
+function vakReopen(o) {
+  const v = vakOf(o); if (v.chosen !== 'manual') return;
+  o = vakLive(o, v); delete v.chosen; delete v.chosenAt; delete v.manual; v.done = null;
+  logO(o, 'Vakanz: von Hand wieder auf «Offen» gesetzt'); save(); toast('Wieder offen', 'info'); vakDone(o, v);
+}
 /* Absagen: Absage-Nachricht in Beekeeper */
 async function vakReject(o, a) {
   const v = vakOf(o), k = o.id + '|' + a.id, res = [], T = vakTexts(o, a);
@@ -3318,6 +3335,9 @@ function vakPanelHtml(o) {
     <div class="sec-t">Berechnung des Verkäufers</div>${vakCalcHtml(o)}
     <div class="sec-t" style="display:flex;justify-content:space-between;align-items:center">Bewerbungen (${ap.length})${0 ? '' : `<button type="button" class="btn btn-s btn-sm" data-act="vakLoad" data-id="${o.id}"><span class="ld" data-loader></span>Aktualisieren</button>`}</div>
     ${ap.length ? `<div class="apps">${ap.map(appCard).join('')}</div>` : `<p class="muted small">Noch keine Bewerbung. Sobald sich jemand im Stellenportal auf diesen Kunden bewirbt, erscheint sie hier mit Foto aus Beekeeper.</p>`}
+    ${!v.chosen ? `<div class="sec-t">Bereits besetzt?</div><p class="muted small" style="margin:0 0 8px">Hat der Kunde schon eine Fixdame (z. B. bereits gestartet)? Dann hier von Hand auf «Besetzt» setzen. Es geht keine Nachricht an Bewerberinnen.</p><div class="field"><label for="vmName">Name der Raumpflegerin (optional)</label><input id="vmName" placeholder="z. B. Maria Muster"></div><div class="vbtns"><button type="button" class="btn btn-s btn-sm" data-act="vakManual" data-id="${o.id}">${ico('i-ok', 16)}Als besetzt markieren</button></div>`
+      : v.chosen === 'manual' ? `<div class="sec-t">Besetzt von Hand</div><p class="small" style="margin:0 0 8px">${v.manual && v.manual.name ? esc(v.manual.name) + ' · ' : ''}am ${esc(fmtDay(v.chosenAt))}${v.manual && v.manual.by ? ' von ' + esc(v.manual.by) : ''}</p><div class="vbtns"><button type="button" class="btn btn-g btn-sm" data-act="vakReopen" data-id="${o.id}">Wieder auf «Offen» setzen</button></div>` : ''}
+    ${v.chosen && !v.spOff && o.sp && o.sp.id ? `<div class="warnbox" style="margin-top:12px">${ico('i-warn')}<div>Der Kunde ist noch im Stellenportal ausgeschrieben. <button type="button" class="btn btn-s btn-sm" data-act="vakSpOff" data-id="${o.id}" style="margin-top:6px">Aus dem Stellenportal nehmen</button></div></div>` : ''}
     ${vakNotesHtml(o)}
     ${v.done ? `<div class="sec-t">Erledigt</div><div class="vdone">${v.done.map(x => `<div class="${x.ok ? 'ok' : 'err'}">${x.ok ? '✓' : '⚠'} ${esc(x.t)}</div>`).join('')}</div>` : ''}
   </div>`;
@@ -3978,7 +3998,7 @@ const ACT = {
   pickLogo: () => { const f = $('#plogoFile'); f && f.click(); },
   plogoClear: () => { if (UI.plan) { UI.plan.logoNew = ''; UI.plan.logoCur = ''; UI.plan.logoRemoved = true; const z = $('#ldrop'); if (z) z.closest('.field').innerHTML = '<label>Firmenlogo für die Offerte</label>' + planLogoHtml(); } },
   lbg: el => { const cu = S.customers.find(c => c.id === el.dataset.cid); if (!cu) return; cu.logoBg = el.dataset.c; save(); render(); if (UI.panel) renderPanel(true); },
-  logoClear: el => { const cu = S.customers.find(c => c.id === el.dataset.id); if (cu) { cu.logo = null; cu.logoAuto = false; save(); renderPanel(true); } },
+  logoClear: el => { const cu = S.customers.find(c => c.id === el.dataset.id); if (cu) { cu.logo = null; cu.logoAuto = false; save(); renderPanel(true); if (UI.view === 'bes') renderBes(); toast('Logo entfernt', 'info'); } },
   pdf: el => exportPdf(objOf(el.dataset.id), el, el.dataset.lang || mlang(objOf(el.dataset.id))),
   lvPdf: el => exportLvPdf(objOf(el.dataset.id), el.dataset.lang || 'de', el),
   pickPlan: () => { const f = $('#planFile'); f && f.click(); },
@@ -4115,6 +4135,12 @@ const ACT = {
   vakLoadAll: async el => { el.classList.add('busy'); for (const o of vakObjs().filter(o => !vakOf(o).chosen)) await vakLoad(o, null, true); el.classList.remove('busy'); renderVak(); toast('Bewerbungen aktualisiert', 'check'); },
   vakYes: el => { const o = objOf(el.dataset.id), v = vakOf(o), a = (v.apps || []).find(x => x.id === el.dataset.a); if (!a) return; const st = startTxt(o);
     askYN(`${a.name} bestätigen?`, `${a.name} wird dem Gruppenchat «${(o.bk && o.bk.title) || custOf(o).firma}» hinzugefügt und erhält dort die Nachricht zum Start${st ? ' (' + st + ')' : ''}.${v.spOff ? '' : ' Der Kunde wird aus dem Stellenportal genommen.'}`, 'Ja, bestätigen', () => vakConfirm(o, a)); },
+  vakManual: el => { const o = objOf(el.dataset.id); if (!o || vakOf(o).chosen) return; const i = $('#vmName'), nm = i ? i.value.trim() : '';
+    askYN('Auf «Besetzt» setzen?', `${custOf(o).firma} hat bereits eine Fixdame${nm ? ' (' + nm + ')' : ''}. Der Kunde wechselt auf «Besetzt»${(!vakOf(o).spOff && o.sp && o.sp.id) ? ' und wird aus dem Stellenportal genommen' : ''}. Es wird keine Nachricht an Bewerberinnen gesendet.`, 'Ja, besetzt', () => vakManual(o, nm)); },
+  vakSpOff: async el => { const o = objOf(el.dataset.id); if (!o || !o.sp || !o.sp.id) return; const v = vakOf(o); if (v.spOff) return; if (!BE_ON) { toast('Nur in der Live-Version verfügbar', 'info'); return; }
+    toast('Wird ausgeführt …', 'info'); let ok = false, err = ''; try { const j = await spCall({ action: 'vergeben', id: o.sp.id }); ok = !!j.ok; err = j.error || ''; } catch (e) { err = e.message; }
+    if (ok) { v.spOff = true; v.done = (v.done || []).filter(x => !/Stellenportal/.test(x.t)); logO(o, 'Vakanz: Kunde aus dem Stellenportal genommen'); save(); toast('Kunde aus dem Stellenportal genommen', 'check'); } else toast('Stellenportal: ' + (err || 'fehlgeschlagen'), 'warning'); vakDone(o, v); },
+  vakReopen: el => { const o = objOf(el.dataset.id); if (!o) return; askYN('Wieder auf «Offen» setzen?', 'Der Kunde erscheint wieder bei den offenen Vakanzen. Im Stellenportal bleibt er entfernt und muss dort bei Bedarf neu eingestellt werden.', 'Ja, wieder offen', () => vakReopen(o)); },
   vakNo: el => { const o = objOf(el.dataset.id), v = vakOf(o), a = (v.apps || []).find(x => x.id === el.dataset.a); if (!a) return;
     askYN(`${a.name} absagen?`, `${a.name} erhält in Beekeeper eine freundliche Absage für ${custOf(o).firma}.`, 'Ja, absagen', () => vakReject(o, a)); },
 
@@ -4405,7 +4431,7 @@ function handleFile(t) {
     const o = (curObj() && curObj().id === oId) ? curObj() : (S.objects.find(x => x.id === oId) || curObj());   // Objekt erst jetzt holen: es kann zwischenzeitlich durch eine Synchronisierung ersetzt worden sein
     const keys = list.map(d => mediaPut(d));
     if (k === 'card') custOf(o).card = keys[0];
-    if (k === 'logo') { const cu = (UI.panel && UI.panel.type === 'kun') ? S.customers.find(c => c.id === UI.panel.id) : custOf(o); if (cu) { cu.logo = keys[0]; cu.logoAuto = false; } save(); renderPanel(true); toast('Logo gespeichert', 'upload'); return; }
+    if (k === 'logo') { const cu = (UI.panel && UI.panel.type === 'kun') ? S.customers.find(c => c.id === UI.panel.id) : custOf(o); if (cu) { cu.logo = keys[0]; cu.logoAuto = false; } save(); renderPanel(true); if (UI.view === 'bes') renderBes(); toast('Logo gespeichert', 'upload'); return; }
     if (k === 'photos') o.photos.push(...keys);
     if (k === 'skizze') o.skizze.push(...keys);
     if (k === 'room') { const x = curRoom(); if (x) x[1].photos.push(...keys); renderPanel(true); }
