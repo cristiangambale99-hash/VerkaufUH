@@ -31,6 +31,8 @@ async function hotelNf(rows, g, T, dry, out) {
     const h = JSON.parse(JSON.stringify(r.data || {})); if (!h.id) continue;
     const st = JSON.parse(JSON.stringify(nfs[h.id] || { id: h.id, nf: 0, nfDates: [], log: [] })); let ch = false, hch = false;
     const lg = m => { (st.log = st.log || []).push([T, m]); ch = true; };
+    if (h.nfReset && st.rs !== h.nfReset && !dry) { st.nf = 0; st.nfDates = []; st.rs = h.nfReset; delete st.closed; ch = true; }   // angepasste Offerte gesendet: Nachfassung startet neu
+    if (h.revising) { if (ch && !dry) await rpc('api_doc_put', { p_path: 'hotelnf/' + h.id, p_data: st }); continue; }   // in Anpassung: nicht nachfassen
     const sent = String(h.sent || '').slice(0, 10), to = String(h.email || '').trim();
     const send = async (k, closeDue) => {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) { out.push({ nr: h.nr, k, skip: 'keine E-Mail' }); return false; }
