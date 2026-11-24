@@ -161,3 +161,9 @@
 /*print*/
 .doc [contenteditable]:hover { outline: rgb(43, 182, 183) dashed 1px; outline-offset: 2px; }
 .doc [contenteditable]:focus { outline: rgb(27, 131, 132) solid 1.5px; outline-offset: 2px; background: rgb(251, 254, 254); }
+/* Auf einen Blick mit 7 Kacheln: 3 + 2 + 2 */
+.doc .kpis.k7 { grid-template-columns: repeat(6, 1fr); }
+.doc .kpis.k7 .kpi { grid-column: span 2; border-right: 0.6pt solid rgb(217, 230, 232); border-top: 0; padding: 4.5mm 4mm; }
+.doc .kpis.k7 .kpi:nth-child(n+4) { grid-column: span 3; border-top: 0.6pt solid rgb(217, 230, 232); }
+.doc .kpis.k7 .kpi:nth-child(1), .doc .kpis.k7 .kpi:nth-child(4), .doc .kpis.k7 .kpi:nth-child(6) { padding-left: 0; }
+.doc .kpis.k7 .kpi:nth-child(3), .doc .kpis.k7 .kpi:nth-child(5), .doc .kpis.k7 .kpi:nth-child(7) { border-right: 0; }
