@@ -4537,8 +4537,13 @@ function uhDocData(o, url) {
     roomTasks(r).forEach(x => { const k = lvKey(x); if (!b.tm.has(k)) b.tm.set(k, { cat: x.t.cat, name: x.t.name, code: x.code, f: freqCols(x.code), rs: [] }); { const en = b.tm.get(k); en.ri = en.ri || new Set(); if (!en.ri.has(r.id)) { en.ri.add(r.id); en.rs.push(rnm(r)); } } }); });
   const rgs = {}; o.rooms.filter(r => r.gruppe && r.dispo !== 'E').forEach(r => (rgs[r.gruppe] = rgs[r.gruppe] || new Set()).add(rGName(r)));
   Object.values(blocks).forEach(b => { const ns = rgs[b.g]; if (ns && ns.size > 1) b.nm = grpPlain((GROUP[b.g] || {}).name) || b.nm; });
+  /* Gleich benannte Gruppen (z. B. mehrere «Büro»): nur dann kommt der Turnus in den Titel, z. B. «Büro 2x pro Woche» */
+  const grpRh = g => { const ds = [...new Set(o.rooms.filter(r => r.gruppe === g && r.dispo !== 'E').map(r => r.dispo))]; if (ds.length === 1 && /^\d+x$/i.test(ds[0])) return ds[0].toLowerCase() + ' pro Woche'; const m = /(\d+)\s*[×x]\s*(?:pro Woche|\/\s*W)?\s*$/i.exec(String((GROUP[g] || {}).name || '')); return m ? m[1] + 'x pro Woche' : ''; };
+  const nmCnt = {}; [...new Set(o.rooms.filter(r => r.gruppe && r.dispo !== 'E').map(r => r.gruppe))].forEach(g => { const k = (grpPlain((GROUP[g] || {}).name) || '').toLowerCase(); if (k) nmCnt[k] = (nmCnt[k] || 0) + 1; });
+  const withRh = (g, nm) => { const base = grpPlain(nm || (GROUP[g] || {}).name) || ''; return base && nmCnt[base.toLowerCase()] > 1 && grpRh(g) ? base + ' ' + grpRh(g) : base; };
+  Object.values(blocks).forEach(b => { b.nm = withRh(b.g, b.nm); });
   const lv = Object.values(blocks).sort((a, b) => a.g.localeCompare(b.g) || (a.nm || '').localeCompare(b.nm || '')).map(b => { const co = []; const ts = [...b.tm.values()]; ts.forEach(x => { if (!co.includes(x.cat)) co.push(x.cat); }); return { g: b.g, nm: b.nm, rooms: b.rooms, ts: ts.map((x, i) => ({ x, i })).sort((a, c) => co.indexOf(a.x.cat) - co.indexOf(c.x.cat) || a.i - c.i).map(({ x }) => ({ cat: x.cat, name: x.name, code: x.code, f: x.f, nur: x.rs.length < b.rooms.length ? [...new Set(x.rs)] : null })) }; });
-  const used = [...new Set(o.rooms.map(r => r.gruppe).filter(Boolean))].sort().map(g => [g, grpPlain((GROUP[g] || {}).name) || g]);
+  const used = [...new Set(o.rooms.map(r => r.gruppe).filter(Boolean))].sort().map(g => [g, withRh(g, '') || g]);
   const codes = new Set(); o.rooms.forEach(r => roomTasks(r).forEach(x => codes.add(x.code))); o.rooms.forEach(r => codes.add(r.dispo));
   const dispo = DISPO.filter(d => codes.has(d.code)).map(d => [d.code, d.label, d.code === 'B' ? 'nach Bedarf' : d.code === 'E' ? 'durch Kunde' : d.perYear + ' Ausführungen / Jahr']);
   const bod = [...new Set(o.rooms.map(r => r.boden).filter(Boolean))].map(b => [bodenCode(b), bodenText(b)]);
