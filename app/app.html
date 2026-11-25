@@ -2753,9 +2753,10 @@ const lvKey = x => x.t.custom ? 'x|' + x.t.cat + '|' + String(x.t.name || '').tr
 function docLV(o) {
   const blocks = {};
   o.rooms.filter(r => r.gruppe).forEach(r => {
-    const sig = r.gruppe + '#' + rGName(r); const b = blocks[sig] || (blocks[sig] = { g: r.gruppe, nm: rGName(r), ts: [], tk: new Map(), rooms: [] }); b.rooms.push(r);
+    const sig = r.gruppe; const b = blocks[sig] || (blocks[sig] = { g: r.gruppe, nm: rGName(r), ts: [], tk: new Map(), rooms: [] }); b.rooms.push(r);
     roomTasks(r).forEach(x => { const k = lvKey(x); if (!b.tk.has(k)) { const e = { ...x, rs: [] }; b.tk.set(k, e); b.ts.push(e); } b.tk.get(k).rs.push(r); });
   });
+  Object.values(blocks).forEach(b => { const ns = new Set(b.rooms.map(rGName)); b.nm = ns.size === 1 ? [...ns][0] : ((GROUP[b.g] || {}).name || b.nm); });
   const list = Object.values(blocks).sort((a, b) => a.g.localeCompare(b.g));
   const cnt = {}; list.forEach(b => cnt[b.g] = (cnt[b.g] || 0) + 1);
   return `<div class="sheet">${sheetHead(o, 'Leistungsverzeichnis')}${list.length ? `<div class="lvgrid">${list.map(b => {
@@ -4532,8 +4533,10 @@ function uhDocData(o, url) {
   /* Mehrere Gebäude: je Gebäude ein Band (Gebäude A · Name) mit eigener Stundensumme, darunter die Geschosse */
   const rb = gebGroups(o).flatMap(x => x.g ? [{ gb: gebLabel(x), h: x.rooms.reduce((a, r) => a + roomCalc(r).hours, 0), area: x.rooms.reduce((a, r) => a + (r.flaeche || 0), 0) }].concat(flOf(x.rooms)) : flOf(x.rooms));
   const blocks = {}, rnm = r => String(r.bez || '').trim() + (r.nr ? ' ' + r.nr : '');
-  o.rooms.filter(r => r.gruppe && r.dispo !== 'E').forEach(r => { const bk = r.gruppe + '#' + rGName(r); const b = blocks[bk] || (blocks[bk] = { g: r.gruppe, nm: grpPlain(rGName(r) || (GROUP[r.gruppe] || {}).name) || '', tm: new Map(), rooms: [] }); b.rooms.push(rnm(r));
+  o.rooms.filter(r => r.gruppe && r.dispo !== 'E').forEach(r => { const bk = r.gruppe; const b = blocks[bk] || (blocks[bk] = { g: r.gruppe, nm: grpPlain(rGName(r) || (GROUP[r.gruppe] || {}).name) || '', tm: new Map(), rooms: [] }); b.rooms.push(rnm(r));
     roomTasks(r).forEach(x => { const k = lvKey(x); if (!b.tm.has(k)) b.tm.set(k, { cat: x.t.cat, name: x.t.name, code: x.code, f: freqCols(x.code), rs: [] }); b.tm.get(k).rs.push(rnm(r)); }); });
+  const rgs = {}; o.rooms.filter(r => r.gruppe && r.dispo !== 'E').forEach(r => (rgs[r.gruppe] = rgs[r.gruppe] || new Set()).add(rGName(r)));
+  Object.values(blocks).forEach(b => { const ns = rgs[b.g]; if (ns && ns.size > 1) b.nm = grpPlain((GROUP[b.g] || {}).name) || b.nm; });
   const lv = Object.values(blocks).sort((a, b) => a.g.localeCompare(b.g) || (a.nm || '').localeCompare(b.nm || '')).map(b => { const co = []; const ts = [...b.tm.values()]; ts.forEach(x => { if (!co.includes(x.cat)) co.push(x.cat); }); return { g: b.g, nm: b.nm, rooms: b.rooms, ts: ts.map((x, i) => ({ x, i })).sort((a, c) => co.indexOf(a.x.cat) - co.indexOf(c.x.cat) || a.i - c.i).map(({ x }) => ({ cat: x.cat, name: x.name, code: x.code, f: x.f, nur: x.rs.length < b.rooms.length ? [...new Set(x.rs)] : null })) }; });
   const used = [...new Set(o.rooms.map(r => r.gruppe).filter(Boolean))].sort().map(g => [g, grpPlain((GROUP[g] || {}).name) || g]);
   const codes = new Set(); o.rooms.forEach(r => roomTasks(r).forEach(x => codes.add(x.code))); o.rooms.forEach(r => codes.add(r.dispo));
@@ -5022,8 +5025,9 @@ async function drawSheets(ctx, which) {
   const blocks = {};
   const rn = r => roomName(lang, r.bez) + (r.nr ? ' ' + r.nr : '');
   const gnOwn = r => String(r.gName || '').trim();
-  o.rooms.filter(r => r.gruppe && r.dispo !== 'E').forEach(r => { const bk = r.gruppe + '#' + gnOwn(r); const g = blocks[bk] || (blocks[bk] = { g: r.gruppe, nm: gnOwn(r), rooms: [], tm: new Map() }); g.rooms.push(r);
+  o.rooms.filter(r => r.gruppe && r.dispo !== 'E').forEach(r => { const bk = r.gruppe; const g = blocks[bk] || (blocks[bk] = { g: r.gruppe, nm: gnOwn(r), rooms: [], tm: new Map() }); g.rooms.push(r);
     roomTasks(r).forEach(x => { const k = lvKey(x); if (!g.tm.has(k)) g.tm.set(k, { e: x, rs: [] }); g.tm.get(k).rs.push(r); }); });
+  Object.values(blocks).forEach(b => { const ns = new Set(b.rooms.map(gnOwn)); if (ns.size > 1) b.nm = ''; });
   const list = Object.values(blocks).sort((a, b) => a.g.localeCompare(b.g) || (a.nm || '').localeCompare(b.nm || ''));
   list.forEach(b => { b.ts = [...b.tm.values()].map(v => ({ ...v.e, sub: v.rs.length < b.rooms.length ? v.rs.map(rn) : null }));
     const co = []; b.ts.forEach(x => { if (!co.includes(x.t.cat)) co.push(x.t.cat); }); b.ts = b.ts.map((x, i) => ({ x, i })).sort((a, c) => co.indexOf(a.x.t.cat) - co.indexOf(c.x.t.cat) || a.i - c.i).map(z => z.x); });
@@ -5070,7 +5074,7 @@ async function drawSheets(ctx, which) {
   const bods = [...new Set(o.rooms.map(r => r.boden).filter(Boolean))];
   let gy = 264;
   const sec = (title, rows) => { t8(lg, title, 32.7, gy, { bold: true, size: 11 }); gy += 14; rows.forEach(([a, b2, c2]) => { t8(lg, a, 32.7, gy); t8(lg, b2, 115, gy); if (c2) t8(lg, c2, 284, gy); gy += 14; }); gy += 16; };
-  { const seenG = new Set(), rowsG = []; o.rooms.filter(r => r.dispo !== 'E' && r.gruppe).sort((a, b) => a.gruppe.localeCompare(b.gruppe)).forEach(r => { const nm = String(r.gName || '').trim() || TR.group(lang, r.gruppe), k = r.gruppe + '#' + nm; if (seenG.has(k)) return; seenG.add(k); rowsG.push([r.gruppe, nm, '']); }); sec(U('ug'), rowsG); }
+  { const seenG = new Set(), rowsG = []; o.rooms.filter(r => r.dispo !== 'E' && r.gruppe).sort((a, b) => a.gruppe.localeCompare(b.gruppe)).forEach(r => { const same = o.rooms.filter(x => x.dispo !== 'E' && x.gruppe === r.gruppe), own = new Set(same.map(x => String(x.gName || '').trim())), nm = own.size === 1 && [...own][0] ? [...own][0] : TR.group(lang, r.gruppe), k = r.gruppe; if (seenG.has(k)) return; seenG.add(k); rowsG.push([r.gruppe, nm, '']); }); sec(U('ug'), rowsG); }
   sec(U('ud'), DISPO.filter(d => codes.has(d.code)).map(d => [d.code, TR.dispo(lang, d), d.code === 'B' ? U('need') : d.code === 'E' ? ({ de: 'durch Kunde', en: 'by client', it: 'cliente' }[lang] || 'durch Kunde') : d.perYear + ' ' + U('py')]));
   sec(U('ub'), bods.map(b => [bodenCodeL(lang, b), TR.boden(lang, b), '']));
   }
