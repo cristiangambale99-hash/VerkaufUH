@@ -845,6 +845,7 @@ const GROUPS = CATALOG.groups;
 const GROUP = Object.fromEntries(GROUPS.map(g => [g.code, g]));
 const DISPO = CATALOG.dispo;
 DISPO.splice(DISPO.findIndex(d => d.code === '5x') + 1, 0, { code: '6x', label: '6× pro Woche', perYear: 312 }, { code: '7x', label: '7× pro Woche', perYear: 364 });
+DISPO.splice(DISPO.findIndex(d => d.code === 'M') + 1, 0, { code: '6J', label: '6× pro Jahr (alle 2 Monate)', perYear: 6 });
 DISPO.push({ code: 'E', label: 'Eigenreinigung durch den Kunden', perYear: 0 });
 const DISPO_BY = Object.fromEntries(DISPO.map(d => [d.code, d]));
 const WEEKLY = c => /^\dx$/.test(c);
@@ -1288,6 +1289,34 @@ async function annPrep(o, m) {
   try { const url = await annPut(o); return { m: annMail(m, url, o), extra: { annahme: o.nr } }; }
   catch (e) { console.error(e); toast('Knopf «Offerte annehmen» konnte nicht eingefügt werden, die Offerte geht ohne Knopf raus.', 'warning'); return { m, extra: null }; }
 }
+/* Reporting UH: jede Auftragserteilung wird im Reporting-Tool (Firebase, Abteilung «Unterhaltsreinigung») als Erteilung erfasst. Pro Offerte nur einmal (feste ID), Fehler stören den Ablauf nicht. */
+const REP = { proj: 'reporting-clean-service', key: 'AIzaSyB7fzA-CpVf1TLfLD0Y2mJKTOQhROhJGA4', coll: 'pfs_storage' };
+const REP_DL = { buero: 'Büroreinigung', praxis: 'Praxisreinigung', fitness: 'Fitness und Wellness', restaurant: 'Restaurants', schule: 'Schulhäuser', verkauf: 'Ladenlokale', industrie: 'Unterhaltsreinigung', wohnbau: 'Treppenhausreinigung', kita: 'Kitas', hotel: 'Hotel und Housekeeping' };
+async function repErteilung(o) {
+  if (!o || o.richt || o.repAt || o.repBusy || o.live === false) return;
+  o.repBusy = true;
+  try {
+    const cu = custOf(o), day = o.auftragAm || (o.annahme && o.annahme.d ? String(o.annahme.d).slice(0, 10) : '') || isoDay(new Date());
+    const entry = { id: 'vt-' + o.id, kunde: String(cu.firma || o.name || o.nr || '').trim(), datum: day, dienstleistung: REP_DL[o.art] || 'Unterhaltsreinigung', wer: String(o.verkaeufer || '').trim().split(/\s+/)[0] || 'Verkaufstool' };
+    if (!entry.kunde) throw new Error('Kundenname fehlt');
+    const docKey = 'pfs-reporting:unterhaltsreinigung:' + day.slice(0, 7);
+    const url = `https://firestore.googleapis.com/v1/projects/${REP.proj}/databases/(default)/documents/${REP.coll}/${encodeURIComponent(docKey)}`;
+    for (let i = 0; i < 4; i++) {
+      let val = { anfragen: [], erteilungen: [] }, pre = 'currentDocument.exists=false';
+      const g = await fetch(url + '?key=' + REP.key);
+      if (g.ok) { const d = await g.json(); try { val = JSON.parse(d.fields.value.stringValue); } catch (e) {} pre = 'currentDocument.updateTime=' + encodeURIComponent(d.updateTime); }
+      else if (g.status !== 404) throw new Error('Reporting lesen ' + g.status);
+      val.anfragen = val.anfragen || []; val.erteilungen = val.erteilungen || [];
+      if (val.erteilungen.some(e => e.id === entry.id)) { o.repAt = isoDay(new Date()); save(); return; }
+      val.erteilungen.push(entry); val.erteilungen.sort((a, b) => String(a.datum).localeCompare(String(b.datum)));
+      const p = await fetch(`${url}?key=${REP.key}&updateMask.fieldPaths=key&updateMask.fieldPaths=value&${pre}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields: { key: { stringValue: docKey }, value: { stringValue: JSON.stringify(val) } } }) });
+      if (p.ok) { o.repAt = isoDay(new Date()); logO(o, 'Im Reporting als Auftragserteilung erfasst'); save(); return; }
+      if (p.status !== 400 && p.status !== 409 && p.status !== 412) throw new Error('Reporting schreiben ' + p.status);
+    }
+    throw new Error('Reporting war mehrfach gleichzeitig in Bearbeitung');
+  } catch (e) { console.error(e); toast('Reporting-Eintrag konnte nicht angelegt werden, bitte im Reporting-Tool von Hand erfassen.', 'warning'); }
+  finally { o.repBusy = false; }
+}
 /* Online-Annahmen vom Server übernehmen (Status «Gewonnen») und den Reinigungsstart anstossen */
 function annApply() {
   if (!READY) return; let ch = false;
@@ -1295,7 +1324,7 @@ function annApply() {
     o.annahme = Object.assign({}, a, { seen: false });
     if (o.status !== 'gewonnen') { o.status = 'gewonnen'; o.revOpen = false; o.aktiv = false; o.aktivAb = a.vb ? (a.vb.length === 7 ? a.vb + '-01' : a.vb) : ''; logO(o, 'Auftragserteilung erhalten, Nachfassung beendet'); }
     if (o.aktiv === undefined) { o.aktiv = false; o.aktivAb = a.vb ? (a.vb.length === 7 ? a.vb + '-01' : a.vb) : ''; }
-    logO(o, `Reinigungsvertrag online unterzeichnet von ${a.name}${a.funktion ? ' (' + a.funktion + ')' : ''}${a.vbTxt ? ', Vertragsbeginn ' + a.vbTxt : ''}${a.d ? ', Startbesprechung ' + a.slotTxt + ' mit ' + (a.calName || 'Objektleiter') : ''}`); ch = true; });
+    logO(o, `Reinigungsvertrag online unterzeichnet von ${a.name}${a.funktion ? ' (' + a.funktion + ')' : ''}${a.vbTxt ? ', Vertragsbeginn ' + a.vbTxt : ''}${a.d ? ', Startbesprechung ' + a.slotTxt + ' mit ' + (a.calName || 'Objektleiter') : ''}`); ch = true; repErteilung(o); });
   if (ch) save();
   const o = S.objects.find(x => x.annahme && !x.annahme.seen && !ANN_SHOWN.has(x.id));
   if (o && !document.getElementById('startDlg') && !document.getElementById('annDlg')) {
@@ -3638,6 +3667,7 @@ function setStatus(o, v) {
   const labels = { erfassung: 'Zurück in Erfassung', freigabe: 'Entwurf erstellt', freigegeben: 'Entwurf', versendet: 'Offerte an Kunden gesendet', gewonnen: 'Auftragserteilung erhalten, Nachfassung beendet', verloren: 'Abgesagt, Nachfassung beendet' };
   if (v === 'gewonnen' && prev !== 'gewonnen') { o.aktiv = false; o.auftragAm = isoDay(TODAY); }
   logO(o, labels[v]); save();
+  if (v === 'gewonnen' && prev !== 'gewonnen') repErteilung(o);
   if (v === 'gewonnen' && prev !== 'gewonnen') setTimeout(() => { if (BE_ON) openStartDlg(o, true); else toast('Reinigungsstart nur mit Server möglich', 'warning'); }, 80);
   const keys = { freigegeben: 'check', versendet: 'sent', gewonnen: 'sparkle', verloren: 'info', erfassung: 'info', freigabe: 'invoice' };
   toast(`${labels[v]}${o.nr ? ' · ' + o.nr : ''}`, keys[v]);
